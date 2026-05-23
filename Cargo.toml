@@ -1,25 +1,28 @@
-# Agent Armor 1.0 — workspace root
-# M1 "Fortezza Foundation" + M2 "Signed Receipts" inside the workspace.
-# Future milestones add: armor-apl (M3), armor-reasoning (M3.5),
-# armor-kernel (M4). Mesh deferred to 1.1. Licensed under BUSL-1.1
-# with Change License: Apache-2.0 (auto-converts 4 years after each
-# release; see LICENSE + docs/adr/0002-open-source-license-and-scope.md).
+# IAGA Sentinel — workspace root
+# 1.0 ("Fortezza") shipped M1–M6: workspace split + Receipts + APL +
+# Reasoning + Kernel scaffold + APL live overlay. 1.1 is a
+# consolidation release: binary swap, runtime behaviour identical to
+# 1.0.0, public docs reconciled to make the OSS↔Enterprise boundary
+# unambiguous (see IAGA_SENTINEL_1.1.md + docs/adr/0010-oss-enterprise-boundary.md).
+# Licensed under BUSL-1.1 with Change License: Apache-2.0
+# (auto-converts 4 years after each release; see LICENSE +
+# docs/adr/0002-open-source-license-and-scope.md).
 
 [workspace]
 resolver = "2"
 members = [
-    "crates/armor-core",
-    "crates/armor-receipts",
-    "crates/armor-apl",
-    "crates/armor-reasoning",
-    "crates/armor-kernel",
+    "crates/iaga-sentinel-core",
+    "crates/iaga-sentinel-receipts",
+    "crates/iaga-sentinel-apl",
+    "crates/iaga-sentinel-reasoning",
+    "crates/iaga-sentinel-kernel",
 ]
 
 [workspace.package]
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 license = "BUSL-1.1"
-repository = "https://github.com/EdoardoBambini/Agent-Armor-Iaga"
+repository = "https://github.com/EdoardoBambini/IAGA-Sentinel"
 authors = ["Edoardo Bambini"]
 
 [workspace.dependencies]
@@ -32,7 +35,7 @@ tracing = "0.1"
 thiserror = "2"
 async-trait = "0.1"
 anyhow = "1"
-# crypto primitives for armor-receipts (Ed25519 + SHA-256)
+# crypto primitives for iaga-sentinel-receipts (Ed25519 + SHA-256)
 ed25519-dalek = { version = "2", features = ["rand_core"] }
 sha2 = "0.10"
 rand = "0.8"

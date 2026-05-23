@@ -1,7 +1,7 @@
 {
-  "name": "@agent-armor/sdk",
+  "name": "@iaga-sentinel/sdk",
   "version": "0.4.0",
-  "description": "Agent Armor TypeScript SDK for zero-trust governance of AI agent actions",
+  "description": "IAGA Sentinel TypeScript SDK for zero-trust governance of AI agent actions",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -17,6 +17,6 @@
   "files": ["dist", "README.md"],
   "repository": {
     "type": "git",
-    "url": "https://github.com/EdoardoBambini/Agent-Armor-Iaga"
+    "url": "https://github.com/EdoardoBambini/IAGA-Sentinel"
   }
 }

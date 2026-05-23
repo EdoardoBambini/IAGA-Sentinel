@@ -1,0 +1,32 @@
+[package]
+name = "iaga-sentinel-kernel"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "IAGA Sentinel — Enforcement kernel: cross-platform userspace launcher + eBPF LSM scaffold (Linux)"
+
+[lib]
+name = "iaga_sentinel_kernel"
+path = "src/lib.rs"
+
+[features]
+default = []
+# Compiles the eBPF/LSM scaffold (Linux-only). The actual eBPF program
+# loader is tracked separately and is not part of the public OSS line.
+# This feature wires the cross-platform trait surface so the host can
+# choose between userspace and kernel enforcement at construction time.
+linux-bpf = []
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+async-trait = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full", "test-util"] }
+tempfile = "3"

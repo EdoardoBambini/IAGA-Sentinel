@@ -1,5 +1,17 @@
 # Architecture
 
+> **Historical document — describes the v0.4.0 community runtime.**
+> The current 1.x architecture is documented in
+> [`README.md`](../README.md) (Architecture section), the design
+> rationale in [`IAGA_SENTINEL_1.0.md`](../IAGA_SENTINEL_1.0.md), and the
+> OSS↔Enterprise boundary in
+> [`adr/0010-oss-enterprise-boundary.md`](adr/0010-oss-enterprise-boundary.md).
+> Path references in this file (`community/...`) reflect pre-1.0
+> layout; current paths are `crates/iaga-sentinel-core/...`. The 8-layer
+> pipeline described here was hardened to **12 layers** in 1.0 (M2–M5
+> + M3.5 + M4 added supply chain attestation, blast radius, behavioral
+> baseline, counterparty trust).
+
 ## Release Context
 
 This document describes the current community architecture for `v0.4.0`.
@@ -180,8 +192,8 @@ client code.
 
 `v0.4.0` supports:
 
-- `AGENT_ARMOR_LOG_FORMAT=pretty|compact|json`
-- `AGENT_ARMOR_LOG_LEVEL`
+- `IAGA_SENTINEL_LOG_FORMAT=pretty|compact|json`
+- `IAGA_SENTINEL_LOG_LEVEL`
 - `RUST_LOG` fallback
 - `x-request-id` on HTTP responses
 - `traceId` on governance results

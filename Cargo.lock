@@ -18,44 +18,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 
 [[package]]
-name = "agent-armor-core"
-version = "1.0.0"
-dependencies = [
- "argon2",
- "armor-apl",
- "armor-kernel",
- "armor-reasoning",
- "armor-receipts",
- "async-trait",
- "axum",
- "chrono",
- "clap",
- "futures-core",
- "hex",
- "hmac",
- "once_cell",
- "proptest",
- "rand 0.8.6",
- "regex",
- "reqwest",
- "rust-embed",
- "serde",
- "serde_json",
- "serde_yaml",
- "sha2",
- "sqlx",
- "thiserror 2.0.18",
- "tokio",
- "tokio-stream",
- "tower-http",
- "tracing",
- "tracing-subscriber",
- "uuid",
- "wasmtime",
- "wat",
-]
-
-[[package]]
 name = "ahash"
 version = "0.8.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -175,64 +137,6 @@ dependencies = [
  "blake2",
  "cpufeatures",
  "password-hash",
-]
-
-[[package]]
-name = "armor-apl"
-version = "1.0.0"
-dependencies = [
- "logos",
- "pretty_assertions",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "armor-kernel"
-version = "1.0.0"
-dependencies = [
- "async-trait",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "armor-reasoning"
-version = "1.0.0"
-dependencies = [
- "async-trait",
- "hex",
- "serde",
- "serde_json",
- "sha2",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
- "tract-onnx",
-]
-
-[[package]]
-name = "armor-receipts"
-version = "1.0.0"
-dependencies = [
- "async-trait",
- "chrono",
- "ed25519-dalek",
- "hex",
- "rand 0.8.6",
- "serde",
- "serde_json",
- "sha2",
- "sqlx",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -1502,6 +1406,102 @@ dependencies = [
  "tower-service",
  "tracing",
  "windows-registry",
+]
+
+[[package]]
+name = "iaga-sentinel-apl"
+version = "1.1.0"
+dependencies = [
+ "logos",
+ "pretty_assertions",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "iaga-sentinel-core"
+version = "1.1.0"
+dependencies = [
+ "argon2",
+ "async-trait",
+ "axum",
+ "chrono",
+ "clap",
+ "futures-core",
+ "hex",
+ "hmac",
+ "iaga-sentinel-apl",
+ "iaga-sentinel-kernel",
+ "iaga-sentinel-reasoning",
+ "iaga-sentinel-receipts",
+ "once_cell",
+ "proptest",
+ "rand 0.8.6",
+ "regex",
+ "reqwest",
+ "rust-embed",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "sha2",
+ "sqlx",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-stream",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+ "wasmtime",
+ "wat",
+]
+
+[[package]]
+name = "iaga-sentinel-kernel"
+version = "1.1.0"
+dependencies = [
+ "async-trait",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "iaga-sentinel-reasoning"
+version = "1.1.0"
+dependencies = [
+ "async-trait",
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tract-onnx",
+]
+
+[[package]]
+name = "iaga-sentinel-receipts"
+version = "1.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "ed25519-dalek",
+ "hex",
+ "rand 0.8.6",
+ "serde",
+ "serde_json",
+ "sha2",
+ "sqlx",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

@@ -110,13 +110,13 @@ export interface HealthResponse {
   apiKeysConfigured: boolean;
 }
 
-export interface ArmorClientOptions {
+export interface SentinelClientOptions {
   baseUrl?: string;
   apiKey?: string;
   timeout?: number;
 }
 
-export interface OpenAIAdapterOptions extends ArmorClientOptions {
+export interface OpenAIAdapterOptions extends SentinelClientOptions {
   agentId: string;
   framework?: string;
   tenantId?: string;
@@ -125,7 +125,7 @@ export interface OpenAIAdapterOptions extends ArmorClientOptions {
   metadata?: JsonObject;
 }
 
-export interface ArmorMiddlewareOptions extends OpenAIAdapterOptions {
+export interface SentinelMiddlewareOptions extends OpenAIAdapterOptions {
   toolName?: string;
   actionType?: ActionType;
 }

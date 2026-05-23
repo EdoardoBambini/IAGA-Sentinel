@@ -1,5 +1,5 @@
 name: Feature Request
-description: Suggest a new feature for Agent Armor
+description: Suggest a new feature for IAGA Sentinel
 labels: ["enhancement"]
 body:
   - type: textarea

@@ -1,8 +1,8 @@
-import { ArmorBlockedError, ArmorClient, ArmorReviewError } from "../client";
-import type { ArmorMiddlewareOptions, InspectRequest, JsonObject } from "../types";
+import { SentinelBlockedError, SentinelClient, SentinelReviewError } from "../client";
+import type { SentinelMiddlewareOptions, InspectRequest, JsonObject } from "../types";
 
 function buildInspectRequest(
-  options: ArmorMiddlewareOptions,
+  options: SentinelMiddlewareOptions,
   payload: JsonObject
 ): InspectRequest {
   return {
@@ -21,24 +21,24 @@ function buildInspectRequest(
 }
 
 async function inspectPayload(
-  client: ArmorClient,
-  options: ArmorMiddlewareOptions,
+  client: SentinelClient,
+  options: SentinelMiddlewareOptions,
   payload: JsonObject
 ): Promise<void> {
   const result = await client.inspect(buildInspectRequest(options, payload));
   if (result.decision === "block") {
-    throw new ArmorBlockedError(result);
+    throw new SentinelBlockedError(result);
   }
   if (result.decision === "review") {
-    throw new ArmorReviewError(result);
+    throw new SentinelReviewError(result);
   }
 }
 
-export function armorMiddleware(options: ArmorMiddlewareOptions) {
-  const client = new ArmorClient(options);
+export function sentinelMiddleware(options: SentinelMiddlewareOptions) {
+  const client = new SentinelClient(options);
 
   return {
-    name: "agent-armor",
+    name: "iaga-sentinel",
     async inspect(payload: JsonObject): Promise<void> {
       await inspectPayload(client, options, payload);
     },

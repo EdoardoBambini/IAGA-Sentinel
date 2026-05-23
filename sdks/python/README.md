@@ -1,11 +1,11 @@
-# Agent Armor Python SDK
+# IAGA Sentinel Python SDK
 
-`agent-armor` wraps the Agent Armor HTTP API for Python applications and ships
+`iaga-sentinel` wraps the IAGA Sentinel HTTP API for Python applications and ships
 lightweight adapters for common agent frameworks.
 
 ## Highlights
 
-- `ArmorClient` and `AsyncArmorClient` cover governance, policy, plugin, audit,
+- `SentinelClient` and `AsyncSentinelClient` cover governance, policy, plugin, audit,
   telemetry, and threat intel endpoints exposed by the runtime
 - `InspectRequest` supports `session_id`, encoded into `metadata.sessionId` for
   sequence-aware governance
@@ -14,9 +14,9 @@ lightweight adapters for common agent frameworks.
 ## Quick start
 
 ```python
-from agent_armor import ActionDetail, ActionType, ArmorClient, InspectRequest
+from iaga_sentinel import ActionDetail, ActionType, SentinelClient, InspectRequest
 
-client = ArmorClient(api_key="ak-local")
+client = SentinelClient(api_key="ak-local")
 result = client.inspect(
     InspectRequest(
         agent_id="builder-01",
@@ -39,9 +39,9 @@ print(result.decision.value, result.trace_id)
 ```python
 from openai import OpenAI
 
-from agent_armor.adapters import ArmorCallbackHandler, ArmorGuardrail, armor_wrap_openai
+from iaga_sentinel.adapters import SentinelCallbackHandler, SentinelGuardrail, sentinel_wrap_openai
 
-openai_client = armor_wrap_openai(OpenAI(), agent_id="builder-01", api_key="ak-local")
-langchain_handler = ArmorCallbackHandler(agent_id="builder-01", api_key="ak-local")
-crewai_guardrail = ArmorGuardrail(agent_id="builder-01", api_key="ak-local")
+openai_client = sentinel_wrap_openai(OpenAI(), agent_id="builder-01", api_key="ak-local")
+langchain_handler = SentinelCallbackHandler(agent_id="builder-01", api_key="ak-local")
+crewai_guardrail = SentinelGuardrail(agent_id="builder-01", api_key="ak-local")
 ```

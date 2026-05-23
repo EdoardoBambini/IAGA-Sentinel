@@ -4,7 +4,19 @@
 - **Date**: 2026-04-25
 - **Deciders**: Edoardo Bambini
 - **Milestone**: M3.5 "Probabilistic Reasoning Plane"
-- **Relates to**: `AGENT_ARMOR_1.0.md` §pilastro 7, ADR 0002 (feature `ml` opt-in)
+- **Relates to**: `IAGA_SENTINEL_1.0.md` §pilastro 7, ADR 0002 (feature `ml` opt-in)
+
+> **Status update 2026-05-08**: le voci della sezione "fuori scope M3.5" che
+> citavano "M3.5.1" o "1.1" sono state ulteriormente raffinate da
+> [ADR 0010](0010-oss-enterprise-boundary.md). In sintesi:
+> - **Curated ONNX models** pre-trained (intent-drift / prompt-injection /
+>   anomaly-seq), **HuggingFace tokenizer integration**, **calibration
+>   framework**, **GPU acceleration**, **threat-intel feed**, **cross-run
+>   stateful anomaly**, **native ONNX Runtime backend `ort`** sono stati
+>   riallocati in IAGA Sentinel Enterprise (#10, #19).
+> - L'OSS conserva il framework `ReasoningEngine` + `NoopEngine` + `TractEngine`
+>   (pure Rust ONNX via `tract-onnx`) + BYO ONNX models pattern + il digest
+>   SHA-256 di ogni modello dentro ogni receipt firmato.
 
 ## Contesto
 
@@ -14,7 +26,7 @@ ADR 0002 ha già fissato due punti:
 1. Feature `ml` **opt-in, default off** per non gonfiare il binary core.
 2. I modelli sono versionati per digest SHA-256 e i digest finiscono nei receipt firmati per garantire replay bit-exact.
 
-Questa ADR copre lo scope MVP di M3.5 e le scelte concrete: backend ML, struttura del crate, integrazione con `armor-core`, cosa è esplicitamente fuori scope.
+Questa ADR copre lo scope MVP di M3.5 e le scelte concrete: backend ML, struttura del crate, integrazione con `iaga-sentinel-core`, cosa è esplicitamente fuori scope.
 
 ## Decisioni
 
@@ -60,26 +72,26 @@ Limitazione esplicita: non è un tokenizer linguistico vero. Modelli reali (BERT
 Per il MVP la configurazione vive in **una sola variabile d'ambiente**:
 
 ```
-ARMOR_REASONING_MODELS=intent_drift:/path/a.onnx,prompt_injection:/path/b.onnx
+IAGA_SENTINEL_REASONING_MODELS=intent_drift:/path/a.onnx,prompt_injection:/path/b.onnx
 ```
 
 Format: `name:path` virgola-separati. Entry malformate vengono droppate silenziosamente (loggate a `warn!`). Vuota o assente → `NoopEngine`.
 
-Razionale: una config file YAML/TOML moltiplicherebbe i punti di verità (workspace policy lock, signer key path, models config, plugin registry...). Per M3.5 una env var è sufficiente. Quando emergerà un pattern reale di deployment, M5 consoliderà tutto in un unico `armor.config.toml`.
+Razionale: una config file YAML/TOML moltiplicherebbe i punti di verità (workspace policy lock, signer key path, models config, plugin registry...). Per M3.5 una env var è sufficiente. Quando emergerà un pattern reale di deployment, M5 consoliderà tutto in un unico `iaga.config.toml`.
 
-### 5. Wiring in `armor-core`: due feature, una superficie
+### 5. Wiring in `iaga-sentinel-core`: due feature, una superficie
 
 ```toml
 [features]
 default = ["demo", "sqlite", "receipts", "apl", "reasoning"]
-reasoning = ["dep:armor-reasoning"]
-ml = ["reasoning", "armor-reasoning/ml"]
+reasoning = ["dep:iaga-sentinel-reasoning"]
+ml = ["reasoning", "iaga-sentinel-reasoning/ml"]
 ```
 
-- `reasoning` (default **on**): abilita la dep + il `NoopEngine` pluggabile + il subcommand CLI `armor reasoning info`. Zero costo a runtime se nessun engine reale è configurato.
-- `ml` (default **off**): aggiunge `tract-onnx` + `TractEngine` e attiva il caricamento da `ARMOR_REASONING_MODELS`.
+- `reasoning` (default **on**): abilita la dep + il `NoopEngine` pluggabile + il subcommand CLI `iaga reasoning info`. Zero costo a runtime se nessun engine reale è configurato.
+- `ml` (default **off**): aggiunge `tract-onnx` + `TractEngine` e attiva il caricamento da `IAGA_SENTINEL_REASONING_MODELS`.
 
-`AppState.reasoning: Option<Arc<dyn ReasoningHandle>>` è sempre presente nel tipo (feature-agnostic) — esattamente come `receipts`. Il trait `ReasoningHandle` è dichiarato in `pipeline::reasoning`, non re-esporta `armor_reasoning::ReasoningEngine` direttamente, così `armor-core` può compilare anche con `--no-default-features` senza pull-down del crate reasoning.
+`AppState.reasoning: Option<Arc<dyn ReasoningHandle>>` è sempre presente nel tipo (feature-agnostic) — esattamente come `receipts`. Il trait `ReasoningHandle` è dichiarato in `pipeline::reasoning`, non re-esporta `iaga_sentinel_reasoning::ReasoningEngine` direttamente, così `iaga-sentinel-core` può compilare anche con `--no-default-features` senza pull-down del crate reasoning.
 
 ### 6. Pipeline hook in `execute_pipeline`
 
@@ -95,16 +107,16 @@ Per il fast-path di blocco precoce (linea ~131, tool non in registry), passiamo 
 ### 7. CLI
 
 ```
-armor reasoning info
+iaga reasoning info
 ```
 
 Mostra:
 - nome engine (`noop` / `tract`),
 - numero modelli caricati,
 - per ogni modello: nome + SHA-256 digest,
-- hint contestuale (rebuild con `--features ml`, oppure setta `ARMOR_REASONING_MODELS`).
+- hint contestuale (rebuild con `--features ml`, oppure setta `IAGA_SENTINEL_REASONING_MODELS`).
 
-Non c'è `armor reasoning eval <input>` per il MVP — era tentazione, ma usare il NoopEngine via CLI non aggiunge valore e i test integration coprono già il path eval.
+Non c'è `iaga reasoning eval <input>` per il MVP — era tentazione, ma usare il NoopEngine via CLI non aggiunge valore e i test integration coprono già il path eval.
 
 ## Conseguenze
 
@@ -133,20 +145,20 @@ Non c'è `armor reasoning eval <input>` per il MVP — era tentazione, ma usare 
 cargo build --release --features ml
 
 # Configura modelli
-export ARMOR_REASONING_MODELS=intent_drift:/var/lib/armor/models/intent.onnx,prompt_injection:/var/lib/armor/models/inj.onnx
+export IAGA_SENTINEL_REASONING_MODELS=intent_drift:/var/lib/iaga/models/intent.onnx,prompt_injection:/var/lib/iaga/models/inj.onnx
 
 # Verifica caricamento
-$ armor reasoning info
+$ iaga reasoning info
 engine: tract
 models: 2
   - intent_drift             sha256=8f4a3c...
   - prompt_injection         sha256=2b9e1d...
 
 # Avvia il server: ogni receipt ora include i digest dei due modelli
-armor serve
+iaga serve
 
 # Replay di un run produce gli stessi receipt → drift detection cross-modello funziona
-armor replay <run_id>
+iaga replay <run_id>
 ```
 
 ## Riferimenti
@@ -154,4 +166,4 @@ armor replay <run_id>
 - `docs/adr/0002-open-source-license-and-scope.md` — `ml` opt-in
 - `docs/adr/0003-signed-receipts-design.md` — schema receipt + `model_digests` / `ml_scores`
 - `docs/adr/0004-apl-mvp.md` — APL evaluator (M5 consumer di `ml.*`)
-- `AGENT_ARMOR_1.0.md` §pilastro 7 — design completo del Reasoning Plane
+- `IAGA_SENTINEL_1.0.md` §pilastro 7 — design completo del Reasoning Plane

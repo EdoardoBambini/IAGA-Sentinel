@@ -1,8 +1,8 @@
 import { NeuralScene } from "./components/core/NeuralScene";
-import { useAgentArmorDemo } from "./hooks/useAgentArmorDemo";
+import { useIagaSentinelDemo } from "./hooks/useIagaSentinelDemo";
 
 export function App() {
-  useAgentArmorDemo();
+  useIagaSentinelDemo();
 
   return <NeuralScene />;
 }

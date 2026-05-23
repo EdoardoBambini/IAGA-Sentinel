@@ -1,7 +1,7 @@
 # Migration Guide
 
-This document tracks breaking changes and path renames across Agent Armor
-releases. The high-level 1.0 design lives in [`AGENT_ARMOR_1.0.md`](AGENT_ARMOR_1.0.md);
+This document tracks breaking changes and path renames across IAGA Sentinel
+releases. The high-level 1.0 design lives in [`IAGA_SENTINEL_1.0.md`](IAGA_SENTINEL_1.0.md);
 this file tracks the **concrete moves** you need to make when bumping versions.
 
 ---
@@ -15,8 +15,8 @@ change. All 0.4.0 behavior is preserved; tests pass unchanged.
 
 | Before (0.4.0) | After (1.0.0-alpha.1) | Notes |
 |---|---|---|
-| `community/` | `crates/armor-core/` | Cargo crate, now a workspace member |
-| `community/Cargo.toml` package name `agent-armor` | `agent-armor-core` | the **crate** renamed; the **binary** is still `agent-armor` |
+| `community/` | `crates/iaga-sentinel-core/` | Cargo crate, now a workspace member |
+| `community/Cargo.toml` package name `iaga-sentinel` | `iaga-sentinel-core` | the **crate** renamed; the **binary** is still `iaga-sentinel` |
 | `visual/` | `ui/` | official frontend, will be embedded via `ui-embed` feature |
 | `assets/hero.gif` | `media/hero.gif` | media consolidated under one folder |
 | `assets/hero.mp4` | `media/hero.mp4` | still gitignored (large) |
@@ -26,24 +26,24 @@ change. All 0.4.0 behavior is preserved; tests pass unchanged.
 
 ### What stayed
 
-- Binary name `agent-armor` unchanged (backward compat).
-- Library name `agent_armor` (so `use agent_armor::*` keeps working in tests and SDK consumers).
+- Binary name `iaga-sentinel` unchanged (backward compat).
+- Library name `iaga_sentinel` (so `use iaga_sentinel::*` keeps working in tests and SDK consumers).
 - Policy YAML format unchanged (APL migration comes in M3).
 - SDK layout in `sdks/python` and `sdks/typescript` unchanged.
-- `docs/`, `charts/`, `skills-lock.json`, `agent-armor.config.json` unchanged.
-- `agent-armor-video/` Remotion project unchanged, still standalone.
+- `docs/`, `charts/`, `skills-lock.json`, `iaga-sentinel.config.json` unchanged.
+- `iaga-sentinel-video/` Remotion project unchanged, still standalone.
 
 ### What's new
 
-- `armor` is now an official alias binary (same entry point as `agent-armor`).
-  Both are built from `crates/armor-core` and can be invoked
+- `iaga` is now an official alias binary (same entry point as `iaga-sentinel`).
+  Both are built from `crates/iaga-sentinel-core` and can be invoked
   interchangeably.
-- `ui-embed` Cargo feature on `agent-armor-core`. When enabled, embeds
+- `ui-embed` Cargo feature on `iaga-sentinel-core`. When enabled, embeds
   `ui/dist/` into the binary via `rust-embed`. Requires a prior
   `cd ui && npm run build`. Route wiring (`/ui`) lands in a later milestone.
 - Workspace-level `Cargo.toml` at the repo root with shared dependency
-  versions — future crates (`armor-receipts`, `armor-apl`,
-  `armor-reasoning`, `armor-kernel`, `armor-mesh`) will land here without
+  versions — future crates (`iaga-sentinel-receipts`, `iaga-sentinel-apl`,
+  `iaga-sentinel-reasoning`, `iaga-sentinel-kernel`, `iaga-mesh`) will land here without
   further repo reshuffles.
 
 ### Breaking commands
@@ -54,13 +54,13 @@ If your scripts used any of these, update accordingly:
 - cd community && cargo build
 + cargo build --workspace
 + # or scoped:
-+ cargo build -p agent-armor-core
++ cargo build -p iaga-sentinel-core
 
 - cd community && cargo test --all-features
 + cargo test --workspace --all-features
 
-- community/target/release/agent-armor
-+ target/release/agent-armor
+- community/target/release/iaga-sentinel
++ target/release/iaga-sentinel
 
 - cd visual && npm install
 + cd ui && npm install
@@ -75,12 +75,12 @@ get CI without a PR.
 ### Why
 
 See [`docs/adr/0001-workspace-split.md`](docs/adr/0001-workspace-split.md).
-Short version: we need a multi-crate workspace so that `armor-receipts`
-(M2), `armor-apl` (M3), `armor-reasoning` (M3.5), `armor-kernel` (M4),
-and `armor-mesh` (M5) can grow as separate, feature-gated crates without
-touching `armor-core`. The M1 split is deliberately conservative: we
+Short version: we need a multi-crate workspace so that `iaga-sentinel-receipts`
+(M2), `iaga-sentinel-apl` (M3), `iaga-sentinel-reasoning` (M3.5), `iaga-sentinel-kernel` (M4),
+and `iaga-mesh` (M5) can grow as separate, feature-gated crates without
+touching `iaga-sentinel-core`. The M1 split is deliberately conservative: we
 create the workspace and move the single crate in, but **do not** slice
-`armor-core` itself. That comes later, milestone by milestone.
+`iaga-sentinel-core` itself. That comes later, milestone by milestone.
 
 ---
 
@@ -94,13 +94,13 @@ still pass.
 
 ### What's new
 
-- New crate `crates/armor-receipts/` providing:
+- New crate `crates/iaga-sentinel-receipts/` providing:
   - `Receipt` / `ReceiptBody` — canonical, Ed25519-signed record of a
     governance verdict.
   - `ReceiptStore` trait with SQLite and Postgres backends.
   - `ReceiptSigner` — single-key Ed25519 signer loaded from
-    `<HOME>/.armor/keys/receipt_signer.ed25519` (generated on first run,
-    `chmod 0600` on Unix). Override path via env `ARMOR_SIGNER_KEY_PATH`.
+    `<HOME>/.iaga-sentinel/keys/receipt_signer.ed25519` (generated on first run,
+    `chmod 0600` on Unix). Override path via env `IAGA_SENTINEL_SIGNER_KEY_PATH`.
   - Hash-linked append-only chain (one chain per `run_id`) with
     end-to-end `verify_chain` that rejects any tampering.
   - `replay(store, run_id, evaluator)` — drift-detection primitive; the
@@ -110,18 +110,18 @@ still pass.
   `pub receipts: Option<Arc<dyn ReceiptLogger>>`. `None` when the
   `receipts` feature is disabled or the host hasn't wired a logger.
 
-- New `armor-core` cargo feature `receipts` (default **on**):
+- New `iaga-sentinel-core` cargo feature `receipts` (default **on**):
   ```toml
   [features]
   default = ["demo", "sqlite", "receipts"]
-  receipts = ["dep:armor-receipts"]
+  receipts = ["dep:iaga-sentinel-receipts"]
   ```
 
 - New CLI subcommand (feature-gated):
   ```
-  armor replay --list
-  armor replay <run_id>
-  armor replay <run_id> --verify-only
+  iaga replay --list
+  iaga replay <run_id>
+  iaga replay <run_id> --verify-only
   ```
 
 - `execute_pipeline` now performs a best-effort dual-write: after each
@@ -131,13 +131,13 @@ still pass.
 
 ### Environment / ops notes
 
-- **Signer key path**: `$HOME/.armor/keys/receipt_signer.ed25519`. Back
+- **Signer key path**: `$HOME/.iaga-sentinel/keys/receipt_signer.ed25519`. Back
   this up — losing the private key means new runs start a new chain and
   old chains can still be *verified* (public key derived from
   `signer_key_id`) but not *extended* with matching signatures.
 - **DB backend**: the automatic wiring currently enables receipts only
-  on `sqlite:` URLs. Postgres support in `armor-receipts` is compiled
-  and tested; the `armor-core` helper that auto-enables it on Postgres
+  on `sqlite:` URLs. Postgres support in `iaga-sentinel-receipts` is compiled
+  and tested; the `iaga-sentinel-core` helper that auto-enables it on Postgres
   DSNs is a follow-up (tracked for M5).
 - **Disabling receipts**: build with `--no-default-features --features
   "demo,sqlite"` (omitting `receipts`). The binary will run exactly as
@@ -146,23 +146,23 @@ still pass.
 ### What stayed
 
 - `audit_events` table and all its APIs unchanged.
-- `agent-armor` and `armor` binary names unchanged.
+- `iaga-sentinel` and `iaga` binary names unchanged.
 - Policy format unchanged.
 - Trait `AuditStore` unchanged.
 - SDK surface unchanged.
 
 ---
 
-## 1.0.0-alpha.1 M3 — "Armor Policy Language" (staged, not committed)
+## 1.0.0-alpha.1 M3 — "Agent Policy Language" (staged, not committed)
 
 **Scope:** additive. No change to 0.4.0 YAML policy pipeline. New crate
-`armor-apl` provides an independent parser + deterministic evaluator for
+`iaga-sentinel-apl` provides an independent parser + deterministic evaluator for
 `.apl` source files. Integration with the live policy store is deferred
 to M5; M3 ships the language, the types and a dry-run CLI.
 
 ### What's new
 
-- New crate `crates/armor-apl/` providing:
+- New crate `crates/iaga-sentinel-apl/` providing:
   - `logos`-based lexer (keywords, operators, string escapes, `//` comments),
   - recursive-descent parser producing a `Program` AST,
   - structural validator (unique policy names, builtin arity, non-empty paths),
@@ -182,24 +182,24 @@ to M5; M3 ships the language, the types and a dry-run CLI.
   and builtin calls (`contains starts_with ends_with len lower upper
   secret_ref`).
 
-- New `armor-core` cargo feature `apl` (default **on**):
+- New `iaga-sentinel-core` cargo feature `apl` (default **on**):
   ```toml
   [features]
   default = ["demo", "sqlite", "receipts", "apl"]
-  apl = ["dep:armor-apl"]
+  apl = ["dep:iaga-sentinel-apl"]
   ```
 
 - New CLI subcommand (feature-gated):
   ```
-  armor policy test <file.apl>
-  armor policy test <file.apl> --context ctx.json
+  iaga policy test <file.apl>
+  iaga policy test <file.apl> --context ctx.json
   ```
   Without `--context` only parse + validate. With a JSON context, the
   evaluator runs and prints `FIRE policy=... verdict=...` for the
   first policy that triggers.
 
 - Example policy + sample context shipped at
-  `crates/armor-apl/examples/no_pii_egress.apl` (+ `sample_context.json`).
+  `crates/iaga-sentinel-apl/examples/no_pii_egress.apl` (+ `sample_context.json`).
 
 ### Contracts
 
@@ -225,7 +225,7 @@ to M5; M3 ships the language, the types and a dry-run CLI.
 
 ### What stayed
 
-- YAML policy loader unchanged. No `armor policy migrate` yet — it lands
+- YAML policy loader unchanged. No `iaga policy migrate` yet — it lands
   in M5 when the live swap happens.
 - `audit_events`, `receipts`, `AuditStore`, `ReceiptStore` unchanged.
 - SDK surface unchanged.
@@ -235,38 +235,38 @@ to M5; M3 ships the language, the types and a dry-run CLI.
 ## 1.0.0-alpha.1 M3.5 — "Probabilistic Reasoning Plane" (staged, not committed)
 
 **Scope:** additive. Pipeline behavior unchanged when no reasoning
-engine is wired or the `ml` feature is off. New crate `armor-reasoning`
-provides the ML evidence surface; `armor-core` wires it through to
+engine is wired or the `ml` feature is off. New crate `iaga-sentinel-reasoning`
+provides the ML evidence surface; `iaga-sentinel-core` wires it through to
 `SignedReceiptLogger` so receipts now carry `model_digests` + `ml_scores`
 **when and only when** an engine is active and produces evidence.
 
 ### What's new
 
-- New crate `crates/armor-reasoning/` providing:
+- New crate `crates/iaga-sentinel-reasoning/` providing:
   - `ReasoningEngine` trait with two impls: `NoopEngine` (always
     present) and `TractEngine` (feature `ml`, pure-Rust ONNX via
     `tract-onnx`).
   - `EvalInput` / `MlEvidence` / `ModelDigest` types — matched in
-    shape to `armor_receipts::{ModelDigest, MlScoreBundle}` so the
+    shape to `iaga_sentinel_receipts::{ModelDigest, MlScoreBundle}` so the
     glue layer is a one-liner.
   - SHA-256 digest computation for every loaded model file.
   - MVP hash-bag-of-byte-ngrams tokenizer (`[1, 64]` float32) — see
     [ADR 0005](docs/adr/0005-reasoning-plane-mvp.md) for the
     deliberate scope decision.
-  - Env-driven model spec: `ARMOR_REASONING_MODELS=name1:path1,name2:path2`.
+  - Env-driven model spec: `IAGA_SENTINEL_REASONING_MODELS=name1:path1,name2:path2`.
 
-- New `armor-core` features:
+- New `iaga-sentinel-core` features:
   ```toml
   [features]
   default = ["demo", "sqlite", "receipts", "apl", "reasoning"]
-  reasoning = ["dep:armor-reasoning"]
-  ml = ["reasoning", "armor-reasoning/ml"]
+  reasoning = ["dep:iaga-sentinel-reasoning"]
+  ml = ["reasoning", "iaga-sentinel-reasoning/ml"]
   ```
   - `reasoning` is **default on** but only enables the `NoopEngine`.
     No native deps, no binary bloat, no behavior change at runtime.
   - `ml` is **default off**. Adds `tract-onnx` to the build (~5 MB
     binary growth, ~2 min cold compile) and activates the
-    `TractEngine` so `ARMOR_REASONING_MODELS` actually loads.
+    `TractEngine` so `IAGA_SENTINEL_REASONING_MODELS` actually loads.
 
 - New optional field on `AppState`:
   `pub reasoning: Option<Arc<dyn ReasoningHandle>>` — same
@@ -274,11 +274,11 @@ provides the ML evidence surface; `armor-core` wires it through to
 
 - New CLI subcommand (feature-gated on `reasoning`, not `ml`):
   ```
-  armor reasoning info
+  iaga reasoning info
   ```
   Prints engine name, loaded model count, and per-model SHA-256
   digest. Suggests next step (`--features ml` rebuild or
-  `ARMOR_REASONING_MODELS` setting) when no models are loaded.
+  `IAGA_SENTINEL_REASONING_MODELS` setting) when no models are loaded.
 
 - `execute_pipeline` now invokes `reasoning.evaluate_json(...)` once
   before the risk score. Output is passed to `SignedReceiptLogger.record`
@@ -304,7 +304,7 @@ For runs where reasoning is off or produces no evidence, receipts are
 +async fn record(&self, event: &StoredAuditEvent, evidence: Option<&ReasoningOutcome>);
 ```
 
-This is internal to `armor-core` (`pipeline::receipts` is `pub` for the
+This is internal to `iaga-sentinel-core` (`pipeline::receipts` is `pub` for the
 binary's own use, not part of a stable public surface). The two call
 sites in `execute_pipeline.rs` were updated; the fast-path block sends
 `None`, the main verdict path sends the eval outcome.
@@ -312,13 +312,13 @@ sites in `execute_pipeline.rs` were updated; the fast-path block sends
 ### Environment / ops notes
 
 - **Default behavior unchanged**: without `--features ml` and without
-  setting `ARMOR_REASONING_MODELS`, the engine is `NoopEngine` and
+  setting `IAGA_SENTINEL_REASONING_MODELS`, the engine is `NoopEngine` and
   receipts look exactly like M2.
 - **Disabling reasoning entirely**: `--no-default-features --features
   "demo,sqlite,receipts,apl"`. `AppState.reasoning` will be `None`
   and the pipeline skips the eval call.
 - **Real ONNX models**: build with `--features ml`, set
-  `ARMOR_REASONING_MODELS=name:/abs/path/model.onnx,...`. The model
+  `IAGA_SENTINEL_REASONING_MODELS=name:/abs/path/model.onnx,...`. The model
   must accept `[1, 64]` float32 input. M3.5.1 will lift the latter
   constraint with pluggable tokenizers.
 
@@ -334,11 +334,11 @@ sites in `execute_pipeline.rs` were updated; the fast-path block sends
 
 ## 1.0.0-alpha.1 M4 — "Enforcement Kernel" (staged, not committed)
 
-**Scope:** additive. New crate `armor-kernel` provides a cross-platform
+**Scope:** additive. New crate `iaga-sentinel-kernel` provides a cross-platform
 `EnforcementKernel` trait, a working `UserspaceKernel` for every OS,
 and a `BpfKernel` scaffold (Linux, feature `linux-bpf`). Pipeline
 behavior is unchanged; the kernel is reachable today only through the
-new `armor run` subcommand.
+new `iaga run` subcommand.
 
 The actual eBPF/LSM loader (the part that makes enforcement
 authoritative) is tracked for M4.1. M4 ships the trait shape so M4.1
@@ -346,7 +346,7 @@ is purely additive.
 
 ### What's new
 
-- New crate `crates/armor-kernel/` providing:
+- New crate `crates/iaga-sentinel-kernel/` providing:
   - `EnforcementKernel` trait — `launch(spec) -> LaunchOutcome`,
     `backend_name()`, `is_authoritative()`.
   - `UserspaceKernel` — cross-platform launcher with policy pre-check,
@@ -359,26 +359,26 @@ is purely additive.
   - `ProcessSpec`, `KernelDecision`, `LaunchOutcome` — narrow types
     that travel cleanly across the userspace/eBPF datapath boundary.
 
-- New `armor-core` features:
+- New `iaga-sentinel-core` features:
   ```toml
   [features]
   default = ["demo", "sqlite", "receipts", "apl", "reasoning", "kernel"]
-  kernel = ["dep:armor-kernel"]
-  linux-bpf = ["kernel", "armor-kernel/linux-bpf"]
+  kernel = ["dep:iaga-sentinel-kernel"]
+  linux-bpf = ["kernel", "iaga-sentinel-kernel/linux-bpf"]
   ```
 
 - New CLI subcommands (feature-gated on `kernel`):
   ```
-  armor kernel status
-  armor run [--agent-id AGENT] [--cwd DIR] -- <program> [args...]
+  iaga kernel status
+  iaga run [--agent-id AGENT] [--cwd DIR] -- <program> [args...]
   ```
-  `armor run` spawns a child under the userspace kernel. The policy
+  `iaga run` spawns a child under the userspace kernel. The policy
   callback is `allow_all` for M4 — wiring `execute_pipeline` as the
   policy source is M5 (when APL becomes the authoritative engine).
 
 ### Honest posture
 
-`armor kernel status` reports `authoritative: no (soft enforcement)`
+`iaga kernel status` reports `authoritative: no (soft enforcement)`
 until the eBPF loader ships in M4.1. We do not market kernel
 enforcement we don't yet provide. The binary tells the operator the
 truth.
@@ -396,20 +396,20 @@ truth.
 ## 1.0.0-alpha.1 M5 — "Hardening + 1.0 RC" (staged, not committed)
 
 **Scope:** wiring pass. The scaffolds from M2–M4 are now connected
-end-to-end. `armor run` traverses the governance pipeline; every
+end-to-end. `iaga run` traverses the governance pipeline; every
 launch produces a signed receipt; Postgres is a first-class receipt
 backend; `--features postgres` works without extra config.
 
 ### What's new
 
-- **`armor run` is governed end to end.** `cmd_kernel_run` now builds a
+- **`iaga run` is governed end to end.** `cmd_kernel_run` now builds a
   full `AppState` and uses `execute_pipeline` as the kernel's policy
   callback. Verdict comes from the same pipeline that serves
-  `armor inspect`. Fail-closed on pipeline error.
+  `iaga inspect`. Fail-closed on pipeline error.
 
 - **Receipt for every governed launch.** Side effect of the wiring
-  above: each `armor run` produces an audit event + a signed,
-  Merkle-chained receipt. `armor replay --list` shows your launches
+  above: each `iaga run` produces an audit event + a signed,
+  Merkle-chained receipt. `iaga replay --list` shows your launches
   alongside HTTP-served runs. Tamper detection works identically.
 
 - **Postgres receipts wired from the binary.** `try_build_receipt_logger`
@@ -420,17 +420,17 @@ backend; `--features postgres` works without extra config.
   `DATABASE_URL=postgres://...` — receipts go to Postgres
   automatically, no extra flags.
 
-- **Cargo feature composition for storage backends.** `armor-core`'s
+- **Cargo feature composition for storage backends.** `iaga-sentinel-core`'s
   `sqlite` and `postgres` features now transitively enable
-  `armor-receipts`'s matching feature via `armor-receipts?/sqlite` and
-  `armor-receipts?/postgres`. No more divergence between the host
+  `iaga-sentinel-receipts`'s matching feature via `iaga-sentinel-receipts?/sqlite` and
+  `iaga-sentinel-receipts?/postgres`. No more divergence between the host
   binary and the receipts crate on which DB driver is compiled in.
 
-- **Auto-seed on first `armor run`.** If the policy store has zero
+- **Auto-seed on first `iaga run`.** If the policy store has zero
   profiles, `cmd_kernel_run` seeds the demo set so the first launch
   produces a meaningful verdict instead of "Agent not found". Idempotent.
 
-### Trait change (`armor-kernel`, internal)
+### Trait change (`iaga-sentinel-kernel`, internal)
 
 `PolicyCheck` is now async:
 
@@ -444,22 +444,37 @@ backend; `--features postgres` works without extra config.
 ```
 
 All in-tree callers (`UserspaceKernel::allow_all`, the test suite)
-were updated. Not a public-API breaking change because `armor-kernel`
+were updated. Not a public-API breaking change because `iaga-sentinel-kernel`
 has no external consumers in 1.0-alpha.
 
 ### What's *not* in M5 (intentionally deferred)
 
-- ❌ APL as the authoritative policy source in `armor serve`
+- ❌ APL as the authoritative policy source in `iaga serve`
   (`--policy file.apl` overlay) → **M6**. Requires designing the merge
   between APL evaluation and the current risk scoring; deserves its
   own ADR (0008) and a focused milestone.
 - ❌ Drift replay with full pipeline re-execution against historical
-  receipts → 1.0 GA or post-GA. Requires serializing the entire
-  `InspectRequest` into the receipt body; we don't change the schema
-  under RC.
-- ❌ eBPF loader → M4.1.
-- ❌ Cross-platform kernel (macOS Endpoint Security, Windows ETW) → 1.1.
-- ❌ Mesh, KMS/HSM, license switch → 1.1 / 1.0 GA commit.
+  receipts → reinstated to **OSS 1.2** roadmap as additive on the
+  receipt body (`pipeline_inputs_capture`, `apl_eval_trace`,
+  `ml_inference_inputs` all optional, no schema-breaking). The
+  forensic *time-travel* variant (event sourcing + temporal queries
+  DB-state-per-verdict) lives in IAGA Sentinel Enterprise (#13). See
+  [`docs/adr/0010-oss-enterprise-boundary.md`](docs/adr/0010-oss-enterprise-boundary.md).
+- ❌ Real Aya-rs eBPF/LSM loader Linux → **IAGA Sentinel Enterprise** (#16).
+- ❌ Cross-platform kernel (macOS Endpoint Security, Windows ETW/WFP)
+  → **IAGA Sentinel Enterprise** (#17). The OSS `UserspaceKernel`
+  cross-platform soft enforcement remains and is documented honestly
+  by `iaga kernel status`.
+- ❌ Mesh (gRPC gossip, federated rate budgets, single-cluster + tier-2
+  multi-region active-active) → **IAGA Sentinel Enterprise** (#3 + #18).
+- ❌ Native KMS SDK signer backends (AWS KMS / Azure Key Vault /
+  HashiCorp Vault / PKCS#11 HSM) → **IAGA Sentinel Enterprise** (#20).
+  The `Signer` trait + `LocalDiskSigner` refactor is reinstated to
+  **OSS 1.2** as additive primitive; the BYOK filesystem-mount pattern
+  via `IAGA_SENTINEL_SIGNER_KEY_PATH` stays OSS forever.
+- ❌ License switch → already implicit. BUSL-1.1 with Change License
+  Apache-2.0 baked into the licence auto-converts 4 years after each
+  release; no manual action required.
 
 ### What stayed
 
@@ -485,14 +500,14 @@ in the working tree:
   paths that no longer exist after the M1 workspace split. The
   container built but ran a 430 KB stub binary that exited
   immediately without output. The new Dockerfile is a single-shot
-  `cargo build --release --bin armor --locked` against the real
+  `cargo build --release --bin iaga --locked` against the real
   workspace; the resulting binary is ~18 MB and starts cleanly under
   `docker compose up`. The dependency-cache trick used previously
   was fragile across multi-crate workspaces and has been removed.
 - **CLI banner** showed "8 Layers ARMED". Updated to "12 Layers ARMED"
   to match the 1.0 marketing surface (M3.5 + M4 added 4 layers on top
   of the original 8).
-- **`armor-core` Cargo description** said "(Community Edition)".
+- **`iaga-sentinel-core` Cargo description** said "(Community Edition)".
   Updated to "(open-source edition)" for consistency with the
   Community vs Enterprise documentation in README + ENTERPRISE.md.
 
@@ -507,10 +522,10 @@ quickstart now spells out:
   (`agentId`, `toolName`, `actionType`). The serde `#[serde(rename_all
   = "camelCase")]` attribute is the source of truth.
 - The receipt signer key path defaults to
-  `~/.armor/keys/receipt_signer.ed25519` natively and to
-  `/home/armor/.armor/keys/receipt_signer.ed25519` inside the
+  `~/.iaga-sentinel/keys/receipt_signer.ed25519` natively and to
+  `/home/iaga/.iaga-sentinel/keys/receipt_signer.ed25519` inside the
   Docker container. Receipts signed by one cannot be verified by the
-  other unless you mount the key in or set `ARMOR_SIGNER_KEY_PATH`.
+  other unless you mount the key in or set `IAGA_SENTINEL_SIGNER_KEY_PATH`.
 
 ### Test posture
 
@@ -518,7 +533,7 @@ quickstart now spells out:
 - `cargo clippy --workspace --all-targets -- -D warnings` clean.
 - `docker compose build && docker compose up -d` healthy on the
   first attempt with the new Dockerfile; `/health` returns 200,
-  `armor inspect` over HTTP returns the expected verdicts.
+  `iaga inspect` over HTTP returns the expected verdicts.
 
 ---
 
@@ -526,12 +541,12 @@ quickstart now spells out:
 
 **Scope:** additive. The YAML profile + workspace policy system from
 0.4.0 stays authoritative. APL is loaded as an *overlay* via
-`armor serve --policy file.apl` and merged stricter-wins with the
+`iaga serve --policy file.apl` and merged stricter-wins with the
 YAML risk decision: APL can tighten the verdict, never relax it.
 
 ### What's new
 
-- **`armor serve --policy <file.apl>`** loads an APL bundle at boot.
+- **`iaga serve --policy <file.apl>`** loads an APL bundle at boot.
   Fail-fast on any compile error: if the operator asked for APL, they
   want APL.
 
@@ -546,11 +561,11 @@ YAML risk decision: APL can tighten the verdict, never relax it.
   constant in every receipt body. Replay distinguishes runs with /
   without APL active by inspecting `policy_hash`.
 
-- **`armor policy lint <file.apl>`** semantic alias for
-  `armor policy test <file.apl>` without `--context`. Parse + validate
+- **`iaga policy lint <file.apl>`** semantic alias for
+  `iaga policy test <file.apl>` without `--context`. Parse + validate
   only.
 
-- **Example bundle** `crates/armor-core/examples/policies/strict.apl`
+- **Example bundle** `crates/iaga-sentinel-core/examples/policies/strict.apl`
   shipped: three policies that tighten the YAML baseline (block
   high-risk shell, review all email, block off-allowlist HTTP).
 
@@ -570,12 +585,19 @@ when APL is loaded. Receipts produced before M6 (or in runs without
 
 ### What's *not* in M6 (deferred)
 
-- ❌ `armor policy migrate` (YAML → APL converter) → 1.1.
+- ❌ `iaga policy migrate` (YAML → APL converter) → **OSS-eligible**
+  per [ADR 0010](docs/adr/0010-oss-enterprise-boundary.md), no fixed
+  schedule. Small utility, ships when ready as additive 1.x.y.
 - ❌ Hot reload without restart → 1.0.x if requested.
 - ❌ Multiple `--policy` files concatenated → 1.0.x if requested.
-- ❌ APL replacing YAML entirely → 1.1 once we observe real usage.
-- ❌ Drift replay with full pipeline re-execution → 1.0 GA or post-GA
-  (requires receipt schema change to embed full `InspectRequest`).
+- ❌ APL replacing YAML entirely → not scheduled; the YAML profile
+  system co-exists with the APL stricter-wins overlay indefinitely.
+- ❌ Drift replay with full pipeline re-execution → reinstated to
+  **OSS 1.2** roadmap as additive (`pipeline_inputs_capture`,
+  `apl_eval_trace`, `ml_inference_inputs` optional fields on the
+  receipt body, no breaking change). The forensic time-travel variant
+  (event sourcing + temporal queries DB-state-per-verdict) lives in
+  IAGA Sentinel Enterprise (#13).
 
 ### What stayed
 
@@ -589,22 +611,80 @@ when APL is loaded. Receipts produced before M6 (or in runs without
 
 ---
 
-## Future (not yet released)
-- **M3.1** (optional): WASM codegen for APL via `wasm-encoder`; full type
-  checker.
-- **M3.5.1**: real pre-trained ONNX models for intent-drift /
-  prompt-injection / anomaly-seq, plus pluggable tokenizers shipped
-  alongside model files.
-- **M4.1**: real eBPF/LSM loader via `aya-rs` + LLVM 18+. LSM hooks on
-  `execve`, `openat`, `connect`, `sendto`. Landlock fallback. Cgroup
-  jailing. Long-lived detached child handle ownership. After this,
-  `BpfKernel.is_authoritative()` flips to `true`.
-- **M5**: APL replaces YAML as the authoritative policy format;
-  `armor policy migrate` auto-converts. Drift replay re-executes the
-  full pipeline in-sandbox against stored receipts; Postgres backend
-  for receipts enabled from the binary; hardening pass before 1.0 GA.
-- **1.1**: `armor-mesh` (gRPC gossip + federated rate budgets) +
-  cross-platform kernel + KMS/HSM signer backends.
+## 1.0 → 1.1.0
 
-These are design intents, not breaking changes yet. This section will be
-replaced with concrete diffs once each milestone ships.
+**Scope:** consolidation + complete project rebrand **Agent Armor →
+IAGA Sentinel**. Governance behaviour is unchanged — the 12-layer
+pipeline, verdict logic, receipt format (Ed25519 + Merkle), and the
+HTTP API contract (endpoints, camelCase JSON, `Authorization:
+Bearer`) are identical to 1.0.0. **Only names changed.** Those
+renames are breaking for CLI users, operators, and crate consumers,
+so upgrade deliberately using the table below.
+
+> Why a minor (1.1.0) and not a major: runtime/API behaviour and the
+> on-disk formats are compatible with 1.0.0; the break is limited to
+> identifiers (binary, env vars, paths, crate/type names). This is a
+> documented one-time exception — the 1.x line otherwise keeps the
+> no-breaking-change guarantee.
+
+### Rename map (breaking)
+
+| Area | 1.0 (Agent Armor) | 1.1 (IAGA Sentinel) |
+|---|---|---|
+| Primary binary | `agent-armor` | `iaga-sentinel` |
+| Short binary | `armor` | `iaga` |
+| Workspace crates | `armor-core`, `armor-receipts`, `armor-apl`, `armor-kernel`, `armor-reasoning` | `iaga-sentinel-core`, `-receipts`, `-apl`, `-kernel`, `-reasoning` |
+| Library imports | `agent_armor`, `armor_receipts`, … | `iaga_sentinel`, `iaga_sentinel_receipts`, … |
+| Env vars | `AGENT_ARMOR_*`, `ARMOR_*` (`ARMOR_SIGNER_KEY_PATH`, `ARMOR_OPEN_MODE`, `ARMOR_REASONING_MODELS`, `ARMOR_LOG_LEVEL`, …) | `IAGA_SENTINEL_*` (`IAGA_SENTINEL_SIGNER_KEY_PATH`, `IAGA_SENTINEL_OPEN_MODE`, …) |
+| Signer key dir | `~/.armor/keys/receipt_signer.ed25519` | `~/.iaga-sentinel/keys/receipt_signer.ed25519` |
+| Default SQLite | `agent_armor.db` | `iaga_sentinel.db` |
+| API-key prefix | `aa_…` | `iaga_…` (newly generated keys only) |
+| Webhook headers | `X-Armor-Signature`, `X-Armor-Event` | `X-Iaga-Sentinel-Signature`, `X-Iaga-Sentinel-Event` |
+| MCP tool names | `agentarmor.inspect`, `agentarmor.response_scan` | `iaga.inspect`, `iaga.response_scan` |
+| Python SDK | `from agent_armor import ArmorClient` | `from iaga_sentinel import SentinelClient` |
+| Public types | `ArmorClient`, `ArmorError`, `ArmorEvent`, … | `SentinelClient`, `SentinelError`, `SentinelEvent`, … |
+
+### Migration steps
+
+1. **Binary:** invoke `iaga` (or `iaga-sentinel`) instead of `armor` /
+   `agent-armor`.
+2. **Env vars:** rename `AGENT_ARMOR_*` / `ARMOR_*` to
+   `IAGA_SENTINEL_*`. The old names are **not** read as a fallback
+   (clean break).
+3. **Signer key:** move `~/.armor/keys/` to `~/.iaga-sentinel/keys/`
+   (or set `IAGA_SENTINEL_SIGNER_KEY_PATH`) to keep signing the same
+   receipt chain. Otherwise 1.1 generates a fresh key and starts a new
+   chain; old chains still *verify* but can't be *extended*.
+4. **Database:** point at the existing DB explicitly —
+   `--db sqlite:agent_armor.db` (or `DATABASE_URL=…`) — or rename the
+   file to `iaga_sentinel.db`. The schema is identical.
+5. **Webhook consumers:** update header checks to `X-Iaga-Sentinel-*`.
+6. **MCP clients:** call `iaga.inspect` / `iaga.response_scan`.
+7. **SDK / crate consumers:** update package and type imports per the
+   table.
+
+### What did NOT change
+
+- HTTP API: endpoint paths, request/response JSON (camelCase),
+  `Authorization: Bearer <key>`. Existing API keys still validate —
+  only the prefix of *newly generated* keys changed.
+- Receipt format (Ed25519 + Merkle hash-chain) and `replay` verify.
+- APL syntax, `.apl` files, policy YAML format.
+- Database schema (SQLite + Postgres), feature flags, sub-command set.
+- License: BUSL-1.1 with Change License Apache-2.0 baked in.
+
+---
+
+## Future (not yet released)
+
+The OSS line has no fixed milestone calendar. Bug fixes, dependency
+hardening, documentation, ergonomic improvements, and security
+advisories ship as they make sense, as 1.x.y patch or 1.x minor
+releases. Concrete entries appear in this file when they ship.
+
+Larger capabilities (real eBPF/LSM loader, cross-platform kernel
+backends, governance mesh, KMS-backed signers, curated ML library,
+EU AI Act / GDPR / DORA compliance pack, confidential-computing
+receipts, forensic time-travel replay) are part of the IAGA
+Sentinel Enterprise edition — see
+[`ENTERPRISE.md`](ENTERPRISE.md).

@@ -1,14 +1,26 @@
-# Agent Armor Enterprise
+# IAGA Sentinel Enterprise
 
 > **From governance kernel to audit dossier in 14 days.**
 
-Agent Armor (BUSL-1.1, with Change License: Apache-2.0 baked in) is the open-source kernel: signed receipts,
-deterministic policy language, replay, eBPF enforcement on Linux,
-BYOK signer support, single-cluster governance mesh.
-**Agent Armor Enterprise** is the commercial edition built on top.
+IAGA Sentinel (BUSL-1.1, with Change License: Apache-2.0 baked in) is
+the open-source governance kernel: 12-layer pipeline, Ed25519-signed
+Merkle-chained receipts, deterministic APL policy language with live
+overlay, replay verifier, `UserspaceKernel` cross-platform, `BpfKernel`
+Linux scaffold with honest "soft enforcement" posture, BYOK signer
+pattern (`IAGA_SENTINEL_SIGNER_KEY_PATH` filesystem-mount), reasoning plane
+with BYO ONNX. Capabilities planned for OSS 1.2: APL WASM codegen +
+Hindley-Milner type checker, Plugin Sigstore + SBOM CycloneDX
+attestation primitive, drift replay additivo, Signer trait +
+`LocalDiskSigner` refactor.
+**IAGA Sentinel Enterprise** is the commercial edition built on top.
 The two share the same governance core; Enterprise adds the parts a
 bank, insurer, hospital, or public-sector buyer needs to **prove**
-compliance, not just **achieve** it.
+compliance, not just **achieve** it — including the real eBPF/LSM
+loader on Linux (authoritative kernel enforcement), the macOS Endpoint
+Security and Windows ETW/WFP backends, the governance mesh
+(single-cluster + multi-region), the four native KMS SDK backends
+(AWS KMS / Azure Key Vault / HashiCorp Vault / PKCS#11 HSM), and the
+curated ML model library.
 
 If you can run OSS happily, run OSS happily. Enterprise exists for
 teams whose blocker is no longer technical — it is regulatory, audit,
@@ -36,14 +48,14 @@ the same evidence problem:
   incident reporting (Art. 17-23), digital operational resilience
   testing (Art. 24-27), third-party ICT risk (Art. 28-44).
 
-Enterprise turns Agent Armor's signed receipts into the documents
+Enterprise turns IAGA Sentinel's signed receipts into the documents
 each regulator accepts:
 
 | EU AI Act article | What it requires | What Enterprise ships |
 |---|---|---|
 | **Art. 9** — Risk management system | documented, iterative risk mgmt across the lifecycle | Risk Management dossier auto-generated from receipt history + ADR + change log |
 | **Art. 10** — Data and data governance | provenance, quality, bias mitigation for training data | Model card registry with dataset lineage, bias scorecards, retraining log |
-| **Art. 11 + Annex IV** — Technical documentation | full dossier covering design, dev, deployment | `armor compliance generate-dossier` produces a signed PDF + JSON-LD Annex-IV-conformant package |
+| **Art. 11 + Annex IV** — Technical documentation | full dossier covering design, dev, deployment | `iaga compliance generate-dossier` produces a signed PDF + JSON-LD Annex-IV-conformant package |
 | **Art. 12** — Record keeping | automatic, tamper-resistant logs of operation | already in OSS via signed receipts; Enterprise exports them in audit-acceptable bundles (PDF + ETSI-aligned attestation) |
 | **Art. 13** — Transparency to deployers | clear instructions for use, accuracy, limitations | Public model cards + accuracy benchmarks continuously updated, citable in user docs |
 | **Art. 14** — Human oversight | hold-on-block, escalation, kill-switch, intelligible interface | DPO Dashboard with review queue, SLA timer, audit-trailed approvals/rejections, hardware kill-switch endpoint |
@@ -51,7 +63,7 @@ each regulator accepts:
 | **Art. 16-19** — Provider quality management | ISO/IEC 42001-equivalent QMS | QMS console: process docs, training records, change control, internal audits |
 | **Art. 50** — Transparency for AI interactions | users must know they're interacting with AI | Built-in markers on every receipt + downstream-facing disclosure helper |
 | **Art. 53-55** — GPAI obligations | model cards, training data summary, incident reporting | Hooks into the Model Card Registry; the operator only manages the agent, the model provider obligations are scoped clearly |
-| **Art. 72** — Post-market monitoring | continuous monitoring of system in production | `armor monitor watch` runs continuous drift detection across receipt chains, raising alerts when behavior departs from the validated baseline |
+| **Art. 72** — Post-market monitoring | continuous monitoring of system in production | `iaga monitor watch` runs continuous drift detection across receipt chains, raising alerts when behavior departs from the validated baseline |
 | **Art. 73** — Serious incident reporting | report to market surveillance authority within 15 days | Incident Report Generator: produces the EU AI Office notification template prefilled from receipt + drift evidence |
 
 > Notified body integration (TÜV / Dekra / Bureau Veritas) is on the
@@ -111,12 +123,19 @@ For DORA (financial entities in EU only):
 
 ### 4. Cryptographic backbone
 
-OSS Agent Armor supports BYOK (Bring Your Own Key) for HSM/KMS signers
-— AWS KMS, Azure Key Vault, HashiCorp Vault, on-prem Thales/Utimaco.
-Enterprise adds:
+OSS IAGA Sentinel supports the BYOK pattern by filesystem-mount:
+`IAGA_SENTINEL_SIGNER_KEY_PATH` points at any 32-byte Ed25519 key file,
+including one your KMS produces and mounts into the binary's
+filesystem. The `Signer` trait + `LocalDiskSigner` refactor ship
+in OSS 1.2 to clean up the abstraction. The four native KMS SDK
+integrations and the managed lifecycle live in Enterprise.
 
+- **Native KMS SDK backends**: first-class integrations for
+  **AWS KMS**, **Azure Key Vault**, **HashiCorp Vault**, and
+  **PKCS#11 HSM** (Thales / Utimaco / SoftHSM2). The signer talks
+  to the KMS API directly; no filesystem-mount workaround.
 - **Managed key lifecycle**: generation, rotation, revocation handled
-  on your behalf with documented SLAs.
+  on your behalf with documented SLAs and audit-trailed approvals UI.
 - **eIDAS qualified electronic signatures**: receipts signed with
   qualified certs from a trusted certification authority. Receipts
   become legally binding evidence in EU jurisdictions.
@@ -154,7 +173,7 @@ maintenance burden taken off your team.
 
 ### 7. Deployment options
 
-- **Iaga Cloud**: managed deployment of Agent Armor Enterprise.
+- **Iaga Cloud**: managed deployment of IAGA Sentinel Enterprise.
   EU-region (Frankfurt, Paris) primary, multi-region active-active
   available. SOC 2 Type II in roadmap.
 - **Air-gapped on-premises**: full-feature deploy with offline update
@@ -166,7 +185,7 @@ maintenance burden taken off your team.
 
 ### 8. Founder-led support
 
-This is not outsourced. The same team that wrote Agent Armor's kernel
+This is not outsourced. The same team that wrote IAGA Sentinel's kernel
 is the team that answers your incidents.
 
 - **SLA 99.95%** uptime for Iaga Cloud.
@@ -239,14 +258,18 @@ engineering". Each one requires specialist talent and pays back
 exactly the regulated buyers we are targeting.
 
 - **Curated eBPF/LSM program library.** The OSS kernel ships the
-  loader and the trait surface. Enterprise ships **a library of
-  pre-written eBPF programs** for AI-specific attack patterns:
-  rootkit-style hook detection, keylogger fingerprints, container
-  escape vectors, model-weight exfiltration via outbound DNS, prompt
-  injection via shared memory, agent process impersonation. Writing
-  correct eBPF programs that survive the kernel verifier under load
-  is scarce talent. This is what a bank under DORA Art. 28-44
-  (third-party ICT risk) actually wants on its production hosts.
+  `BpfKernel` scaffold and the trait surface; the real Aya-rs LSM
+  loader (with hooks `bprm_check_security` / `file_open` /
+  `socket_connect` / `socket_sendmsg`, Landlock fallback, cgroup
+  jailing) lives in Enterprise. On top of the loader, Enterprise
+  ships **a library of pre-written eBPF programs** for AI-specific
+  attack patterns: rootkit-style hook detection, keylogger
+  fingerprints, container escape vectors, model-weight exfiltration
+  via outbound DNS, prompt injection via shared memory, agent
+  process impersonation. Writing correct eBPF programs that survive
+  the kernel verifier under load is scarce talent. This is what a
+  bank under DORA Art. 28-44 (third-party ICT risk) actually wants
+  on its production hosts.
 - **Confidential-computing receipts.** Receipts produced inside an
   Intel SGX / AMD SEV-SNP / AWS Nitro Enclave. The signer key never
   leaves the TEE. Receipt body carries a hardware attestation
@@ -300,15 +323,30 @@ Reach out and we scope it together. Contact:
 
 This is a commitment, not a feature list:
 
-- Enterprise will **never** gate the governance kernel. eBPF loader,
-  receipt schema, replay algorithm, APL evaluator, reasoning framework,
-  governance mesh — these stay in the open-source kernel under BUSL-1.1 with the automatic Apache-2.0 conversion.
+- Enterprise will **never** gate the conceptual governance kernel.
+  Receipt schema, replay algorithm, APL evaluator (with WASM codegen
+  in OSS 1.2), reasoning framework + BYO ONNX, `UserspaceKernel`
+  cross-platform soft enforcement, `BpfKernel` Linux scaffold with
+  honest posture, the BYOK signer pattern + `Signer` trait
+  (OSS 1.2), Sigstore + SBOM plugin attestation primitive (OSS 1.2)
+  — these stay in the open-source kernel under BUSL-1.1 with the
+  automatic Apache-2.0 conversion four years after each release.
+  The implementations that require specialist engineering at scale
+  (the real eBPF/LSM loader on Linux, the macOS Endpoint Security
+  and Windows ETW/WFP backends, the governance mesh, the four
+  native KMS SDK backends, the curated ML model library) live in
+  Enterprise — not as gating of OSS primitives, but as the
+  heavy-engineering tier built on top of them.
 - Enterprise will **never** require Iaga Cloud. You can run Enterprise
   fully on-prem, air-gapped if you need.
 - Enterprise will **never** introduce a "free with telemetry" tier
   that ships your data offsite without explicit configuration.
 - Enterprise will **never** retroactively remove features from OSS.
-  If something works in OSS today, it works in OSS forever.
+  If something works in OSS today, it works in OSS forever. The
+  capabilities listed above as Enterprise were planned but never
+  shipped in the OSS 1.0 GA — none of them are being removed from
+  any release that ships them publicly. The full boundary is in
+  [`docs/adr/0010-oss-enterprise-boundary.md`](docs/adr/0010-oss-enterprise-boundary.md).
 
 This is the GitLab CE/EE pre-pivot covenant. We honour it because our
 business depends on community trust.
@@ -330,4 +368,4 @@ business depends on community trust.
 
 Contact: `enterprise@iaga.start@gmail.com`
 Iaga Cloud: <https://iaga.cloud>
-Repository (OSS): <https://github.com/EdoardoBambini/Agent-Armor-Iaga>
+Repository (OSS): <https://github.com/EdoardoBambini/IAGA-Sentinel>

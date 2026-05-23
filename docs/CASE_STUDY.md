@@ -1,8 +1,18 @@
-# Case Study: Agent Armor v2 — Continuous Risk Scoring Across 8 Security Layers
+# Case Study: IAGA Sentinel v2 — Continuous Risk Scoring Across 8 Security Layers
+
+> **Historical case study (March 30, 2026) — measured against the v0.4.0 era
+> 8-layer pipeline.** The current 1.x architecture ships **12 layers** (the
+> original 8 hardened in M2–M5 + 4 new ones from M3.5 + M4 — see
+> [`IAGA_SENTINEL_1.0.md`](../IAGA_SENTINEL_1.0.md) §3). The methodology and
+> findings here remain valid for the layers covered; the 12-layer surface adds
+> supply chain attestation, blast radius enforcement, behavioral baseline, and
+> counterparty trust on top. The OSS↔Enterprise boundary that governs which
+> capabilities ship in which edition is documented in
+> [`adr/0010-oss-enterprise-boundary.md`](adr/0010-oss-enterprise-boundary.md).
 
 ## Abstract
 
-We present the second-generation empirical evaluation of **Agent Armor**, a zero-trust security runtime for autonomous AI agents implemented in **8,600 lines of Rust**. This study addresses a fundamental limitation of the v1 evaluation: binary risk scoring (0 or 70) that provided no indication of *how* dangerous an action actually was.
+We present the second-generation empirical evaluation of **IAGA Sentinel**, a zero-trust security runtime for autonomous AI agents implemented in **8,600 lines of Rust**. This study addresses a fundamental limitation of the v1 evaluation: binary risk scoring (0 or 70) that provided no indication of *how* dangerous an action actually was.
 
 Through a redesigned composite scoring engine, severity-aware trust updates, and session cooldown mechanics, v2 achieves **99.8% decision accuracy** across 800 governance requests with **continuous risk scores spanning 1 to 88**, replacing the previous all-or-nothing model with granular threat quantification.
 
@@ -432,7 +442,7 @@ cd community
 cargo build --release
 
 # Start server
-AGENT_ARMOR_OPEN_MODE=true ./target/release/agent-armor serve &
+IAGA_SENTINEL_OPEN_MODE=true ./target/release/iaga-sentinel serve &
 
 # Run benchmark (requires Python 3 + requests + matplotlib + seaborn)
 python benchmark_v2.py
@@ -446,7 +456,7 @@ python benchmark_v2.py
 
 ## 8. Conclusion
 
-Agent Armor v2 demonstrates that **continuous, multi-layer risk scoring** for AI agent governance is both achievable and practical:
+IAGA Sentinel v2 demonstrates that **continuous, multi-layer risk scoring** for AI agent governance is both achievable and practical:
 
 - **99.8% accuracy** across 800 requests with 16 distinct threat scenarios
 - **Risk scores from 1 to 88** with intuitive threat hierarchy (`curl|sh` > `chmod 777` > prompt injection > policy violation)

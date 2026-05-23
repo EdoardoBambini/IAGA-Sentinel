@@ -1,5 +1,5 @@
 import type {
-  ArmorClientOptions,
+  SentinelClientOptions,
   AuditEvent,
   GovernanceResult,
   HealthResponse,
@@ -29,12 +29,12 @@ function normalizeInspectRequest(request: InspectRequest): JsonObject {
   return normalized;
 }
 
-export class ArmorClient {
+export class SentinelClient {
   private baseUrl: string;
   private headers: Record<string, string>;
   private timeout: number;
 
-  constructor(options: ArmorClientOptions = {}) {
+  constructor(options: SentinelClientOptions = {}) {
     this.baseUrl = (options.baseUrl ?? "http://localhost:4010").replace(/\/$/, "");
     this.timeout = options.timeout ?? 10000;
     this.headers = { "Content-Type": "application/json" };
@@ -457,7 +457,7 @@ export class ArmorClient {
 
       if (!response.ok) {
         const body = await response.text().catch(() => "");
-        throw new ArmorApiError(response.status, body, path);
+        throw new SentinelApiError(response.status, body, path);
       }
 
       return response;
@@ -479,48 +479,48 @@ export class ArmorClient {
   }
 }
 
-export class ArmorApiError extends Error {
+export class SentinelApiError extends Error {
   constructor(
     public readonly status: number,
     public readonly body: string,
     public readonly path: string
   ) {
-    super(`Agent Armor API error ${status} on ${path}: ${body}`);
-    this.name = "ArmorApiError";
+    super(`IAGA Sentinel API error ${status} on ${path}: ${body}`);
+    this.name = "SentinelApiError";
   }
 }
 
 export async function governed<T>(
-  client: ArmorClient,
+  client: SentinelClient,
   request: InspectRequest,
   fn: () => T | Promise<T>
 ): Promise<T> {
   const result = await client.inspect(request);
 
   if (result.decision === "block") {
-    throw new ArmorBlockedError(result);
+    throw new SentinelBlockedError(result);
   }
   if (result.decision === "review") {
-    throw new ArmorReviewError(result);
+    throw new SentinelReviewError(result);
   }
 
   return await fn();
 }
 
-export class ArmorBlockedError extends Error {
+export class SentinelBlockedError extends Error {
   constructor(public readonly result: GovernanceResult) {
     super(
-      `Tool blocked by Agent Armor (risk=${result.risk.score}): ${result.risk.reasons.join(", ")}`
+      `Tool blocked by IAGA Sentinel (risk=${result.risk.score}): ${result.risk.reasons.join(", ")}`
     );
-    this.name = "ArmorBlockedError";
+    this.name = "SentinelBlockedError";
   }
 }
 
-export class ArmorReviewError extends Error {
+export class SentinelReviewError extends Error {
   constructor(public readonly result: GovernanceResult) {
     super(
       `Tool requires review (reviewId=${result.reviewRequestId}, risk=${result.risk.score})`
     );
-    this.name = "ArmorReviewError";
+    this.name = "SentinelReviewError";
   }
 }

@@ -1,4 +1,4 @@
-# Agent Armor v0.4.0 — Roadmap
+# IAGA Sentinel v0.4.0 — Roadmap
 
 > **Codename:** *Azzurra*
 > **Target:** Community Edition — open source, game-changing release
@@ -11,7 +11,7 @@
 
 v0.3.0 shipped a solid 8-layer governance pipeline with 48 HTTP endpoints, SQLite/PostgreSQL storage, MCP proxy/server modes, Python + TypeScript SDKs, and 120 tests. But several critical modules (`nhi`, `session_graph`, `taint`, `fingerprint`, `rate_limit`) still use `static Lazy<Mutex<HashMap>>` in-memory state that vanishes on restart. The policy engine is flat (no conditionals, no hierarchy). There are no framework adapters beyond MCP. The SDKs cover ~5 of 48 endpoints. And there's no way for the community to extend the pipeline with custom rules.
 
-v0.4.0 closes these gaps with **6 pillars** that transform Agent Armor from a demo-ready runtime into a **production-grade, extensible governance platform**.
+v0.4.0 closes these gaps with **6 pillars** that transform IAGA Sentinel from a demo-ready runtime into a **production-grade, extensible governance platform**.
 
 > **Hardening note (April 2026):** Session correlation is being tightened so multi-call arcs like `file_read -> file_read -> http` feed the adaptive scorer with real session depth/timestamps instead of relying on per-call scoring alone.
 
@@ -33,8 +33,8 @@ This document still describes the intended `0.4.0` target shape, but the repo is
   - `POST /v1/plugins/reload`
   - `GovernanceResult.pluginResults`
 - Plugin CLI commands are now implemented and tested:
-  - `agent-armor plugins list`
-  - `agent-armor plugins validate <path.wasm>`
+  - `iaga-sentinel plugins list`
+  - `iaga-sentinel plugins validate <path.wasm>`
 - Real feature-gated WASM tests now exist and are passing with `--features plugins`:
   - a `.wasm` module generated via `wat::parse_str`
   - loaded from a temporary plugin directory
@@ -50,7 +50,7 @@ This document still describes the intended `0.4.0` target shape, but the repo is
   - the pipeline evaluates persisted rules during inspection
   - tests cover both HTTP persistence and runtime decision impact
 - Framework adapter scaffolding is now materially present:
-  - `sdks/python/agent_armor/adapters/`
+  - `sdks/python/iaga_sentinel/adapters/`
   - `sdks/typescript/src/adapters/`
 - SDK coverage is no longer limited to ~5 endpoints:
   - both SDKs now cover governance, policy, plugin, audit, telemetry, review,
@@ -183,7 +183,7 @@ This gives us **zero performance regression** + **durable state across restarts*
 
 ### Why
 
-The community can't extend the pipeline today. Custom detection rules, custom risk scorers, custom protocol parsers — all require forking the crate. A WASM plugin system lets anyone write a plugin in Rust/Go/C/AssemblyScript, compile to `.wasm`, and drop it into Agent Armor.
+The community can't extend the pipeline today. Custom detection rules, custom risk scorers, custom protocol parsers — all require forking the crate. A WASM plugin system lets anyone write a plugin in Rust/Go/C/AssemblyScript, compile to `.wasm`, and drop it into IAGA Sentinel.
 
 ### What
 
@@ -205,7 +205,7 @@ fn on_inspect(request_json: &str) -> PluginResultJson
 - Pipeline step between Layer 6 (Policy) and Layer 7 (Firewall): "Plugin Evaluation"
 - `GovernanceResult.plugin_results: Option<Vec<PluginOutput>>`
 - HTTP endpoints: `GET /v1/plugins`, `POST /v1/plugins/reload`
-- CLI: `agent-armor plugins list`, `agent-armor plugins validate <path.wasm>`
+- CLI: `iaga-sentinel plugins list`, `iaga-sentinel plugins validate <path.wasm>`
 
 ### New Files
 
@@ -296,41 +296,41 @@ defaults:
 
 Without adapters, users must manually construct `InspectRequest` JSON and call the HTTP API. Framework adapters let LangChain/OpenAI/CrewAI users add governance with **2 lines of code**.
 
-### Python Adapters (`sdks/python/agent_armor/adapters/`)
+### Python Adapters (`sdks/python/iaga_sentinel/adapters/`)
 
 ```python
 # LangChain — one-liner governance
-from agent_armor.adapters.langchain import ArmorCallbackHandler
-chain = my_chain | ArmorCallbackHandler(api_key="ak-...")
+from iaga_sentinel.adapters.langchain import SentinelCallbackHandler
+chain = my_chain | SentinelCallbackHandler(api_key="ak-...")
 
 # OpenAI — wrap the client
-from agent_armor.adapters.openai import armor_wrap_openai
-client = armor_wrap_openai(OpenAI(), api_key="ak-...")
+from iaga_sentinel.adapters.openai import sentinel_wrap_openai
+client = sentinel_wrap_openai(OpenAI(), api_key="ak-...")
 
 # CrewAI — guardrail
-from agent_armor.adapters.crewai import ArmorGuardrail
-crew = Crew(agents=[...], guardrails=[ArmorGuardrail(api_key="ak-...")])
+from iaga_sentinel.adapters.crewai import SentinelGuardrail
+crew = Crew(agents=[...], guardrails=[SentinelGuardrail(api_key="ak-...")])
 ```
 
 ### TypeScript Adapters (`sdks/typescript/src/adapters/`)
 
 ```typescript
 // Vercel AI SDK middleware
-import { armorMiddleware } from 'agent-armor/adapters/vercel-ai';
-const result = await generateText({ ...opts, middleware: armorMiddleware({ apiKey }) });
+import { sentinelMiddleware } from 'iaga-sentinel/adapters/vercel-ai';
+const result = await generateText({ ...opts, middleware: sentinelMiddleware({ apiKey }) });
 
 // OpenAI wrapper
-import { armorWrapOpenAI } from 'agent-armor/adapters/openai';
-const client = armorWrapOpenAI(new OpenAI(), { apiKey });
+import { sentinelWrapOpenAI } from 'iaga-sentinel/adapters/openai';
+const client = sentinelWrapOpenAI(new OpenAI(), { apiKey });
 ```
 
 ### New Files
 
-- `sdks/python/agent_armor/adapters/__init__.py`
-- `sdks/python/agent_armor/adapters/langchain.py`
-- `sdks/python/agent_armor/adapters/openai.py`
-- `sdks/python/agent_armor/adapters/crewai.py`
-- `sdks/python/agent_armor/adapters/autogen.py`
+- `sdks/python/iaga_sentinel/adapters/__init__.py`
+- `sdks/python/iaga_sentinel/adapters/langchain.py`
+- `sdks/python/iaga_sentinel/adapters/openai.py`
+- `sdks/python/iaga_sentinel/adapters/crewai.py`
+- `sdks/python/iaga_sentinel/adapters/autogen.py`
 - `sdks/typescript/src/adapters/vercel-ai.ts`
 - `sdks/typescript/src/adapters/openai.ts`
 
@@ -346,10 +346,10 @@ Operators need real-time visibility and debugging tools beyond the embedded dash
 
 | Command | Description |
 |---------|-------------|
-| `agent-armor watch` | Live tail of governance decisions via SSE. Colored output: green=allow, yellow=review, red=block. Filters: `--agent`, `--tool`, `--decision` |
-| `agent-armor replay <event-id>` | Fetch audit event, reconstruct InspectRequest, re-run through pipeline, show side-by-side diff. Debug "why was this blocked?" |
-| `agent-armor benchmark` | Generate N random payloads, fire at `/v1/inspect`, report p50/p95/p99 latency, decisions distribution, throughput |
-| `agent-armor policy-test <policy.yaml> <scenario.json>` | Dry-run a policy against scenarios without a running server. Pure local evaluation |
+| `iaga-sentinel watch` | Live tail of governance decisions via SSE. Colored output: green=allow, yellow=review, red=block. Filters: `--agent`, `--tool`, `--decision` |
+| `iaga-sentinel replay <event-id>` | Fetch audit event, reconstruct InspectRequest, re-run through pipeline, show side-by-side diff. Debug "why was this blocked?" |
+| `iaga-sentinel benchmark` | Generate N random payloads, fire at `/v1/inspect`, report p50/p95/p99 latency, decisions distribution, throughput |
+| `iaga-sentinel policy-test <policy.yaml> <scenario.json>` | Dry-run a policy against scenarios without a running server. Pure local evaluation |
 
 ### New Files
 
@@ -417,4 +417,4 @@ Current SDKs cover ~5 of 48 endpoints. Community contributors need full API acce
 
 ---
 
-*Generated: April 2026 | Agent Armor Community Edition*
+*Generated: April 2026 | IAGA Sentinel Community Edition*

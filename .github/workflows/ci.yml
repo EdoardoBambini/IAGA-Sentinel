@@ -41,7 +41,7 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
 
       - name: Security audit
-        # Ignores documented in crates/armor-core/.cargo/audit.toml. Passed explicitly
+        # Ignores documented in crates/iaga-sentinel-core/.cargo/audit.toml. Passed explicitly
         # because cargo-audit's project-local config discovery is version-dependent.
         run: cargo audit --ignore RUSTSEC-2023-0071 --ignore RUSTSEC-2025-0057 --ignore RUSTSEC-2024-0436
 
@@ -75,11 +75,11 @@ jobs:
       - name: Run tests (default features)
         run: cargo test --workspace
 
-      - name: Run armor-reasoning tests with `ml` feature (tract-onnx)
-        run: cargo test -p armor-reasoning --features ml
+      - name: Run iaga-sentinel-reasoning tests with `ml` feature (tract-onnx)
+        run: cargo test -p iaga-sentinel-reasoning --features ml
 
       - name: Validate example plugin path
-        run: cargo test -p agent-armor-core --features plugins --test plugin_example_tests
+        run: cargo test -p iaga-sentinel-core --features plugins --test plugin_example_tests
 
       - name: Build TypeScript SDK
         working-directory: sdks/typescript
@@ -89,7 +89,7 @@ jobs:
 
       - name: Compile Python SDK
         working-directory: sdks/python
-        run: python -m compileall agent_armor
+        run: python -m compileall iaga_sentinel
 
       - name: Build UI (for ui-embed)
         working-directory: ui
@@ -98,7 +98,7 @@ jobs:
           npm run build
 
       - name: Verify ui-embed feature compiles
-        run: cargo build -p agent-armor-core --features ui-embed
+        run: cargo build -p iaga-sentinel-core --features ui-embed
 
   build:
     name: Build
@@ -124,17 +124,17 @@ jobs:
 
       - name: Smoke-test CLI surface (1.0)
         run: |
-          ./target/release/armor --help
-          ./target/release/armor kernel status
-          ./target/release/armor reasoning info
-          ./target/release/armor policy lint crates/armor-apl/examples/no_pii_egress.apl
-          ./target/release/armor policy test crates/armor-apl/examples/no_pii_egress.apl --context crates/armor-apl/examples/sample_context.json
+          ./target/release/iaga --help
+          ./target/release/iaga kernel status
+          ./target/release/iaga reasoning info
+          ./target/release/iaga policy lint crates/iaga-sentinel-apl/examples/no_pii_egress.apl
+          ./target/release/iaga policy test crates/iaga-sentinel-apl/examples/no_pii_egress.apl --context crates/iaga-sentinel-apl/examples/sample_context.json
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
-          name: agent-armor-binary
-          path: target/release/agent-armor
+          name: iaga-sentinel-binary
+          path: target/release/iaga-sentinel
 
   release:
     name: Release
@@ -147,10 +147,10 @@ jobs:
       - name: Download binary artifact
         uses: actions/download-artifact@v4
         with:
-          name: agent-armor-binary
+          name: iaga-sentinel-binary
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: agent-armor
+          files: iaga-sentinel
           generate_release_notes: true

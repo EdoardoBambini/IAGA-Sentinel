@@ -6,6 +6,13 @@
 - **Milestone**: M6 (final 1.0 GA milestone)
 - **Relates to**: ADR 0004 (APL MVP), ADR 0003 (receipts schema), ADR 0007 (M5 RC)
 
+> **Status update 2026-05-08**: il riferimento a `iaga policy migrate`
+> (YAML → APL converter) come "1.1" in questo ADR è stato chiarito da
+> [ADR 0010](0010-oss-enterprise-boundary.md): è **OSS-eligible** (small
+> utility, debt closure per ADR 0008) ma senza schedule fissato. Shippa
+> quando pronto come additive 1.x.y. Il sistema overlay APL stricter-wins
+> qui descritto resta OSS forever.
+
 ## Contesto
 
 M3 (ADR 0004) ha shippato APL come crate standalone con CLI dry-run. M5 (ADR 0007) ha esplicitamente lasciato fuori "APL come fonte autoritativa di policy" rinviandolo alla milestone successiva. M6 è quel momento: APL diventa un policy engine **live** consultato dal pipeline durante ogni `execute_pipeline`.
@@ -16,7 +23,7 @@ La domanda di design è: **come si integra APL con il sistema YAML/profile esist
 
 ### 1. APL come **overlay**, non come sostituto
 
-Il sistema YAML esistente (profili agent + workspace policies + threshold di risk) **resta autoritativo come oggi**. APL è un **overlay** caricato opzionalmente via `armor serve --policy file.apl`.
+Il sistema YAML esistente (profili agent + workspace policies + threshold di risk) **resta autoritativo come oggi**. APL è un **overlay** caricato opzionalmente via `iaga serve --policy file.apl`.
 
 **Non** rimpiazza: convive. Ragioni:
 
@@ -24,7 +31,7 @@ Il sistema YAML esistente (profili agent + workspace policies + threshold di ris
 - Migrazione graduale: gli operatori possono spostare regole da YAML ad APL nel loro tempo.
 - Test pratico: APL si valuta in produzione contro YAML reale prima di chiedere una migrazione completa.
 
-L'APL come **unica** fonte di policy (con migrazione automatica YAML → APL via `armor policy migrate`) è esplicitamente fuori scope 1.0. Sarà 1.1 quando avremo tempo di osservare l'uso reale e progettare il converter.
+L'APL come **unica** fonte di policy (con migrazione automatica YAML → APL via `iaga policy migrate`) è esplicitamente fuori scope 1.0. Sarà 1.1 quando avremo tempo di osservare l'uso reale e progettare il converter.
 
 ### 2. Semantica del merge: **stricter wins**
 
@@ -51,9 +58,9 @@ Regola formale: `final = max(yaml, apl)` con ordine `Allow < Review < Block`.
 
 ### 3. Receipt schema impact
 
-Il `policy_hash` nel receipt body (M2) era una costante `SHA-256("agent-armor-policy-v0")` come placeholder per M2/M5. M6 lo riempie con un valore reale:
+Il `policy_hash` nel receipt body (M2) era una costante `SHA-256("iaga-sentinel-policy-v0")` come placeholder per M2/M5. M6 lo riempie con un valore reale:
 
-- Quando APL **non** caricato: `policy_hash = SHA-256("agent-armor-policy-v0")` (invariato vs M5).
+- Quando APL **non** caricato: `policy_hash = SHA-256("iaga-sentinel-policy-v0")` (invariato vs M5).
 - Quando APL caricato: `policy_hash = SHA-256(apl_program.serialize())` — il digest del bundle compilato.
 
 Replay distingue le due modalità: vedere un receipt con il policy_hash costante significa "APL non era attivo per quella request"; un policy_hash diverso significa "APL era attivo, ed era *quello specifico* bundle". Drift detection cross-bundle funziona automaticamente.
@@ -62,18 +69,18 @@ Schema invariato: `policy_hash` esisteva già da M2 come `String`. Solo il *cont
 
 ### 4. Surface API minima
 
-Nuovo modulo `crates/armor-core/src/pipeline/apl_overlay.rs`:
+Nuovo modulo `crates/iaga-sentinel-core/src/pipeline/apl_overlay.rs`:
 
 ```rust
 pub struct AplOverlay {
-    program: armor_apl::Program,
+    program: iaga_sentinel_apl::Program,
     source_path: std::path::PathBuf,
     policy_hash: String,      // hex SHA-256 of compiled bundle
 }
 
 impl AplOverlay {
     pub fn load(path: &Path) -> Result<Self, AplOverlayError>;
-    pub fn evaluate(&self, ctx: &armor_apl::Context) -> Option<Fired>;
+    pub fn evaluate(&self, ctx: &iaga_sentinel_apl::Context) -> Option<Fired>;
     pub fn policy_hash(&self) -> &str;
     pub fn source_path(&self) -> &Path;
     pub fn policy_count(&self) -> usize;
@@ -109,42 +116,42 @@ Path APL come `action.kind`, `risk.score > 80`, `ml.intent_drift.score > 0.85` l
 
 ### 6. CLI
 
-- `armor serve [--policy FILE]` — carica APL all'avvio. Errore → exit 2 con messaggio chiaro.
-- `armor policy lint <file.apl>` — alias semantico di `armor policy test --no-context`. Solo parse + validate.
-- `armor policy test <file.apl> [--context ctx.json]` — invariato (M3).
+- `iaga serve [--policy FILE]` — carica APL all'avvio. Errore → exit 2 con messaggio chiaro.
+- `iaga policy lint <file.apl>` — alias semantico di `iaga policy test --no-context`. Solo parse + validate.
+- `iaga policy test <file.apl> [--context ctx.json]` — invariato (M3).
 
 Quando l'APL è caricato, il log all'avvio dice esplicitamente: `APL policy loaded: 3 policies, hash=abc123def...`. Operatore vede subito cosa è attivo.
 
 ### 7. Cosa **non** fa M6 (rinviato)
 
-- ❌ `armor policy migrate` (YAML → APL converter automatico) → 1.1.
+- ❌ `iaga policy migrate` (YAML → APL converter automatico) → 1.1.
 - ❌ Hot reload dell'APL senza restart server → 1.0.x se domandato.
 - ❌ Multiple APL files concatenati (`--policy a.apl --policy b.apl`) → 1.0.x se domandato.
 - ❌ APL come fonte unica autoritativa con YAML deprecated → 1.1.
-- ❌ APL evaluator integrato nel `armor inspect` standalone (oggi è solo nel server) → 1.0.x se domandato.
+- ❌ APL evaluator integrato nel `iaga inspect` standalone (oggi è solo nel server) → 1.0.x se domandato.
 
 ## Conseguenze
 
-- Test workspace cresce di ~5 (4 unit test apl_overlay + 1 integration `armor policy lint`). Target ~230/230.
+- Test workspace cresce di ~5 (4 unit test apl_overlay + 1 integration `iaga policy lint`). Target ~230/230.
 - Receipt schema invariato → replay legacy intatto.
 - Backward compat 0.4.0 perfetta: chi non passa `--policy` ha la stessa esperienza di M5.
 - Nuovo log line all'avvio del server quando APL caricata.
-- Il `Cargo.toml` di armor-core continua a dipendere da armor-apl via feature `apl` (già default on da M3).
+- Il `Cargo.toml` di iaga-sentinel-core continua a dipendere da iaga-sentinel-apl via feature `apl` (già default on da M3).
 
 ## Esempio operativo
 
 ```bash
 # Avvia il server con un overlay APL
-$ armor serve --policy crates/armor-core/examples/policies/strict.apl
-INFO  agent-armor: APL policy loaded: 3 policies, hash=8f4a3c...
-INFO  agent-armor: listening on 0.0.0.0:7777
+$ iaga serve --policy crates/iaga-sentinel-core/examples/policies/strict.apl
+INFO  iaga-sentinel: APL policy loaded: 3 policies, hash=8f4a3c...
+INFO  iaga-sentinel: listening on 0.0.0.0:7777
 
 # Inspect: APL contribuisce al verdetto (stricter-wins)
-$ armor inspect '{"agent_id": "...", "action": {"action_type": "shell", ...}}'
+$ iaga inspect '{"agent_id": "...", "action": {"action_type": "shell", ...}}'
 { "decision": "block", "reasons": ["yaml: shell tool unmapped", "apl[halt_on_hijack]: injection suspected"] }
 
 # Replay: receipt mostra il policy_hash dell'APL caricata
-$ armor replay <run_id>
+$ iaga replay <run_id>
 CHAIN OK ... (policy_hash=8f4a3c...)
 ```
 
@@ -153,4 +160,4 @@ CHAIN OK ... (policy_hash=8f4a3c...)
 - ADR 0004 — APL MVP (M3)
 - ADR 0003 — receipts schema (M2)
 - ADR 0007 — M5 hardening + RC posture
-- `crates/armor-apl/examples/no_pii_egress.apl` — esempio APL di partenza
+- `crates/iaga-sentinel-apl/examples/no_pii_egress.apl` — esempio APL di partenza

@@ -1,17 +1,17 @@
 openapi: 3.1.0
 info:
-  title: Agent Armor API
+  title: IAGA Sentinel API
   version: 0.1.0
   description: >
-    Agent Armor is an open-source governance layer for AI agents. It intercepts
+    IAGA Sentinel is an open-source governance layer for AI agents. It intercepts
     tool calls, evaluates risk, enforces workspace policies, and provides a
     full audit trail across an 8-layer security stack.
   license:
     name: BUSL-1.1
     url: https://spdx.org/licenses/BUSL-1.1.html
   contact:
-    name: Agent Armor Team
-    url: https://github.com/agent-armor/agent-armor
+    name: IAGA Sentinel Team
+    url: https://github.com/iaga-sentinel/iaga-sentinel
 
 servers:
   - url: http://localhost:4010
@@ -1186,7 +1186,7 @@ components:
           type: boolean
         service:
           type: string
-          example: agent-armor
+          example: iaga-sentinel
         mode:
           type: string
           example: community

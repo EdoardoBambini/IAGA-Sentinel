@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "agent-armor"
+name = "iaga-sentinel"
 version = "0.4.0"
-description = "Agent Armor Python SDK for zero-trust governance of AI agent actions"
+description = "IAGA Sentinel Python SDK for zero-trust governance of AI agent actions"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.9"
@@ -28,5 +28,5 @@ dependencies = [
 sync = ["requests>=2.28"]
 
 [project.urls]
-Homepage = "https://github.com/EdoardoBambini/Agent-Armor-Iaga"
-Documentation = "https://github.com/EdoardoBambini/Agent-Armor-Iaga"
+Homepage = "https://github.com/EdoardoBambini/IAGA-Sentinel"
+Documentation = "https://github.com/EdoardoBambini/IAGA-Sentinel"

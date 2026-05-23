@@ -1,11 +1,11 @@
-<h1 align="center">Agent Armor 1.0</h1>
+<h1 align="center">IAGA Sentinel 1.0</h1>
 
 <p align="center">
   <strong>Zero-trust governance kernel for autonomous AI agents.</strong>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.0.0-blue" alt="version" />
+  <img src="https://img.shields.io/badge/version-1.1.0-blue" alt="version" />
   <img src="https://img.shields.io/badge/license-BUSL--1.1-blue" alt="license" />
   <img src="https://img.shields.io/badge/12%20layers-defense%20in%20depth-green" alt="12 layers" />
   <img src="https://img.shields.io/badge/Rust-stable-orange" alt="Rust" />
@@ -21,7 +21,7 @@
 </p>
 
 <p align="center">
-  <img src="media/hero.gif" alt="Agent Armor 1.0 — kernel-enforced governance for autonomous agents" width="720" />
+  <img src="media/hero.gif" alt="IAGA Sentinel 1.0 — kernel-enforced governance for autonomous agents" width="720" />
 </p>
 
 ---
@@ -30,8 +30,8 @@
 
 Three things in one binary, glued by a typed deterministic policy language:
 
-1. **A kernel.** Armor sits below the agent SDK. Process launches go
-   through `armor run`, which consults the governance pipeline before
+1. **A kernel.** IAGA Sentinel sits below the agent SDK. Process launches go
+   through `iaga run`, which consults the governance pipeline before
    spawning. The 0.4.0 HTTP sidecar still works for SDK-aware agents;
    the kernel is the chokepoint for everything else.
 2. **A signed log.** Every governance verdict produces an Ed25519-signed
@@ -52,50 +52,50 @@ loadable as a `--policy` overlay on top of the YAML profile system.
 ### Install + start
 
 ```bash
-cargo install --path crates/armor-core
+cargo install --path crates/iaga-sentinel-core
 
 # Default sqlite, demo data seeded on first boot
-armor serve
+iaga serve
 ```
 
 ### CLI flow (no auth)
 
 ```bash
 # Path to a JSON file (camelCase keys, see note below)
-armor inspect ./payload.json
+iaga inspect ./payload.json
 
 # Launch a child process under the governance pipeline
-armor run --agent-id openclaw-builder-01 -- python my_agent.py
+iaga run --agent-id openclaw-builder-01 -- python my_agent.py
 
 # Replay the signed receipt chain
-armor replay --list
-armor replay <run_id>
+iaga replay --list
+iaga replay <run_id>
 
 # Test an APL policy file
-armor policy lint crates/armor-apl/examples/no_pii_egress.apl
-armor policy test crates/armor-apl/examples/no_pii_egress.apl \
-    --context crates/armor-apl/examples/sample_context.json
+iaga policy lint crates/iaga-sentinel-apl/examples/no_pii_egress.apl
+iaga policy test crates/iaga-sentinel-apl/examples/no_pii_egress.apl \
+    --context crates/iaga-sentinel-apl/examples/sample_context.json
 
 # Inspect kernel + reasoning posture
-armor kernel status
-armor reasoning info
+iaga kernel status
+iaga reasoning info
 
 # Load an APL bundle as a live overlay on top of YAML
-armor serve --policy crates/armor-core/examples/policies/strict.apl
+iaga serve --policy crates/iaga-sentinel-core/examples/policies/strict.apl
 ```
 
 ### HTTP API flow
 
 ```bash
 # Generate an API key once
-armor gen-key --label my-app
-# → Key: aa_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+iaga gen-key --label my-app
+# → Key: iaga_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 # Inspect via HTTP. Auth header is `Authorization: Bearer <key>`.
 # Payload uses camelCase: agentId, toolName, actionType.
 curl -X POST http://localhost:7777/v1/inspect \
   -H 'Content-Type: application/json' \
-  -H 'Authorization: Bearer aa_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' \
+  -H 'Authorization: Bearer iaga_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' \
   -d '{
     "agentId":  "openclaw-builder-01",
     "framework":"langchain",
@@ -116,35 +116,35 @@ docker compose down
 ```
 
 The container persists its DB and signer key in a named volume
-(`agent-armor-data`). Receipts signed inside the container can only be
+(`iaga-sentinel-data`). Receipts signed inside the container can only be
 verified by the same container; to share a signer key across deployments
-mount your own key file or set `ARMOR_SIGNER_KEY_PATH`.
+mount your own key file or set `IAGA_SENTINEL_SIGNER_KEY_PATH`.
 
 ### Postgres
 
 ```bash
-DATABASE_URL=postgres://user:pwd@host/agent_armor \
-  cargo install --path crates/armor-core --features postgres
+DATABASE_URL=postgres://user:pwd@host/iaga_sentinel \
+  cargo install --path crates/iaga-sentinel-core --features postgres
 
-armor serve   # receipts now go to Postgres automatically
+iaga serve   # receipts now go to Postgres automatically
 ```
 
 ---
 
 ## Features
 
-Cargo features on `armor-core`:
+Cargo features on `iaga-sentinel-core`:
 
 | Feature      | Default | Adds                                                                  |
 |--------------|---------|------------------------------------------------------------------------|
 | `sqlite`     | ✅      | SQLite backend for audit + receipts.                                   |
 | `postgres`   | ❌      | Postgres backend.                                                      |
 | `receipts`   | ✅      | Ed25519-signed Merkle-chained receipts (M2).                           |
-| `apl`        | ✅      | Armor Policy Language parser + evaluator + `armor policy ...` (M3).    |
-| `reasoning`  | ✅      | Reasoning plane scaffold + `armor reasoning info` (M3.5).              |
+| `apl`        | ✅      | Agent Policy Language parser + evaluator + `iaga policy ...` (M3).    |
+| `reasoning`  | ✅      | Reasoning plane scaffold + `iaga reasoning info` (M3.5).              |
 | `ml`         | ❌      | `tract-onnx` ML backend; opt-in, +~5 MB binary, +~2 min cold compile.  |
-| `kernel`     | ✅      | Enforcement kernel + `armor run` + `armor kernel status` (M4).         |
-| `linux-bpf`  | ❌      | Linux eBPF/LSM scaffold. Real loader ships in 1.0.1.                   |
+| `kernel`     | ✅      | Enforcement kernel + `iaga run` + `iaga kernel status` (M4).         |
+| `linux-bpf`  | ❌      | Linux eBPF/LSM scaffold + ringbuf API. Real Aya-rs loader lives in IAGA Sentinel Enterprise. |
 | `ui-embed`   | ❌      | Embeds `ui/dist/` into the binary via `rust-embed`.                    |
 
 `default = ["demo", "sqlite", "receipts", "apl", "reasoning", "kernel"]`.
@@ -154,30 +154,30 @@ Cargo features on `armor-core`:
 ## Architecture
 
 12 layers of defense in depth, organized into 7 architectural pillars
-described in [`AGENT_ARMOR_1.0.md`](AGENT_ARMOR_1.0.md):
+described in [`IAGA_SENTINEL_1.0.md`](IAGA_SENTINEL_1.0.md):
 
-1. **Enforcement Kernel** — `crates/armor-kernel/` (M4 scaffold + 1.0.1 loader).
-2. **Signed Receipts** — `crates/armor-receipts/` (M2).
-3. **Armor Policy Language** — `crates/armor-apl/` (M3 + M6 live overlay).
-4. **Attested Plugins** — supply-chain integrity (1.1).
-5. **Governance Mesh** — federated rate budgets (1.1).
+1. **Enforcement Kernel** — `crates/iaga-sentinel-kernel/` (M4 scaffold + `UserspaceKernel` cross-platform soft enforcement; real eBPF/LSM loader + macOS ES + Windows ETW/WFP backends in IAGA Sentinel Enterprise).
+2. **Signed Receipts** — `crates/iaga-sentinel-receipts/` (M2).
+3. **Agent Policy Language** — `crates/iaga-sentinel-apl/` (M3 tree-walk + M6 live overlay; WASM codegen + Hindley-Milner type checker → OSS 1.2).
+4. **Attested Plugins** — supply-chain integrity. Sigstore + SBOM CycloneDX attestation primitive → OSS 1.2; private hosted marketplace + supply-chain SLA in Enterprise.
+5. **Governance Mesh** — single-cluster baseline + tier-2 multi-region active-active live in Enterprise.
 6. **Visual Plane** — `ui/` embedded via `ui-embed` feature.
-7. **Probabilistic Reasoning** — `crates/armor-reasoning/` (M3.5).
+7. **Probabilistic Reasoning** — `crates/iaga-sentinel-reasoning/` (M3.5 scaffold + `tract` backend + BYO ONNX; curated ML library in Enterprise).
 
 Workspace layout:
 
 ```
-agent-armor/
+iaga-sentinel/
 ├── crates/
-│   ├── armor-core/          # pipeline, server, CLI, AppState
-│   ├── armor-receipts/      # Ed25519 + Merkle log + replay
-│   ├── armor-apl/           # APL parser + evaluator
-│   ├── armor-reasoning/     # ML evidence (tract-onnx behind `ml`)
-│   └── armor-kernel/        # cross-platform launcher + eBPF scaffold
+│   ├── iaga-sentinel-core/          # pipeline, server, CLI, AppState
+│   ├── iaga-sentinel-receipts/      # Ed25519 + Merkle log + replay
+│   ├── iaga-sentinel-apl/           # APL parser + evaluator
+│   ├── iaga-sentinel-reasoning/     # ML evidence (tract-onnx behind `ml`)
+│   └── iaga-sentinel-kernel/        # cross-platform launcher + eBPF scaffold
 ├── docs/adr/                # 8 ADRs (0001–0008)
 ├── ui/                      # frontend (embedded via ui-embed feature)
 ├── media/                   # hero assets
-├── AGENT_ARMOR_1.0.md       # design document
+├── IAGA_SENTINEL_1.0.md       # design document
 ├── MIGRATION.md             # 0.4.0 → 1.0 + per-milestone notes
 └── CHANGELOG.md             # release notes
 ```
@@ -186,7 +186,7 @@ agent-armor/
 
 ## Documentation
 
-- **Design**: [`AGENT_ARMOR_1.0.md`](AGENT_ARMOR_1.0.md)
+- **Design**: [`IAGA_SENTINEL_1.0.md`](IAGA_SENTINEL_1.0.md)
 - **Migration from 0.4.0**: [`MIGRATION.md`](MIGRATION.md)
 - **Release notes**: [`CHANGELOG.md`](CHANGELOG.md)
 - **Architectural decisions**:
@@ -204,25 +204,35 @@ agent-armor/
 
 ## Status
 
-**1.0 GA candidate.** All six 1.0 milestones complete, 234/234 default
-tests passing, clippy `--all-targets -D warnings` clean.
+**1.0 GA shipped.** All six 1.0 milestones complete, 234/234 default
+tests passing, clippy `--all-targets -D warnings` clean. **1.1.0
+released as a consolidation minor** (binary swap, zero runtime change,
+boundary clarification only).
 
 What's intentionally honest about the posture:
 
-- `armor kernel status` reports `authoritative: no (soft enforcement)`
-  until **1.0.1** ships the real eBPF/LSM loader. We don't market
-  enforcement we don't yet provide.
-- `armor reasoning info` reports `engine: noop` unless models are
-  configured; pre-trained models for intent-drift / prompt-injection /
-  anomaly-seq ship in **1.0.2**.
-- WASM codegen for APL is **1.0.3**. Today the evaluator is
-  tree-walking, fully deterministic, and replay-safe — the WASM swap
-  is purely a performance / sandbox-isolation upgrade.
-- macOS Endpoint Security and Windows ETW kernel backends, governance
-  mesh, KMS/HSM signers, GPU ML — all **1.1**.
+- `iaga kernel status` reports `authoritative: no (soft enforcement)`
+  on `UserspaceKernel`. The real Aya-rs eBPF/LSM loader (Linux,
+  authoritative kernel enforcement) lives in IAGA Sentinel Enterprise.
+  We don't market enforcement we don't yet provide in the OSS build.
+- `iaga reasoning info` reports `engine: noop` unless models are
+  configured. The reasoning framework + `TractEngine` + BYO ONNX are
+  in OSS; the curated ML model library (intent-drift /
+  prompt-injection / anomaly-seq pre-trained, signed, threat-intel
+  fed) lives in Enterprise.
+- APL today is tree-walking, fully deterministic, and replay-safe.
+  WASM codegen + Hindley-Milner type checker are planned for **OSS
+  1.2** as a performance / sandbox-isolation upgrade.
+- macOS Endpoint Security + Windows ETW/WFP kernel backends,
+  governance mesh, native KMS SDK signers (AWS KMS / Azure Key Vault
+  / HashiCorp Vault / PKCS#11), GPU ML — all in IAGA Sentinel
+  Enterprise. The boundary is documented in
+  [`docs/adr/0010-oss-enterprise-boundary.md`](docs/adr/0010-oss-enterprise-boundary.md).
 
-The 1.0 surface is locked. Patch releases are additive; 1.1 is the
-next major.
+OSS 1.2 reinstates four primitives originally deferred: APL WASM
+codegen, Sigstore + SBOM plugin attestation, drift replay additivo,
+and the `Signer` trait + `LocalDiskSigner` refactor. The 1.x line
+ships additively; no breaking changes.
 
 ---
 
@@ -230,14 +240,15 @@ next major.
 
 ## Community vs Enterprise
 
-> **Agent Armor Enterprise: from governance kernel to audit dossier in 14 days.**
+> **IAGA Sentinel Enterprise: from governance kernel to audit dossier in 14 days.**
 
 The governance kernel is the same in both editions. Enterprise adds
 modules that live in a separate commercial repository. The table below
 lists only what is **verifiable today** — what you can clone, build,
-inspect, or call against a running instance. Roadmap items (eBPF
-loader, mesh, WASM codegen, curated ML models) are tracked in
-[`CHANGELOG.md`](CHANGELOG.md) under the version where they ship.
+inspect, or call against a running instance. The OSS↔Enterprise
+boundary (20 Enterprise categories + 4 primitives reinstated to OSS
+1.2 roadmap) is documented in
+[`docs/adr/0010-oss-enterprise-boundary.md`](docs/adr/0010-oss-enterprise-boundary.md).
 
 ### What ships in the open-source build today (this repository)
 
@@ -246,35 +257,35 @@ Verifiable by `git clone && cargo test --workspace && docker compose up -d`:
 - **12-layer governance pipeline** — single binary, single endpoint
   (`POST /v1/inspect`), 234/234 tests passing.
 - **Signed action receipts** — Ed25519 + Merkle append-log per run,
-  verifiable offline with `armor replay <run_id> --verify-only`.
-- **Armor Policy Language (APL)** — typed DSL with deterministic
+  verifiable offline with `iaga replay <run_id> --verify-only`.
+- **Agent Policy Language (APL)** — typed DSL with deterministic
   tree-walk evaluator, instruction budget, short-circuit evaluation.
-  Try with `armor policy lint <file.apl>`.
-- **APL live overlay** — load a bundle as `armor serve --policy
+  Try with `iaga policy lint <file.apl>`.
+- **APL live overlay** — load a bundle as `iaga serve --policy
   <file.apl>`. Stricter-wins merge with the YAML profile system.
-- **Reasoning plane scaffold** — `armor reasoning info`. Bring your
+- **Reasoning plane scaffold** — `iaga reasoning info`. Bring your
   own ONNX models via `--features ml` (`tract` backend, no native
   deps).
-- **Cross-platform UserspaceKernel** — `armor run -- <cmd>` spawns
+- **Cross-platform UserspaceKernel** — `iaga run -- <cmd>` spawns
   governed child processes on Linux, macOS, Windows.
-- **HTTP API with Bearer auth** — `armor gen-key` then call
+- **HTTP API with Bearer auth** — `iaga gen-key` then call
   `POST /v1/inspect` with `Authorization: Bearer <key>`.
 - **SQLite and Postgres backends** — switch by setting
   `DATABASE_URL=postgres://...` and building with `--features
   postgres`. Receipts go to the matching backend automatically.
-- **BYOK-ready signer** — `ARMOR_SIGNER_KEY_PATH` lets you point at
+- **BYOK-ready signer** — `IAGA_SENTINEL_SIGNER_KEY_PATH` lets you point at
   any 32-byte Ed25519 key file, including one served by your KMS
   (AWS KMS, Azure Key Vault, HashiCorp Vault, on-prem HSM via the
   filesystem-mount pattern).
 - **Docker deployment** — `docker compose up -d`, `/health` returns
   200 within ~10 seconds on the first attempt.
-- **WASM plugin loading** — `armor plugins list` and `armor plugins
+- **WASM plugin loading** — `iaga plugins list` and `iaga plugins
   validate <file.wasm>`.
 
 Run the smoke yourself, every claim above is reproducible from a
 clean checkout.
 
-### What Agent Armor Enterprise adds (separate commercial repository)
+### What IAGA Sentinel Enterprise adds (separate commercial repository)
 
 Verifiable on request with a sandbox instance — these are concrete
 modules, not promises. Each lives in a separate commercial repo and
@@ -314,18 +325,30 @@ work is what you are paying for, on top of the code itself.
 
 ### Open-core promise
 
-The governance kernel (receipt schema, replay algorithm, APL
-evaluator, reasoning framework, BYOK signer support, the eBPF loader
-when it ships in 1.0.1, the single-cluster mesh when it ships in 1.1)
-is the open-source build of Agent Armor. It is licensed under
-**BUSL-1.1** with **Change License: Apache-2.0** baked into the
-licence itself: four years after publication every release converts
-automatically and irrevocably to Apache-2.0. No manual switch, no
-walk-back possible.
+The conceptual governance kernel — receipt schema, replay algorithm,
+APL evaluator (with WASM codegen + Hindley-Milner type checker in OSS
+1.2), reasoning framework with BYO ONNX, `UserspaceKernel`
+cross-platform soft enforcement, `BpfKernel` Linux scaffold with
+honest "soft enforcement" posture, BYOK signer pattern + `Signer`
+trait + `LocalDiskSigner` (OSS 1.2), Sigstore + SBOM plugin
+attestation primitive (OSS 1.2), drift replay additivo (OSS 1.2)
+— is the open-source build. It is licensed under **BUSL-1.1** with
+**Change License: Apache-2.0** baked into the licence itself: four
+years after publication every release converts automatically and
+irrevocably to Apache-2.0. No manual switch, no walk-back possible.
 
-Enterprise never gates the security fundamentals. The promise is
-documented in [`AGENT_ARMOR_1.0.md`](AGENT_ARMOR_1.0.md) §9 so future
-founders cannot rewrite it.
+The implementations that require specialist engineering at scale —
+real Aya-rs eBPF/LSM loader on Linux, macOS Endpoint Security +
+Windows ETW/WFP backends, governance mesh (single-cluster + tier-2),
+four native KMS SDK backends, curated ML model library — live in
+IAGA Sentinel Enterprise. None of them shipped in OSS 1.0 GA, so
+moving them to Enterprise does not violate the **never retroactively
+remove from OSS** covenant.
+
+The full boundary is documented in
+[`docs/adr/0010-oss-enterprise-boundary.md`](docs/adr/0010-oss-enterprise-boundary.md)
+and reinforced in [`IAGA_SENTINEL_1.0.md`](IAGA_SENTINEL_1.0.md) §9 so
+future founders cannot rewrite it.
 
 ### Why Enterprise exists
 
@@ -347,27 +370,27 @@ and the EU AI Act / GDPR / DORA article-by-article mapping. Contact:
 
 ## License
 
-The open-source build of Agent Armor is licensed under
+The open-source build of IAGA Sentinel is licensed under
 [**Business Source License 1.1**](LICENSE) with **Change License:
 Apache-2.0** and a **Change Date** of four years from publication.
 What that means in plain English:
 
-- You can run, copy, modify, and redistribute Agent Armor freely for
+- You can run, copy, modify, and redistribute IAGA Sentinel freely for
   internal use, research, evaluation, and any non-production use.
-- You can run Agent Armor in production *as long as your use does not
-  consist of offering Agent Armor itself to third parties as a hosted
+- You can run IAGA Sentinel in production *as long as your use does not
+  consist of offering IAGA Sentinel itself to third parties as a hosted
   or managed service that exposes a substantial set of its features*
   (see the Additional Use Grant in [`LICENSE`](LICENSE)). Building
-  your own product *on top of* Agent Armor for your customers is
+  your own product *on top of* IAGA Sentinel for your customers is
   fine.
 - Four years after each release is published, that specific release
   converts automatically and irrevocably to **Apache-2.0**. The
   conversion is written into the licence itself, so it is not
   something we can walk back later.
 
-Agent Armor Enterprise is sold under a separate commercial agreement.
+IAGA Sentinel Enterprise is sold under a separate commercial agreement.
 The two share the same kernel; Enterprise adds modules that live in a
 separate repository and are not covered by this licence.
 
-Repository: <https://github.com/EdoardoBambini/Agent-Armor-Iaga>
+Repository: <https://github.com/EdoardoBambini/IAGA-Sentinel>
 Contact: `iaga.start@gmail.com`

@@ -1,6 +1,6 @@
-# Contributing to Agent Armor
+# Contributing to IAGA Sentinel
 
-Thanks for considering a contribution. Agent Armor is a zero-trust
+Thanks for considering a contribution. IAGA Sentinel is a zero-trust
 governance kernel for autonomous AI agents. We optimize for: deterministic
 behavior, signed audit trails, and honest enforcement posture. Anything
 that strengthens those properties is welcome.
@@ -8,15 +8,15 @@ that strengthens those properties is welcome.
 ## Quick start
 
 ```bash
-git clone https://github.com/EdoardoBambini/Agent-Armor-Iaga
-cd Agent-Armor-Iaga
+git clone https://github.com/EdoardoBambini/IAGA-Sentinel
+cd IAGA-Sentinel
 
 # Build everything
 cargo build --workspace
 
 # Run the full test suite
 cargo test --workspace
-cargo test -p armor-reasoning --features ml
+cargo test -p iaga-sentinel-reasoning --features ml
 
 # Lint
 cargo clippy --workspace --all-targets -- -D warnings
@@ -24,14 +24,14 @@ cargo clippy --workspace --all-targets -- -D warnings
 
 The default build uses no native ML deps. To exercise the ONNX backend
 locally, add `--features ml` to `cargo build` / `cargo test` for the
-`armor-reasoning` crate.
+`iaga-sentinel-reasoning` crate.
 
 ## What we accept
 
 - **Bug fixes** with a regression test.
 - **Documentation** improvements.
 - **New features** that fit the architecture documented in
-  [`AGENT_ARMOR_1.0.md`](AGENT_ARMOR_1.0.md).
+  [`IAGA_SENTINEL_1.0.md`](IAGA_SENTINEL_1.0.md).
 - **Performance** improvements with a reproducible benchmark.
 
 ## ADRs are required for non-trivial changes
@@ -75,7 +75,7 @@ chore(ci): cache cargo registry across jobs
 
 ## License and the OSS / Enterprise relationship
 
-Agent Armor (the open-source build, this repository) is licensed under
+IAGA Sentinel (the open-source build, this repository) is licensed under
 [Business Source License 1.1](LICENSE) with **Change License:
 Apache-2.0** and a Change Date of four years from publication. By
 submitting a contribution you agree to license your work under the
@@ -85,7 +85,7 @@ We do not require a CLA. BUSL-1.1 plus the automatic Apache-2.0
 conversion baked into the licence is enough to keep the project
 durable for community contributors and forks.
 
-**Agent Armor Enterprise** is a separate commercial product built on
+**IAGA Sentinel Enterprise** is a separate commercial product built on
 the same governance kernel. Enterprise modules live in a separate
 repository under a commercial license. Contributions to this repo
 flow into both editions automatically when they touch the shared
@@ -94,12 +94,12 @@ here).
 
 What this means in practice for contributors:
 
-- A bug fix or feature in `crates/armor-core`, `crates/armor-receipts`,
-  `crates/armor-apl`, `crates/armor-reasoning`, or `crates/armor-kernel`
+- A bug fix or feature in `crates/iaga-sentinel-core`, `crates/iaga-sentinel-receipts`,
+  `crates/iaga-sentinel-apl`, `crates/iaga-sentinel-reasoning`, or `crates/iaga-sentinel-kernel`
   benefits both OSS and Enterprise users. Welcome.
 - We will **never** silently move OSS features behind an Enterprise
   paywall. The promise is documented in
-  [`AGENT_ARMOR_1.0.md`](AGENT_ARMOR_1.0.md) §9 and we honour it.
+  [`IAGA_SENTINEL_1.0.md`](IAGA_SENTINEL_1.0.md) §9 and we honour it.
 - If you want to discuss building something Enterprise-only (a
   vertical compliance pack, a SIEM connector, a notified-body
   workflow), email `enterprise@iaga.start@gmail.com` rather than

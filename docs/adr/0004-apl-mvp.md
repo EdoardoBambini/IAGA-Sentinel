@@ -1,10 +1,18 @@
-# ADR 0004 — Armor Policy Language (APL) MVP (M3)
+# ADR 0004 — Agent Policy Language (APL) MVP (M3)
 
 - **Status**: Accepted
 - **Date**: 2026-04-23
 - **Deciders**: Edoardo Bambini
-- **Milestone**: M3 "Armor Policy Language"
-- **Relates to**: `AGENT_ARMOR_1.0.md` §2 Pilastro 3 (APL)
+- **Milestone**: M3 "Agent Policy Language"
+- **Relates to**: `IAGA_SENTINEL_1.0.md` §2 Pilastro 3 (APL)
+
+> **Status update 2026-05-08**: i riferimenti a "M3.1" e "WASM codegen futuro"
+> in questo ADR sono stati riallocati da
+> [ADR 0010](0010-oss-enterprise-boundary.md). APL WASM codegen +
+> Hindley-Milner type checker sono primitive reinstated nella roadmap
+> **OSS 1.2** (additive, no breaking change). La marketplace privata di
+> policy/plugin firmati resta Enterprise. Il tree-walk evaluator + APL live
+> overlay (M6) restano OSS forever, deterministici e replay-safe.
 
 ## Contesto
 
@@ -26,11 +34,11 @@ Questa ADR fissa le scelte di M3, scope MVP incluso, e documenta i trade-off che
 **Motivazione.**
 
 - Un tree-walk evaluator che non tocca il clock, il disco, la rete o l'RNG *è già* deterministico. Dato lo stesso AST e lo stesso `Context`, produce lo stesso `Value`. Questa è esattamente la proprietà che serve al replay dei receipt M2.
-- WASM codegen richiede una toolchain seria (`wasm-encoder` + un'IR intermedia, register allocation, linear memory layout per closures). Ship `armor-apl` con un tree-walk che funziona subito sposta la complessità a quando serve davvero: M3.1, o quando `armor-kernel` (M4) richiederà sandboxing hard-isolated tra processi.
+- WASM codegen richiede una toolchain seria (`wasm-encoder` + un'IR intermedia, register allocation, linear memory layout per closures). Ship `iaga-sentinel-apl` con un tree-walk che funziona subito sposta la complessità a quando serve davvero: M3.1, o quando `iaga-sentinel-kernel` (M4) richiederà sandboxing hard-isolated tra processi.
 - I test di M3 coprono la semantica della lingua, non la rappresentazione eseguibile. Quando arriverà il compiler WASM userà gli stessi test per regressione.
 - **Budget di istruzioni**: implementato come `EvalBudget` con decremento su ogni nodo AST. Default 10_000 step, override per-call. Sufficiente per bloccare loop patologici senza pagare il costo di sandbox-kernel per ogni eval.
 
-**Trade-off accettato.** L'evaluator gira nello stesso processo di `armor-core`. In ambiente enterprise con policy fornite da terzi questo non è il modello di minaccia — l'APL MVP assume policy fornite dal workspace owner, non da attori potenzialmente ostili. Quando (in 1.1) apriremo la marketplace di policy firmate, si sostituirà l'evaluator con un modulo WASM isolato.
+**Trade-off accettato.** L'evaluator gira nello stesso processo di `iaga-sentinel-core`. In ambiente enterprise con policy fornite da terzi questo non è il modello di minaccia — l'APL MVP assume policy fornite dal workspace owner, non da attori potenzialmente ostili. Quando (in 1.1) apriremo la marketplace di policy firmate, si sostituirà l'evaluator con un modulo WASM isolato.
 
 ### 2. Scope del linguaggio (M3 MVP)
 
@@ -60,7 +68,7 @@ Fuori scope M3 (rinviati a M3.1 o oltre):
 ### 3. Struttura del crate
 
 ```
-crates/armor-apl/
+crates/iaga-sentinel-apl/
 ├── Cargo.toml
 └── src/
     ├── lib.rs       — public surface (parse, compile, validate, evaluate_program)
@@ -74,10 +82,10 @@ crates/armor-apl/
 
 Dipendenze esterne: `logos 0.14` (lexer), più i condivisi del workspace (`serde`, `serde_json`, `thiserror`). Zero dep WASM o parser-combinator heavyweight.
 
-### 4. Integrazione con `armor-core`
+### 4. Integrazione con `iaga-sentinel-core`
 
-- Nuova feature `apl` in `armor-core`, default **on**: attiva `armor-apl` come dep optional.
-- Nuovo subcomando CLI `armor policy test <file.apl> [--context ctx.json]`:
+- Nuova feature `apl` in `iaga-sentinel-core`, default **on**: attiva `iaga-sentinel-apl` come dep optional.
+- Nuovo subcomando CLI `iaga policy test <file.apl> [--context ctx.json]`:
   - Parse + validate sempre.
   - Se `--context` è fornito, carica il JSON, esegue `evaluate_program`, stampa FIRE/MISS.
   - Exit code: 0 success, 1 policy error (parse / typecheck / runtime), 2 I/O error.
@@ -96,14 +104,14 @@ Questo contratto **non cambierà** in versioni successive di APL (M3.1 WASM comp
 
 ## Conseguenze
 
-- 28 test nuovi per `armor-apl` (13 parser + 15 evaluator). Zero regressioni sui test pre-esistenti.
-- Crate indipendente (zero dep ciclica su `armor-core`), riusabile da tool esterni (policy linter standalone, IDE plugin futuri).
-- La decisione di rinviare WASM è esplicita: nessuno legga "APL gira in WASM" dal README finché M3.1 non lo implementa. La CLI help del comando `armor policy test` segnala "dry-run" per riflettere lo scope MVP.
+- 28 test nuovi per `iaga-sentinel-apl` (13 parser + 15 evaluator). Zero regressioni sui test pre-esistenti.
+- Crate indipendente (zero dep ciclica su `iaga-sentinel-core`), riusabile da tool esterni (policy linter standalone, IDE plugin futuri).
+- La decisione di rinviare WASM è esplicita: nessuno legga "APL gira in WASM" dal README finché M3.1 non lo implementa. La CLI help del comando `iaga policy test` segnala "dry-run" per riflettere lo scope MVP.
 
 ## Esempio completo
 
 ```apl
-// crates/armor-apl/examples/no_pii_egress.apl
+// crates/iaga-sentinel-apl/examples/no_pii_egress.apl
 policy "no_secrets_to_public_http" {
   when action.kind == "http.request"
    and action.url.host not in workspace.allowlist
@@ -126,7 +134,7 @@ policy "default_allow" {
 Dry-run:
 
 ```
-$ armor policy test no_pii_egress.apl --context sample.json
+$ iaga policy test no_pii_egress.apl --context sample.json
 OK  parsed 3 policies from no_pii_egress.apl
   - no_secrets_to_public_http → Block
   - halt_on_hijack_suspicion → Block
@@ -138,4 +146,4 @@ FIRE  policy=default_allow  verdict=Allow  reason=None
 
 - `docs/adr/0002-open-source-license-and-scope.md` — scelte trasversali 1.0
 - `docs/adr/0003-signed-receipts-design.md` — design M2
-- `AGENT_ARMOR_1.0.md` §2 Pilastro 3 — disegno APL completo
+- `IAGA_SENTINEL_1.0.md` §2 Pilastro 3 — disegno APL completo

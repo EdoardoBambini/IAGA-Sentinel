@@ -1,4 +1,4 @@
-import { ArmorBlockedError, ArmorClient, ArmorReviewError } from "../client";
+import { SentinelBlockedError, SentinelClient, SentinelReviewError } from "../client";
 import type { ActionType, InspectRequest, JsonObject, JsonValue, OpenAIAdapterOptions } from "../types";
 
 type AnyRecord = Record<string | symbol, unknown>;
@@ -52,15 +52,15 @@ function buildInspectRequest(
 }
 
 async function enforcePolicy(
-  client: ArmorClient,
+  client: SentinelClient,
   request: InspectRequest
 ): Promise<void> {
   const result = await client.inspect(request);
   if (result.decision === "block") {
-    throw new ArmorBlockedError(result);
+    throw new SentinelBlockedError(result);
   }
   if (result.decision === "review") {
-    throw new ArmorReviewError(result);
+    throw new SentinelReviewError(result);
   }
 }
 
@@ -72,7 +72,7 @@ function bindIfNeeded(target: unknown, value: unknown): unknown {
 }
 
 function wrapCreate(
-  armor: ArmorClient,
+  iaga: SentinelClient,
   options: OpenAIAdapterOptions,
   target: AnyRecord,
   fn: AnyFunction,
@@ -80,18 +80,18 @@ function wrapCreate(
 ): AnyFunction {
   return async (...args: unknown[]) => {
     await enforcePolicy(
-      armor,
+      iaga,
       buildInspectRequest(options, toolName, "http", serializeArgs(args))
     );
     return fn.apply(target, args);
   };
 }
 
-export function armorWrapOpenAI<T extends AnyRecord>(
+export function sentinelWrapOpenAI<T extends AnyRecord>(
   client: T,
   options: OpenAIAdapterOptions
 ): T {
-  const armor = new ArmorClient(options);
+  const iaga = new SentinelClient(options);
 
   return new Proxy(client, {
     get(target, prop, receiver) {
@@ -105,7 +105,7 @@ export function armorWrapOpenAI<T extends AnyRecord>(
             const value = Reflect.get(responseTarget, responseProp, responseReceiver);
             if (responseProp === "create" && typeof value === "function") {
               return wrapCreate(
-                armor,
+                iaga,
                 options,
                 responseTarget as AnyRecord,
                 value as AnyFunction,
@@ -134,7 +134,7 @@ export function armorWrapOpenAI<T extends AnyRecord>(
                   const value = Reflect.get(completionsTarget, completionsProp, completionsReceiver);
                   if (completionsProp === "create" && typeof value === "function") {
                     return wrapCreate(
-                      armor,
+                      iaga,
                       options,
                       completionsTarget as AnyRecord,
                       value as AnyFunction,

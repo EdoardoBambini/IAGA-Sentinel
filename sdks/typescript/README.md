@@ -1,11 +1,11 @@
-# Agent Armor TypeScript SDK
+# IAGA Sentinel TypeScript SDK
 
-The TypeScript SDK wraps the Agent Armor HTTP API and adds lightweight helpers
+The TypeScript SDK wraps the IAGA Sentinel HTTP API and adds lightweight helpers
 for OpenAI and Vercel AI style integrations.
 
 ## Highlights
 
-- `ArmorClient` covers governance, policy, plugin, audit, telemetry, and threat
+- `SentinelClient` covers governance, policy, plugin, audit, telemetry, and threat
   intel endpoints exposed by the runtime
 - `InspectRequest.sessionId` is normalized into `metadata.sessionId` so sequence
   aware governance survives across repeated tool calls
@@ -15,9 +15,9 @@ for OpenAI and Vercel AI style integrations.
 ## Quick start
 
 ```ts
-import { ArmorClient } from "@agent-armor/sdk";
+import { SentinelClient } from "@iaga-sentinel/sdk";
 
-const client = new ArmorClient({ apiKey: "ak-local" });
+const client = new SentinelClient({ apiKey: "ak-local" });
 
 const result = await client.inspect({
   agentId: "builder-01",
@@ -38,14 +38,14 @@ console.log(result.decision, result.traceId);
 
 ```ts
 import OpenAI from "openai";
-import { armorMiddleware, armorWrapOpenAI } from "@agent-armor/sdk";
+import { sentinelMiddleware, sentinelWrapOpenAI } from "@iaga-sentinel/sdk";
 
-const openai = armorWrapOpenAI(new OpenAI(), {
+const openai = sentinelWrapOpenAI(new OpenAI(), {
   agentId: "builder-01",
   apiKey: "ak-local",
 });
 
-const middleware = armorMiddleware({
+const middleware = sentinelMiddleware({
   agentId: "builder-01",
   apiKey: "ak-local",
   toolName: "vercel-ai.generate",

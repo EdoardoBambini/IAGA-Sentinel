@@ -1,5 +1,12 @@
 # Demo Walkthrough
 
+> **Historical demo — describes the v0.3.0 community runtime.** The
+> commands and paths (`cd community`, `iaga-sentinel gen-key`, port
+> `4010`) reflect the pre-1.0 layout. For the current 1.x quickstart,
+> see the **Quickstart** section of [`README.md`](../README.md): the
+> binary is `iaga` (or `iaga-sentinel` alias), the workspace is
+> `crates/iaga-sentinel-core/`, and the default HTTP port is `7777`.
+
 ## Goal
 
 Show the current `v0.3.0` community runtime governing real HTTP requests through the server.
@@ -9,8 +16,8 @@ Show the current `v0.3.0` community runtime governing real HTTP requests through
 ```bash
 cd community
 cargo build --release
-./target/release/agent-armor gen-key --label demo
-./target/release/agent-armor serve
+./target/release/iaga-sentinel gen-key --label demo
+./target/release/iaga-sentinel serve
 ```
 
 Open `http://localhost:4010` for the embedded dashboard.

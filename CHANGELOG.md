@@ -1,17 +1,124 @@
 # Changelog
 
-All notable changes to Agent Armor are documented here. Format follows
+All notable changes to IAGA Sentinel are documented here. Format follows
 [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) and the
 project adheres to [Semantic Versioning](https://semver.org/).
 
-For path renames and migration steps from 0.4.0, see [MIGRATION.md](MIGRATION.md).
+For path renames and migration steps, see [MIGRATION.md](MIGRATION.md).
 For architectural rationale, see the ADRs under [docs/adr/](docs/adr/).
 
-This changelog tracks the **open-source build** of Agent Armor,
+This changelog tracks the **open-source build** of IAGA Sentinel,
 licensed under BUSL-1.1 with Change License: Apache-2.0 baked in.
-Agent Armor Enterprise is a separate commercial product built on the
+IAGA Sentinel Enterprise is a separate commercial product built on the
 same governance kernel; see [`ENTERPRISE.md`](ENTERPRISE.md) for the
-Enterprise pitch and the EU AI Act + GDPR compliance pack mapping.
+Enterprise pitch and the EU AI Act + GDPR + DORA compliance pack mapping.
+
+---
+
+## [1.1.0] — Unreleased
+
+A consolidation + rebrand release. 1.1.0 keeps 1.0.0's runtime
+behaviour and API contract, but **renames the project Agent Armor →
+IAGA Sentinel** across binary, crates, env vars, paths, and
+identifiers (breaking for CLI / ops / crate consumers — see
+[`MIGRATION.md`](MIGRATION.md)), and pins **how the OSS line is
+positioned** relative to the IAGA Sentinel Enterprise commercial
+product.
+
+The 1.0 GA shipped the full governance kernel concept: enforcement
+kernel scaffold + `UserspaceKernel` cross-platform, signed Merkle
+receipts, APL DSL with live overlay, probabilistic reasoning
+framework, audit pipeline. That is the OSS contract preserved by
+the **never retroactively remove** covenant in `ENTERPRISE.md`.
+
+1.1 holds that line — no new runtime capabilities — and clarifies
+the OSS↔Enterprise boundary in the public docs so that users and
+would-be contributors know what to expect from the open-source
+line going forward.
+
+**Boundary clarification (canonical: [`docs/adr/0010-oss-enterprise-boundary.md`](docs/adr/0010-oss-enterprise-boundary.md)).**
+Capabilities originally listed under "Deferred to 1.0.x" or
+"Deferred to 1.1" in the 1.0.0 entry below have been re-scoped:
+
+- **Reinstated to OSS 1.2 roadmap** (no fixed date; ships when
+  ready, no breaking changes): APL WASM codegen + Hindley-Milner
+  type checker (was 1.0.3), Sigstore + SBOM CycloneDX plugin
+  attestation primitive (was 1.1), drift replay additivo + `iaga
+  replay --re-execute` (was 1.1), `Signer` trait +
+  `LocalDiskSigner` refactor (was implicit). These are primitive
+  evolutions with no scale/UX value beyond what OSS already
+  provides; keeping them OSS reinforces the open-core covenant
+  without diminishing Enterprise.
+- **Migrated to IAGA Sentinel Enterprise** (separate commercial
+  product, private repo): real Aya-rs eBPF/LSM loader on Linux
+  (was 1.0.1), macOS Endpoint Security backend + Windows ETW/WFP
+  backend (was 1.1), governance mesh single-cluster baseline + the
+  pre-existing tier-2 multi-region active-active (was 1.1),
+  curated ONNX reference models (intent-drift / prompt-injection
+  / anomaly-seq) + HuggingFace tokenizer integration + calibration
+  framework (was 1.0.2 + 1.1), four native KMS SDK signer backends
+  AWS KMS / Azure Key Vault / HashiCorp Vault / PKCS#11 (was 1.1).
+  These require specialist engineering at scale and ship with
+  contractual support, managed lifecycle, and threat-intel feed.
+  None shipped in 1.0 GA — the **never retroactively remove**
+  covenant is preserved.
+
+The Enterprise edition is where the EU AI Act + GDPR + DORA
+compliance pack, DPO Dashboard, multi-tenant isolation, Enterprise
+SSO, eIDAS qualified signature pipeline, native SIEM connectors,
+air-gapped distribution, founder-led 24/7 SLA, confidential-computing
+receipts, forensic time-travel replay, conformity assessment
+notified-body workflow, and the curated AI-specific eBPF/LSM
+program library also live. See [`ENTERPRISE.md`](ENTERPRISE.md) for
+the full pitch and EU AI Act article-by-article mapping.
+
+### Changed
+
+- Workspace version bumped to `1.1.0`.
+- [`CHANGELOG.md`](CHANGELOG.md), [`MIGRATION.md`](MIGRATION.md),
+  [`ENTERPRISE.md`](ENTERPRISE.md), [`README.md`](README.md), and
+  [`IAGA_SENTINEL_1.0.md`](IAGA_SENTINEL_1.0.md) §9 updated to reflect
+  the OSS↔Enterprise boundary clarification.
+- New [`IAGA_SENTINEL_1.1.md`](IAGA_SENTINEL_1.1.md) committed as the
+  canonical 1.1 design note.
+
+### Renamed (breaking — see [`MIGRATION.md`](MIGRATION.md))
+
+- Complete rebrand **Agent Armor → IAGA Sentinel**: primary binary
+  `agent-armor` → `iaga-sentinel` (short alias `armor` → `iaga`);
+  crates `armor-*` → `iaga-sentinel-*`; library imports `agent_armor`
+  / `armor_*` → `iaga_sentinel` / `iaga_sentinel_*`; env vars
+  `AGENT_ARMOR_*` and `ARMOR_*` → `IAGA_SENTINEL_*` (clean break, no
+  fallback); signer key dir `~/.armor/` → `~/.iaga-sentinel/`; default
+  DB `agent_armor.db` → `iaga_sentinel.db`; API-key prefix `aa_` →
+  `iaga_` (newly generated keys only — existing keys still validate);
+  webhook headers `X-Armor-*` → `X-Iaga-Sentinel-*`; MCP tools
+  `agentarmor.*` → `iaga.*`; public types `Armor*` → `Sentinel*`. The GitHub repository is now
+  `EdoardoBambini/IAGA-Sentinel`.
+
+### Added
+
+- [`docs/adr/0010-oss-enterprise-boundary.md`](docs/adr/0010-oss-enterprise-boundary.md):
+  canonical ADR documenting the 20-category Enterprise boundary +
+  the 4 primitives reinstated to OSS 1.2 roadmap.
+
+### Unchanged
+
+- Runtime behaviour, verdict logic, receipt format (Ed25519 +
+  Merkle), on-disk schema, APL/policy formats, feature flags, and
+  the HTTP API contract (endpoints, camelCase JSON, Bearer auth) are
+  identical to 1.0.0; existing API keys still validate. **Only
+  identifiers were renamed (see Renamed above) — behaviour did not
+  change.**
+- The covenant in `ENTERPRISE.md`: *Enterprise will never
+  retroactively remove features from OSS. If something works in
+  OSS today, it works in OSS forever.*
+
+### License
+
+Unchanged: BUSL-1.1 with Change License Apache-2.0 baked in. Each
+release converts automatically and irrevocably to Apache-2.0 four
+years after publication.
 
 ---
 
@@ -33,56 +140,59 @@ deterministic policy decides on.
 - CLI banner: "8 Layers ARMED" → "12 Layers ARMED" (consistent with
   the 1.0 marketing surface; M3.5 + M4 add 4 layers on top of the
   original 8).
-- `armor-core` crate description: "(Community Edition)" →
+- `iaga-sentinel-core` crate description: "(Community Edition)" →
   "(open-source edition)" for consistency with the new
   Community vs Enterprise docs.
 
 ### Added
 
-- **Workspace split** into 5 crates under `crates/`: `armor-core`,
-  `armor-receipts`, `armor-apl`, `armor-reasoning`, `armor-kernel`.
+- **Workspace split** into 5 crates under `crates/`: `iaga-sentinel-core`,
+  `iaga-sentinel-receipts`, `iaga-sentinel-apl`, `iaga-sentinel-reasoning`, `iaga-sentinel-kernel`.
   Single workspace `Cargo.toml` at the root.
 - **M2 — Signed Action Receipts.** Ed25519-signed records of every
   governance verdict, hash-chained per `run_id` (Merkle append-log).
-  SQLite and Postgres backends. New CLI: `armor replay --list`,
-  `armor replay <run_id>`, `armor replay <run_id> --verify-only`.
-  Signer key auto-generated at `~/.armor/keys/receipt_signer.ed25519`
-  on first run, override via `ARMOR_SIGNER_KEY_PATH`.
-- **M3 — Armor Policy Language (APL).** Typed DSL with deterministic
+  SQLite and Postgres backends. New CLI: `iaga replay --list`,
+  `iaga replay <run_id>`, `iaga replay <run_id> --verify-only`.
+  Signer key auto-generated at `~/.iaga-sentinel/keys/receipt_signer.ed25519`
+  on first run, override via `IAGA_SENTINEL_SIGNER_KEY_PATH`.
+- **M3 — Agent Policy Language (APL).** Typed DSL with deterministic
   tree-walk evaluator, instruction budget, short-circuit boolean
-  evaluation, hash-linked replay safety. New crate `armor-apl`. CLI:
-  `armor policy test <file.apl>` and `armor policy lint <file.apl>`.
+  evaluation, hash-linked replay safety. New crate `iaga-sentinel-apl`. CLI:
+  `iaga policy test <file.apl>` and `iaga policy lint <file.apl>`.
   WASM codegen for APL is tracked for 1.0.3.
-- **M3.5 — Probabilistic Reasoning Plane.** New crate `armor-reasoning`
+- **M3.5 — Probabilistic Reasoning Plane.** New crate `iaga-sentinel-reasoning`
   with always-available `NoopEngine` plus `TractEngine` (pure-Rust
   ONNX via `tract-onnx`) behind opt-in `ml` feature. Model SHA-256
-  digests embedded in every receipt. CLI: `armor reasoning info`.
-  Pre-trained models ship in 1.0.2.
-- **M4 — Enforcement Kernel scaffold.** New crate `armor-kernel` with
+  digests embedded in every receipt. CLI: `iaga reasoning info`.
+  Pre-trained models ship in 1.0.2. *(See [1.1.0] entry for
+  re-scoping: curated ONNX library lives in IAGA Sentinel Enterprise.)*
+- **M4 — Enforcement Kernel scaffold.** New crate `iaga-sentinel-kernel` with
   cross-platform `UserspaceKernel` (soft enforcement, every OS) and
   Linux `BpfKernel` scaffold under `linux-bpf` feature. New CLI:
-  `armor run [--agent-id ...] [--cwd ...] -- <cmd>` and
-  `armor kernel status`. The real eBPF/LSM loader lands in 1.0.1.
-- **M5 — `armor run` traverses the full governance pipeline.** Every
+  `iaga run [--agent-id ...] [--cwd ...] -- <cmd>` and
+  `iaga kernel status`. The real eBPF/LSM loader lands in 1.0.1.
+  *(See [1.1.0] entry: real Aya-rs loader re-scoped to IAGA Sentinel
+  Enterprise; the OSS scaffold + honest posture continue in 1.x.)*
+- **M5 — `iaga run` traverses the full governance pipeline.** Every
   governed launch produces a signed receipt. Postgres receipt backend
   is wired automatically based on the `DATABASE_URL` scheme.
-  Cargo feature composition: `armor-core/sqlite|postgres` transitively
-  enables the matching `armor-receipts` feature.
-- **M6 — APL as live policy engine.** `armor serve --policy <file.apl>`
+  Cargo feature composition: `iaga-sentinel-core/sqlite|postgres` transitively
+  enables the matching `iaga-sentinel-receipts` feature.
+- **M6 — APL as live policy engine.** `iaga serve --policy <file.apl>`
   loads an overlay merged stricter-wins with the YAML profile system.
   Receipts embed the SHA-256 of the active APL bundle in
-  `policy_hash`. New CLI `armor policy lint`.
+  `policy_hash`. New CLI `iaga policy lint`.
 - **UI embedded** in the binary via `rust-embed` behind `ui-embed`
   feature.
 - **8 ADRs** documenting every architectural decision (`docs/adr/0001`
   through `0008`).
-- **`armor` short alias binary** alongside `agent-armor`. Same entry
+- **`iaga` short alias binary** alongside `iaga-sentinel`. Same entry
   point.
 
 ### Changed
 
-- **Crate renamed**: package `agent-armor` → `agent-armor-core`. Binary
-  name `agent-armor` preserved for backward compatibility.
+- **Crate renamed**: package `iaga-sentinel` → `iaga-sentinel-core`. Binary
+  name `iaga-sentinel` preserved for backward compatibility.
 - **License**: stays on BUSL-1.1 with **Change License: Apache-2.0**
   baked into the licence. Each release converts automatically and
   irrevocably to Apache-2.0 four years after publication. See
@@ -92,36 +202,67 @@ deterministic policy decides on.
   hardened in M2–M5; M3.5 + M4 add supply chain attestation /
   blast radius enforcement / behavioral baseline / counterparty trust
   scaffolding.
-- **All paths** `community/` → `crates/armor-core/`. Detailed renames
+- **All paths** `community/` → `crates/iaga-sentinel-core/`. Detailed renames
   in [MIGRATION.md](MIGRATION.md).
-- **Cargo `default` features** for `armor-core`:
+- **Cargo `default` features** for `iaga-sentinel-core`:
   `["demo", "sqlite", "receipts", "apl", "reasoning", "kernel"]`.
 
-### Deferred to 1.0.x patch releases
+### Re-scoped after 1.0 GA (boundary clarification, see 1.1.0 entry above)
 
-- **1.0.1**: real eBPF/LSM loader via `aya-rs` + LLVM 18. LSM hooks on
-  `execve`, `openat`, `connect`, `sendto`. Landlock fallback. Cgroup
-  jailing. Long-lived detached child handle ownership. After 1.0.1,
-  `BpfKernel.is_authoritative()` flips to `true`.
-- **1.0.2**: pre-trained ONNX models for intent-drift /
+> The lists below preserved verbatim from the 1.0 GA changelog for
+> historical fidelity. The **2026-05-08 OSS↔Enterprise boundary
+> clarification** re-scopes these capabilities — see the [1.1.0]
+> entry above and [`docs/adr/0010-oss-enterprise-boundary.md`](docs/adr/0010-oss-enterprise-boundary.md).
+> None of the items below shipped in 1.0 GA, so the **never
+> retroactively remove** covenant is preserved.
+
+#### Originally deferred to 1.0.x patch releases
+
+- ~~**1.0.1**~~: real eBPF/LSM loader via `aya-rs` + LLVM 18. LSM
+  hooks on `execve`, `openat`, `connect`, `sendto`. Landlock
+  fallback. Cgroup jailing. Long-lived detached child handle
+  ownership. **Re-scoped → IAGA Sentinel Enterprise.**
+- ~~**1.0.2**~~: pre-trained ONNX models for intent-drift /
   prompt-injection / anomaly-seq, plus pluggable tokenizers shipped
-  alongside model files.
-- **1.0.3**: WASM codegen for APL via `wasm-encoder`; full
-  Hindley–Milner type checker.
+  alongside model files. **Re-scoped → Enterprise** (curated ML
+  model library with threat-intel feed + GPU acceleration).
+- ~~**1.0.3**~~: WASM codegen for APL via `wasm-encoder`; full
+  Hindley–Milner type checker. **Reinstated → OSS 1.2 roadmap.**
 
-### Deferred to 1.1
+#### Originally deferred to 1.1
 
 - Governance mesh (gRPC gossip, federated rate budgets, CRDT on
-  receipt log) — OSS, not Enterprise-gated.
+  receipt log). **Re-scoped → Enterprise** (single-cluster
+  baseline + tier-2 multi-region active-active).
 - macOS Endpoint Security + Windows ETW kernel backends.
-- KMS / HSM signer backends for receipts (BYOK pattern in OSS,
-  managed key + eIDAS qualified signatures in Enterprise).
+  **Re-scoped → Enterprise** (signed/notarized turnkey).
+- KMS / HSM signer backends for receipts. **OSS keeps the BYOK
+  pattern** (filesystem-mount via `IAGA_SENTINEL_SIGNER_KEY_PATH`) and the
+  `Signer` trait + `LocalDiskSigner` refactor (reinstated → OSS
+  1.2 roadmap). **Re-scoped → Enterprise**: four native KMS SDK
+  backends (AWS KMS / Azure Key Vault / HashiCorp Vault / PKCS#11
+  HSM) + managed key lifecycle + eIDAS qualified signatures.
 - GPU acceleration ML + native ONNX Runtime backend (`ort`).
+  **Re-scoped → Enterprise** (curated ML model library).
 - Drift replay with full pipeline re-execution against historical
-  receipts (requires receipt schema change).
-- Stateful cross-run anomaly detection.
-- HuggingFace tokenizers in `armor-reasoning`.
-- `armor policy migrate` (YAML → APL converter).
+  receipts (requires receipt schema change). **Reinstated → OSS
+  1.2 roadmap** as additive (`iaga replay --re-execute`,
+  schema-additive); the forensic *time-travel* variant (event
+  sourcing + temporal queries DB-state-per-verdict) lives in
+  Enterprise.
+- Stateful cross-run anomaly detection. **Re-scoped → Enterprise**
+  (curated ML model library `anomaly-seq`).
+- HuggingFace tokenizers in `iaga-sentinel-reasoning`. **Re-scoped →
+  Enterprise** (curated ML model library, paired with the curated
+  ONNX models).
+- `iaga policy migrate` (YAML → APL converter). **OSS-eligible**
+  (small utility, debt closure for ADR 0008); not yet scheduled.
+
+### Newly added to OSS 1.2 roadmap (reinstated primitives)
+
+- Sigstore + SBOM CycloneDX plugin attestation primitive (closes
+  Pillar 4). The hosted private marketplace + supply-chain SLA
+  contractual layer remains Enterprise.
 
 ---
 

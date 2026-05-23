@@ -1,11 +1,11 @@
-export { ArmorClient, ArmorApiError, ArmorBlockedError, ArmorReviewError, governed } from "./client";
-export { armorWrapOpenAI } from "./adapters/openai";
-export { armorMiddleware } from "./adapters/vercel-ai";
+export { SentinelClient, SentinelApiError, SentinelBlockedError, SentinelReviewError, governed } from "./client";
+export { sentinelWrapOpenAI } from "./adapters/openai";
+export { sentinelMiddleware } from "./adapters/vercel-ai";
 export type {
   ActionDetail,
   ActionType,
-  ArmorClientOptions,
-  ArmorMiddlewareOptions,
+  SentinelClientOptions,
+  SentinelMiddlewareOptions,
   AuditEvent,
   GovernanceDecision,
   GovernanceResult,

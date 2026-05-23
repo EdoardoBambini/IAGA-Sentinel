@@ -1,16 +1,16 @@
 services:
-  agent-armor:
+  iaga-sentinel:
     build: .
     ports:
       - "4010:4010"
     volumes:
-      - agent-armor-data:/app/data
+      - iaga-sentinel-data:/app/data
     environment:
       - PORT=4010
-      - DATABASE_URL=sqlite:///app/data/agent_armor.db?mode=rwc
-      - AGENT_ARMOR_OPEN_MODE=false
-      - AGENT_ARMOR_NHI_MASTER_SEED=${AGENT_ARMOR_NHI_MASTER_SEED}
+      - DATABASE_URL=sqlite:///app/data/iaga_sentinel.db?mode=rwc
+      - IAGA_SENTINEL_OPEN_MODE=false
+      - IAGA_SENTINEL_NHI_MASTER_SEED=${IAGA_SENTINEL_NHI_MASTER_SEED}
     restart: unless-stopped
 
 volumes:
-  agent-armor-data:
+  iaga-sentinel-data:

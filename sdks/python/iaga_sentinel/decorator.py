@@ -1,0 +1,139 @@
+"""Decorator for governing tool calls with IAGA Sentinel."""
+
+from __future__ import annotations
+
+import asyncio
+import functools
+import inspect
+from typing import Any, Callable, Optional
+
+from .client import SentinelClient, AsyncSentinelClient
+from .types import ActionDetail, ActionType, GovernanceDecision, InspectRequest
+
+
+def governed(
+    agent_id: str,
+    tool_name: Optional[str] = None,
+    action_type: ActionType = ActionType.CUSTOM,
+    framework: str = "python-sdk",
+    base_url: str = "http://localhost:4010",
+    api_key: Optional[str] = None,
+    on_block: Optional[Callable] = None,
+    on_review: Optional[Callable] = None,
+):
+    """Decorator that runs governance check before executing the function.
+
+    Usage:
+        @governed(agent_id="builder-01", tool_name="file.write")
+        def write_file(path: str, content: str):
+            ...
+
+        @governed(agent_id="researcher-01", action_type=ActionType.HTTP)
+        async def fetch_url(url: str):
+            ...
+    """
+
+    def decorator(func: Callable) -> Callable:
+        resolved_tool_name = tool_name or func.__name__
+
+        if asyncio.iscoroutinefunction(func):
+
+            @functools.wraps(func)
+            async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
+                payload = _build_payload(args, kwargs, func)
+                request = InspectRequest(
+                    agent_id=agent_id,
+                    framework=framework,
+                    action=ActionDetail(
+                        type=action_type,
+                        tool_name=resolved_tool_name,
+                        payload=payload,
+                    ),
+                )
+
+                async with AsyncSentinelClient(base_url=base_url, api_key=api_key) as client:
+                    result = await client.inspect(request)
+
+                if result.blocked:
+                    if on_block:
+                        return on_block(result)
+                    raise PermissionError(
+                        f"IAGA Sentinel blocked '{resolved_tool_name}': "
+                        f"{', '.join(result.risk.reasons)}"
+                    )
+                if result.needs_review:
+                    if on_review:
+                        return on_review(result)
+                    raise PermissionError(
+                        f"IAGA Sentinel requires review for '{resolved_tool_name}' "
+                        f"(review_id={result.review_request_id})"
+                    )
+
+                return await func(*args, **kwargs)
+
+            return async_wrapper
+        else:
+
+            @functools.wraps(func)
+            def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
+                payload = _build_payload(args, kwargs, func)
+                request = InspectRequest(
+                    agent_id=agent_id,
+                    framework=framework,
+                    action=ActionDetail(
+                        type=action_type,
+                        tool_name=resolved_tool_name,
+                        payload=payload,
+                    ),
+                )
+
+                with SentinelClient(base_url=base_url, api_key=api_key) as client:
+                    result = client.inspect(request)
+
+                if result.blocked:
+                    if on_block:
+                        return on_block(result)
+                    raise PermissionError(
+                        f"IAGA Sentinel blocked '{resolved_tool_name}': "
+                        f"{', '.join(result.risk.reasons)}"
+                    )
+                if result.needs_review:
+                    if on_review:
+                        return on_review(result)
+                    raise PermissionError(
+                        f"IAGA Sentinel requires review for '{resolved_tool_name}' "
+                        f"(review_id={result.review_request_id})"
+                    )
+
+                return func(*args, **kwargs)
+
+            return sync_wrapper
+
+    return decorator
+
+
+def _build_payload(args: tuple, kwargs: dict, func: Callable) -> dict[str, Any]:
+    """Build payload dict from function arguments."""
+    sig = inspect.signature(func)
+    params = list(sig.parameters.keys())
+    payload: dict[str, Any] = {}
+
+    for i, arg in enumerate(args):
+        if i < len(params):
+            payload[params[i]] = _safe_serialize(arg)
+
+    for k, v in kwargs.items():
+        payload[k] = _safe_serialize(v)
+
+    return payload
+
+
+def _safe_serialize(val: Any) -> Any:
+    """Convert value to JSON-safe representation."""
+    if isinstance(val, (str, int, float, bool, type(None))):
+        return val
+    if isinstance(val, (list, tuple)):
+        return [_safe_serialize(v) for v in val]
+    if isinstance(val, dict):
+        return {str(k): _safe_serialize(v) for k, v in val.items()}
+    return str(val)
