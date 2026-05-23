@@ -24,7 +24,10 @@ pub struct McpProxyConfig {
 
 /// Run the MCP proxy: reads JSON-RPC from stdin, governs tools/call,
 /// forwards to downstream MCP server, returns responses to stdout.
-pub async fn run_mcp_proxy(config: McpProxyConfig, state: Arc<AppState>) -> Result<(), SentinelError> {
+pub async fn run_mcp_proxy(
+    config: McpProxyConfig,
+    state: Arc<AppState>,
+) -> Result<(), SentinelError> {
     tracing::info!(
         agent_id = %config.agent_id,
         downstream = %config.downstream_command,

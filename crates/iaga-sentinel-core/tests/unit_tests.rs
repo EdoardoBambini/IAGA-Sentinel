@@ -448,12 +448,14 @@ fn test_risk_exfiltration_taint_blocks() {
             s.insert(SECRET.to_string());
             s
         },
-        violations: vec![iaga_sentinel::modules::taint::taint_tracker::TaintViolation {
-            description: "Sensitive data must not flow to external network".to_string(),
-            severity: "critical".to_string(),
-            violating_taints: vec![SECRET.to_string()],
-            blocked: true,
-        }],
+        violations: vec![
+            iaga_sentinel::modules::taint::taint_tracker::TaintViolation {
+                description: "Sensitive data must not flow to external network".to_string(),
+                severity: "critical".to_string(),
+                violating_taints: vec![SECRET.to_string()],
+                blocked: true,
+            },
+        ],
         blocked: true,
         exfiltration_detected: true,
         summary: "exfiltration detected".to_string(),

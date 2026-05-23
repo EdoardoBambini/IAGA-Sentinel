@@ -13,7 +13,9 @@
 
 use std::path::{Path, PathBuf};
 
-use iaga_sentinel_apl::{evaluate_program, Context as AplContext, EvalBudget, PolicyFired, Program};
+use iaga_sentinel_apl::{
+    evaluate_program, Context as AplContext, EvalBudget, PolicyFired, Program,
+};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 
@@ -102,7 +104,10 @@ fn compute_policy_hash(program: &Program) -> String {
 
 /// Stricter-wins merge between the YAML risk decision and an APL
 /// fired verdict. APL can tighten the verdict; it cannot relax it.
-pub fn merge_decisions(yaml: GovernanceDecision, apl: iaga_sentinel_apl::Verdict) -> GovernanceDecision {
+pub fn merge_decisions(
+    yaml: GovernanceDecision,
+    apl: iaga_sentinel_apl::Verdict,
+) -> GovernanceDecision {
     let apl_as_yaml = match apl {
         iaga_sentinel_apl::Verdict::Allow => GovernanceDecision::Allow,
         iaga_sentinel_apl::Verdict::Review => GovernanceDecision::Review,

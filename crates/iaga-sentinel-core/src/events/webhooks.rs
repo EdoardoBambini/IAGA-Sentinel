@@ -181,7 +181,10 @@ impl WebhookManager {
         drop(hooks);
 
         let hook = hook.ok_or_else(|| {
-            SentinelError::InvalidRequest(format!("Webhook {} no longer registered", entry.webhook_id))
+            SentinelError::InvalidRequest(format!(
+                "Webhook {} no longer registered",
+                entry.webhook_id
+            ))
         })?;
 
         // Re-serialize event from stored payload

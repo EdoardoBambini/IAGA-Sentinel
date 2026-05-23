@@ -37,10 +37,14 @@ pub trait ReviewStore: Send + Sync {
 #[async_trait]
 pub trait PolicyStore: Send + Sync {
     async fn get_agent_profile(&self, agent_id: &str) -> Result<AgentProfile, SentinelError>;
-    async fn get_workspace_policy(&self, workspace_id: &str)
-        -> Result<WorkspacePolicy, SentinelError>;
-    async fn list_workspace_rules(&self, workspace_id: &str)
-        -> Result<Vec<PolicyRule>, SentinelError>;
+    async fn get_workspace_policy(
+        &self,
+        workspace_id: &str,
+    ) -> Result<WorkspacePolicy, SentinelError>;
+    async fn list_workspace_rules(
+        &self,
+        workspace_id: &str,
+    ) -> Result<Vec<PolicyRule>, SentinelError>;
     async fn list_profiles(&self) -> Result<Vec<AgentProfile>, SentinelError>;
     async fn list_workspaces(&self) -> Result<Vec<WorkspacePolicy>, SentinelError>;
     async fn upsert_profile(&self, profile: &AgentProfile) -> Result<(), SentinelError>;
@@ -128,8 +132,10 @@ pub trait TaintStore: Send + Sync {
 /// Persistent storage for Behavioral Fingerprinting.
 #[async_trait]
 pub trait FingerprintStore: Send + Sync {
-    async fn get_fingerprint(&self, agent_id: &str)
-        -> Result<Option<AgentFingerprint>, SentinelError>;
+    async fn get_fingerprint(
+        &self,
+        agent_id: &str,
+    ) -> Result<Option<AgentFingerprint>, SentinelError>;
     async fn upsert_fingerprint(&self, fp: &AgentFingerprint) -> Result<(), SentinelError>;
     async fn list_fingerprints(&self) -> Result<Vec<AgentFingerprint>, SentinelError>;
     async fn delete_fingerprint(&self, agent_id: &str) -> Result<(), SentinelError>;

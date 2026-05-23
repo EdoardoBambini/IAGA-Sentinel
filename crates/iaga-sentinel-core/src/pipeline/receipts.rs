@@ -87,10 +87,10 @@ pub use signed::SignedReceiptLogger;
 mod signed {
     use std::sync::Arc;
 
+    use async_trait::async_trait;
     use iaga_sentinel_receipts::{
         chain_link, MlScoreBundle, ReceiptBody, ReceiptSigner, ReceiptStore, Verdict,
     };
-    use async_trait::async_trait;
     use sha2::{Digest, Sha256};
     use tokio::sync::Mutex;
     use tracing::warn;

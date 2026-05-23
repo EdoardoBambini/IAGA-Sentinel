@@ -3,7 +3,9 @@
 
 use std::sync::Arc;
 
-use iaga_sentinel_kernel::{EnforcementKernel, KernelDecision, PolicyCheck, ProcessSpec, UserspaceKernel};
+use iaga_sentinel_kernel::{
+    EnforcementKernel, KernelDecision, PolicyCheck, ProcessSpec, UserspaceKernel,
+};
 
 fn spec_cargo_version() -> ProcessSpec {
     ProcessSpec {

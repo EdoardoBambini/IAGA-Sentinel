@@ -152,7 +152,10 @@ mod tests {
     use uuid::Uuid;
 
     fn temp_plugin_dir(name: &str) -> PathBuf {
-        std::env::temp_dir().join(format!("iaga-sentinel-plugin-test-{name}-{}", Uuid::new_v4()))
+        std::env::temp_dir().join(format!(
+            "iaga-sentinel-plugin-test-{name}-{}",
+            Uuid::new_v4()
+        ))
     }
 
     #[test]

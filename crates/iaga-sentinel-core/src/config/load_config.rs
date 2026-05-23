@@ -13,7 +13,9 @@ const CONFIG_FILENAMES: &[&str] = &[
     ".iaga-sentinel.yaml",
 ];
 
-pub fn load_config_file(config_path: Option<&str>) -> Result<Option<SentinelConfig>, SentinelError> {
+pub fn load_config_file(
+    config_path: Option<&str>,
+) -> Result<Option<SentinelConfig>, SentinelError> {
     if let Some(path) = config_path {
         return parse_config_file(path).map(Some);
     }
@@ -32,8 +34,9 @@ pub fn load_config_file(config_path: Option<&str>) -> Result<Option<SentinelConf
 }
 
 fn parse_config_file(file_path: &str) -> Result<SentinelConfig, SentinelError> {
-    let raw = fs::read_to_string(Path::new(file_path))
-        .map_err(|e| SentinelError::Config(format!("Failed to read config file {file_path}: {e}")))?;
+    let raw = fs::read_to_string(Path::new(file_path)).map_err(|e| {
+        SentinelError::Config(format!("Failed to read config file {file_path}: {e}"))
+    })?;
 
     if file_path.ends_with(".yaml") || file_path.ends_with(".yml") {
         serde_yaml::from_str(&raw).map_err(|e| {

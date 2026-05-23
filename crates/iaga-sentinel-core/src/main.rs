@@ -709,28 +709,28 @@ async fn cmd_serve(
     // *before* the receipt logger so the bundle digest can be embedded
     // in every receipt's `policy_hash` field.
     #[cfg(feature = "apl")]
-    let apl_overlay: Option<Arc<iaga_sentinel::pipeline::apl_overlay::AplOverlay>> = match policy_path
-    {
-        None => None,
-        Some(p) => {
-            use iaga_sentinel::pipeline::apl_overlay::AplOverlay;
-            match AplOverlay::load(std::path::Path::new(p)) {
-                Ok(o) => {
-                    tracing::info!(
-                        policies = o.policy_count(),
-                        hash = o.policy_hash(),
-                        source = %o.source_path().display(),
-                        "M6: APL policy overlay loaded"
-                    );
-                    Some(Arc::new(o))
-                }
-                Err(e) => {
-                    eprintln!("APL load failed: {}", e);
-                    process::exit(2);
+    let apl_overlay: Option<Arc<iaga_sentinel::pipeline::apl_overlay::AplOverlay>> =
+        match policy_path {
+            None => None,
+            Some(p) => {
+                use iaga_sentinel::pipeline::apl_overlay::AplOverlay;
+                match AplOverlay::load(std::path::Path::new(p)) {
+                    Ok(o) => {
+                        tracing::info!(
+                            policies = o.policy_count(),
+                            hash = o.policy_hash(),
+                            source = %o.source_path().display(),
+                            "M6: APL policy overlay loaded"
+                        );
+                        Some(Arc::new(o))
+                    }
+                    Err(e) => {
+                        eprintln!("APL load failed: {}", e);
+                        process::exit(2);
+                    }
                 }
             }
-        }
-    };
+        };
 
     #[cfg(feature = "apl")]
     let policy_hash_override = apl_overlay.as_ref().map(|o| o.policy_hash().to_string());
@@ -1125,7 +1125,8 @@ async fn cmd_import(config_path: &str, db_url: &str) {
         }
     };
 
-    let config: SentinelConfig = if config_path.ends_with(".yaml") || config_path.ends_with(".yml") {
+    let config: SentinelConfig = if config_path.ends_with(".yaml") || config_path.ends_with(".yml")
+    {
         serde_yaml::from_str(&raw).unwrap_or_else(|e| {
             eprintln!("Invalid YAML: {e}");
             process::exit(1);
@@ -1446,7 +1447,11 @@ async fn cmd_mcp_server(db_url: &str, seed_demo: bool) {
 }
 
 async fn auto_import_config(policy_store: &Arc<dyn PolicyStore>) {
-    for name in &["iaga-sentinel.yaml", "iaga-sentinel.yml", "iaga-sentinel.json"] {
+    for name in &[
+        "iaga-sentinel.yaml",
+        "iaga-sentinel.yml",
+        "iaga-sentinel.json",
+    ] {
         if std::path::Path::new(name).exists() {
             tracing::info!(file = name, "Found config file, auto-importing...");
             let raw = match std::fs::read_to_string(name) {
@@ -1613,7 +1618,9 @@ fn cmd_kernel_status() {
 
 #[cfg(feature = "kernel")]
 async fn cmd_kernel_run(db_url: &str, agent_id: &str, cwd: Option<&str>, cmd: &[String]) -> i32 {
-    use iaga_sentinel::core::types::{ActionDetail, ActionType, GovernanceDecision, InspectRequest};
+    use iaga_sentinel::core::types::{
+        ActionDetail, ActionType, GovernanceDecision, InspectRequest,
+    };
     use iaga_sentinel::pipeline::execute_pipeline::execute_pipeline;
     use iaga_sentinel_kernel::{
         EnforcementKernel, KernelDecision, PolicyCheck, ProcessSpec, UserspaceKernel,

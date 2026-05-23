@@ -71,8 +71,8 @@ pub use wired::{try_build_reasoning_engine, ReasoningAdapter};
 mod wired {
     use std::sync::Arc;
 
-    use iaga_sentinel_reasoning::{EvalInput, NoopEngine, ReasoningEngine};
     use async_trait::async_trait;
+    use iaga_sentinel_reasoning::{EvalInput, NoopEngine, ReasoningEngine};
 
     use super::{ReasoningHandle, ReasoningOutcome};
 

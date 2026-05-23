@@ -10,7 +10,9 @@
 
 use std::path::PathBuf;
 
-use iaga_sentinel_reasoning::{parse_env_spec, EvalInput, ReasoningEngine, ReasoningError, TractEngine};
+use iaga_sentinel_reasoning::{
+    parse_env_spec, EvalInput, ReasoningEngine, ReasoningError, TractEngine,
+};
 
 #[tokio::test]
 async fn empty_engine_returns_empty_evidence() {
