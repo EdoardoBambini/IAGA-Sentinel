@@ -5,7 +5,7 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
-description = "IAGA Sentinel 1.0 — Agent Policy Language (APL) parser, type validator, and deterministic evaluator"
+description = "IAGA Sentinel — Agent Policy Language (APL) parser, Hindley-Milner type checker, deterministic evaluator, optional WASM codegen"
 
 [lib]
 name = "iaga_sentinel_apl"

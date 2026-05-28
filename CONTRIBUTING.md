@@ -39,7 +39,8 @@ locally, add `--features ml` to `cargo build` / `cargo test` for the
 If your change introduces a new capability, alters a public trait, or
 shifts an architectural boundary, add an ADR under
 [`docs/adr/`](docs/adr/) following the numbering and template of the
-existing ones (0001–0008). Keep it short: context, decision,
+existing ones (0001–0014, 0009 is intentionally unused). Keep it
+short: context, decision,
 consequences, what's deliberately out of scope.
 
 A PR that touches architecture without an ADR will be asked to add one

@@ -21,7 +21,7 @@
 </p>
 
 <p align="center">
-  <img src="media/hero.gif" alt="IAGA Sentinel 1.0 — kernel-enforced governance for autonomous agents" width="720" />
+  <img src="media/hero.gif" alt="IAGA Sentinel — kernel-enforced governance for autonomous agents" width="720" />
 </p>
 
 ---
@@ -70,11 +70,23 @@ iaga run --agent-id openclaw-builder-01 -- python my_agent.py
 # Replay the signed receipt chain
 iaga replay --list
 iaga replay <run_id>
+iaga replay <run_id> --verify-only      # signatures + Merkle links only
+iaga replay <run_id> --re-execute       # 1.2: surface drift-replay capture
+                                        # (set IAGA_SENTINEL_RECEIPT_CAPTURE=1 on serve)
 
 # Test an APL policy file
 iaga policy lint crates/iaga-sentinel-apl/examples/no_pii_egress.apl
 iaga policy test crates/iaga-sentinel-apl/examples/no_pii_egress.apl \
     --context crates/iaga-sentinel-apl/examples/sample_context.json
+
+# 1.2 — Hindley-Milner type-check (always available)
+iaga policy check crates/iaga-sentinel-apl/examples/no_pii_egress.apl
+
+# 1.2 — compile APL to a WASM module (requires --features apl-wasm)
+iaga policy compile policy.apl --output policy.wasm
+
+# 1.2 — verify a plugin's Sigstore bundle + SBOM (requires --features plugin-attestation)
+iaga plugins verify ./plugins/my-plugin.wasm
 
 # Inspect kernel + reasoning posture
 iaga kernel status
@@ -146,6 +158,8 @@ Cargo features on `iaga-sentinel-core`:
 | `kernel`     | ✅      | Enforcement kernel + `iaga run` + `iaga kernel status` (M4).         |
 | `linux-bpf`  | ❌      | Linux eBPF/LSM scaffold + ringbuf API. Real Aya-rs loader lives in IAGA Sentinel Enterprise. |
 | `ui-embed`   | ❌      | Embeds `ui/dist/` into the binary via `rust-embed`.                    |
+| `plugin-attestation` | ❌ | Offline Sigstore bundle + CycloneDX SBOM verify + `iaga plugins verify` (1.2). |
+| `apl-wasm`   | ❌      | APL → WASM codegen MVP + `iaga policy compile` (1.2). The Hindley-Milner type checker (`iaga policy check`) is always on, no feature needed. |
 
 `default = ["demo", "sqlite", "receipts", "apl", "reasoning", "kernel"]`.
 
@@ -174,11 +188,11 @@ iaga-sentinel/
 │   ├── iaga-sentinel-apl/           # APL parser + evaluator
 │   ├── iaga-sentinel-reasoning/     # ML evidence (tract-onnx behind `ml`)
 │   └── iaga-sentinel-kernel/        # cross-platform launcher + eBPF scaffold
-├── docs/adr/                # 8 ADRs (0001–0008)
+├── docs/adr/                # 13 ADRs (0001–0014, no 0009)
 ├── ui/                      # frontend (embedded via ui-embed feature)
 ├── media/                   # hero assets
-├── IAGA_SENTINEL_1.0.md       # design document
-├── MIGRATION.md             # 0.4.0 → 1.0 + per-milestone notes
+├── IAGA_SENTINEL_1.0.md       # design document (+ 1.1, 1.2 release notes)
+├── MIGRATION.md             # 0.4.0 → 1.0 → 1.1 → 1.2 per-milestone notes
 └── CHANGELOG.md             # release notes
 ```
 
@@ -282,7 +296,7 @@ boundary (20 Enterprise categories + 4 primitives reinstated to OSS
 Verifiable by `git clone && cargo test --workspace && docker compose up -d`:
 
 - **12-layer governance pipeline** — single binary, single endpoint
-  (`POST /v1/inspect`), 234/234 tests passing.
+  (`POST /v1/inspect`), 259/259 default tests passing.
 - **Signed action receipts** — Ed25519 + Merkle append-log per run,
   verifiable offline with `iaga replay <run_id> --verify-only`.
 - **Agent Policy Language (APL)** — typed DSL with deterministic
