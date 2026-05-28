@@ -1,0 +1,472 @@
+//! OSS 1.2 — offline Sigstore bundle + CycloneDX SBOM attestation
+//! primitive for plugin supply-chain integrity.
+//!
+//! Scope (ADR 0013, ADR 0010 §3):
+//!
+//! - Detect attestation **presence**: sibling `<wasm>.sigstore.json`
+//!   and `<wasm>.cdx.json` files are searched alongside each plugin.
+//! - **Offline structural verification**: the Sigstore bundle JSON is
+//!   parsed for well-formedness and the embedded payload digest is
+//!   compared bit-exact to the SHA-256 of the WASM file.
+//! - **CycloneDX 1.5 SBOM**: the `components[]` array is counted and
+//!   the `specVersion` is exposed.
+//!
+//! Explicitly **not in scope** (Enterprise differentiation per ADR 0010):
+//!
+//! - Online Rekor inclusion-proof verification (network).
+//! - Fulcio root CA chain validation (would require X.509 parsing).
+//! - Issuer / SAN extraction from cert (X.509 parsing).
+//! - Hosted plugin marketplace API.
+//! - Supply-chain SLA telemetry, threat-intel correlation, signed
+//!   threat-feed integration.
+//!
+//! For full chain-of-trust verification (Rekor proof + Fulcio root
+//! attestation + cert identity binding) the host should run `cosign
+//! verify` out-of-band, or upgrade to IAGA Sentinel Enterprise which
+//! ships the hosted marketplace with curated supply-chain SLA.
+
+use std::fmt;
+use std::path::{Path, PathBuf};
+
+use base64::Engine;
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+
+/// Result of an offline attestation check on a single plugin file.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginAttestation {
+    /// Hex-encoded SHA-256 of the plugin bytes (always populated when
+    /// the wasm file is readable).
+    pub plugin_sha256: String,
+    /// Path to the sibling `<wasm>.sigstore.json` bundle file, if found.
+    pub bundle_path: Option<PathBuf>,
+    /// Path to the sibling `<wasm>.cdx.json` CycloneDX SBOM, if found.
+    pub sbom_path: Option<PathBuf>,
+    /// `true` iff the bundle is a well-formed Sigstore JSON envelope
+    /// (we recognize either the v0.3 schema or the legacy cosign
+    /// bundle v0.1 schema).
+    pub bundle_well_formed: bool,
+    /// `true` iff the payload digest embedded in the bundle matches
+    /// the SHA-256 of the plugin file bit-exact. Always `false` when
+    /// `bundle_well_formed` is `false`.
+    pub payload_digest_match: bool,
+    /// Rekor log index extracted from the bundle (no online lookup).
+    pub rekor_log_index: Option<u64>,
+    /// Optional CycloneDX SBOM summary.
+    pub sbom: Option<SbomReport>,
+}
+
+impl PluginAttestation {
+    /// Convenience: `true` iff a bundle exists, it parses cleanly, AND
+    /// its payload digest matches the plugin bytes. This is the
+    /// strongest claim OSS 1.2 makes — does **not** include
+    /// chain-of-trust verification.
+    pub fn offline_verified(&self) -> bool {
+        self.bundle_path.is_some() && self.bundle_well_formed && self.payload_digest_match
+    }
+}
+
+/// Summary of a CycloneDX 1.5 SBOM document. Stored compactly so the
+/// pipeline can attach a snapshot to plugin manifests / receipts
+/// without serializing the entire SBOM blob.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SbomReport {
+    pub spec_version: String,
+    pub component_count: u32,
+}
+
+/// Failure modes for `verify_plugin`. Most failures degrade to
+/// `PluginAttestation::bundle_well_formed = false` rather than an
+/// error: callers should treat a missing-or-malformed attestation as
+/// "no attestation" (the safe default) rather than a hard failure.
+#[derive(Debug)]
+pub enum AttestationError {
+    /// The plugin file itself could not be read.
+    PluginIo(std::io::Error),
+}
+
+impl fmt::Display for AttestationError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::PluginIo(e) => write!(f, "plugin file read failed: {e}"),
+        }
+    }
+}
+
+impl std::error::Error for AttestationError {}
+
+impl From<std::io::Error> for AttestationError {
+    fn from(value: std::io::Error) -> Self {
+        Self::PluginIo(value)
+    }
+}
+
+/// Run an offline attestation check on `wasm_path`.
+///
+/// Looks for `<wasm>.sigstore.json` and `<wasm>.cdx.json` next to the
+/// plugin. Both are optional; missing or malformed bundles degrade
+/// gracefully (the corresponding fields stay `None` / `false`).
+///
+/// Only `PluginIo` is a real error — meaning the plugin file itself
+/// could not be read. Bundle / SBOM parse failures are *not* errors:
+/// the function returns a `PluginAttestation` with the relevant fields
+/// flagged "absent / malformed".
+pub fn verify_plugin(wasm_path: &Path) -> Result<PluginAttestation, AttestationError> {
+    let bytes = std::fs::read(wasm_path)?;
+    let plugin_sha256 = sha256_hex(&bytes);
+
+    let bundle_path = sibling(wasm_path, "sigstore.json");
+    let sbom_path = sibling(wasm_path, "cdx.json");
+
+    let (bundle_well_formed, payload_digest_match, rekor_log_index) =
+        verify_bundle(bundle_path.as_deref(), &bytes);
+
+    let sbom = sbom_path.as_deref().and_then(parse_sbom_cyclonedx_path);
+
+    Ok(PluginAttestation {
+        plugin_sha256,
+        bundle_path,
+        sbom_path,
+        bundle_well_formed,
+        payload_digest_match,
+        rekor_log_index,
+        sbom,
+    })
+}
+
+/// Parse a CycloneDX 1.5 SBOM file into a compact `SbomReport`.
+///
+/// Returns `Err` on IO failure or when the JSON does not look like a
+/// CycloneDX document (`bomFormat != "CycloneDX"`). Other malformed
+/// content yields a best-effort summary (component_count = 0).
+pub fn parse_sbom_cyclonedx(path: &Path) -> Result<SbomReport, SbomError> {
+    let bytes = std::fs::read(path).map_err(SbomError::Io)?;
+    parse_sbom_cyclonedx_bytes(&bytes)
+}
+
+/// Same as [`parse_sbom_cyclonedx`] but takes raw bytes.
+pub fn parse_sbom_cyclonedx_bytes(bytes: &[u8]) -> Result<SbomReport, SbomError> {
+    let value: serde_json::Value = serde_json::from_slice(bytes).map_err(SbomError::Parse)?;
+    let bom_format = value
+        .get("bomFormat")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    if !bom_format.eq_ignore_ascii_case("CycloneDX") {
+        return Err(SbomError::NotCycloneDx);
+    }
+    let spec_version = value
+        .get("specVersion")
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown")
+        .to_string();
+    let component_count = value
+        .get("components")
+        .and_then(|v| v.as_array())
+        .map(|arr| arr.len() as u32)
+        .unwrap_or(0);
+    Ok(SbomReport {
+        spec_version,
+        component_count,
+    })
+}
+
+/// Errors when parsing a CycloneDX SBOM. `verify_plugin` consumes
+/// these silently (returns `sbom: None`); the standalone
+/// `parse_sbom_cyclonedx` returns them to the caller.
+#[derive(Debug)]
+pub enum SbomError {
+    Io(std::io::Error),
+    Parse(serde_json::Error),
+    NotCycloneDx,
+}
+
+impl fmt::Display for SbomError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Io(e) => write!(f, "sbom read failed: {e}"),
+            Self::Parse(e) => write!(f, "sbom parse failed: {e}"),
+            Self::NotCycloneDx => write!(f, "not a CycloneDX document"),
+        }
+    }
+}
+
+impl std::error::Error for SbomError {}
+
+fn parse_sbom_cyclonedx_path(path: &Path) -> Option<SbomReport> {
+    parse_sbom_cyclonedx(path).ok()
+}
+
+fn sibling(wasm_path: &Path, suffix: &str) -> Option<PathBuf> {
+    let mut p = PathBuf::from(wasm_path);
+    let file_name = wasm_path.file_name()?.to_string_lossy().into_owned();
+    let candidate = format!("{file_name}.{suffix}");
+    p.set_file_name(candidate);
+    if p.exists() {
+        Some(p)
+    } else {
+        None
+    }
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    let mut h = Sha256::new();
+    h.update(bytes);
+    hex::encode(h.finalize())
+}
+
+fn verify_bundle(bundle_path: Option<&Path>, wasm_bytes: &[u8]) -> (bool, bool, Option<u64>) {
+    let Some(path) = bundle_path else {
+        return (false, false, None);
+    };
+    let Ok(raw) = std::fs::read(path) else {
+        return (false, false, None);
+    };
+    let Ok(json) = serde_json::from_slice::<serde_json::Value>(&raw) else {
+        return (false, false, None);
+    };
+
+    // Sigstore Bundle v0.3 schema (mediaType
+    // application/vnd.dev.sigstore.bundle.v0.3+json).
+    // Look for messageSignature.messageDigest.digest (base64 SHA-256).
+    let v03_digest_b64 = json
+        .get("messageSignature")
+        .and_then(|m| m.get("messageDigest"))
+        .and_then(|d| d.get("digest"))
+        .and_then(|v| v.as_str());
+
+    // Cosign bundle v0.1 legacy schema: base64Signature + cert + payload.
+    // Here payload (if present) is the in-toto/dsse statement; the
+    // digest is in payload.subject[0].digest.sha256 (hex).
+    let v01_digest_hex = json
+        .pointer("/Payload/Body/IntotoObj/payload/subject/0/digest/sha256")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    let actual_sha256_hex = sha256_hex(wasm_bytes);
+
+    let payload_match = if let Some(d) = v03_digest_b64 {
+        decode_b64_to_hex(d)
+            .map(|h| h == actual_sha256_hex)
+            .unwrap_or(false)
+    } else if let Some(ref h) = v01_digest_hex {
+        h.eq_ignore_ascii_case(&actual_sha256_hex)
+    } else {
+        false
+    };
+
+    let rekor_log_index = json
+        .pointer("/verificationMaterial/tlogEntries/0/logIndex")
+        .and_then(|v| match v {
+            serde_json::Value::String(s) => s.parse::<u64>().ok(),
+            serde_json::Value::Number(n) => n.as_u64(),
+            _ => None,
+        });
+
+    // "Well-formed" = we recognized either schema and could extract a
+    // digest field. Payload-match is a separate, stricter check.
+    let well_formed = v03_digest_b64.is_some() || v01_digest_hex.is_some();
+
+    (well_formed, payload_match, rekor_log_index)
+}
+
+fn decode_b64_to_hex(s: &str) -> Option<String> {
+    let bytes = base64::engine::general_purpose::STANDARD.decode(s).ok()?;
+    Some(hex::encode(bytes))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+    use tempfile::tempdir;
+
+    fn write_wasm(dir: &Path, name: &str, body: &[u8]) -> PathBuf {
+        let p = dir.join(name);
+        let mut f = std::fs::File::create(&p).unwrap();
+        f.write_all(body).unwrap();
+        p
+    }
+
+    #[test]
+    fn no_attestation_files_means_no_bundle_no_sbom() {
+        let dir = tempdir().unwrap();
+        let wasm = write_wasm(dir.path(), "plain.wasm", b"\x00asm\x01\x00\x00\x00");
+        let att = verify_plugin(&wasm).expect("verify ok");
+        assert!(att.bundle_path.is_none());
+        assert!(att.sbom_path.is_none());
+        assert!(!att.bundle_well_formed);
+        assert!(!att.payload_digest_match);
+        assert!(att.sbom.is_none());
+        assert!(!att.offline_verified());
+        // SHA-256 of the wasm magic bytes is well-known.
+        assert_eq!(att.plugin_sha256.len(), 64);
+    }
+
+    #[test]
+    fn malformed_bundle_degrades_to_not_well_formed() {
+        let dir = tempdir().unwrap();
+        let wasm = write_wasm(dir.path(), "p.wasm", b"contents");
+        let bundle_path = dir.path().join("p.wasm.sigstore.json");
+        std::fs::write(&bundle_path, b"not json {{").unwrap();
+        let att = verify_plugin(&wasm).expect("verify ok");
+        assert_eq!(att.bundle_path.as_deref(), Some(bundle_path.as_path()));
+        assert!(!att.bundle_well_formed);
+        assert!(!att.payload_digest_match);
+    }
+
+    #[test]
+    fn v03_bundle_well_formed_but_digest_mismatch() {
+        let dir = tempdir().unwrap();
+        let wasm = write_wasm(dir.path(), "q.wasm", b"contents-q");
+        let fake_digest = base64::engine::general_purpose::STANDARD.encode([0u8; 32]);
+        let bundle = serde_json::json!({
+            "mediaType": "application/vnd.dev.sigstore.bundle.v0.3+json",
+            "messageSignature": {
+                "messageDigest": {
+                    "algorithm": "SHA2_256",
+                    "digest": fake_digest,
+                },
+                "signature": "deadbeef",
+            },
+            "verificationMaterial": {
+                "tlogEntries": [{ "logIndex": "12345678" }],
+            },
+        });
+        std::fs::write(
+            dir.path().join("q.wasm.sigstore.json"),
+            serde_json::to_vec(&bundle).unwrap(),
+        )
+        .unwrap();
+        let att = verify_plugin(&wasm).expect("verify ok");
+        assert!(att.bundle_well_formed);
+        assert!(!att.payload_digest_match);
+        assert_eq!(att.rekor_log_index, Some(12345678));
+        assert!(!att.offline_verified());
+    }
+
+    #[test]
+    fn v03_bundle_with_matching_digest_offline_verified() {
+        let dir = tempdir().unwrap();
+        let payload = b"matching-content-here";
+        let wasm = write_wasm(dir.path(), "good.wasm", payload);
+        let mut h = Sha256::new();
+        h.update(payload);
+        let real_digest_b64 = base64::engine::general_purpose::STANDARD.encode(h.finalize());
+        let bundle = serde_json::json!({
+            "mediaType": "application/vnd.dev.sigstore.bundle.v0.3+json",
+            "messageSignature": {
+                "messageDigest": {
+                    "algorithm": "SHA2_256",
+                    "digest": real_digest_b64,
+                },
+                "signature": "ababab",
+            },
+        });
+        std::fs::write(
+            dir.path().join("good.wasm.sigstore.json"),
+            serde_json::to_vec(&bundle).unwrap(),
+        )
+        .unwrap();
+        let att = verify_plugin(&wasm).expect("verify ok");
+        assert!(att.bundle_well_formed);
+        assert!(att.payload_digest_match);
+        assert!(att.offline_verified());
+        assert_eq!(att.rekor_log_index, None); // not present in this fixture
+    }
+
+    #[test]
+    fn cyclonedx_sbom_components_counted() {
+        let dir = tempdir().unwrap();
+        let _wasm = write_wasm(dir.path(), "r.wasm", b"r");
+        let sbom = serde_json::json!({
+            "bomFormat": "CycloneDX",
+            "specVersion": "1.5",
+            "components": [
+                { "name": "wasmtime", "version": "36.0.8" },
+                { "name": "anyhow", "version": "1.0" },
+                { "name": "serde", "version": "1.0" },
+            ]
+        });
+        std::fs::write(
+            dir.path().join("r.wasm.cdx.json"),
+            serde_json::to_vec(&sbom).unwrap(),
+        )
+        .unwrap();
+        let att = verify_plugin(&dir.path().join("r.wasm")).expect("verify ok");
+        let report = att.sbom.expect("sbom report present");
+        assert_eq!(report.spec_version, "1.5");
+        assert_eq!(report.component_count, 3);
+    }
+
+    #[test]
+    fn sbom_rejects_non_cyclonedx() {
+        let bytes = b"{\"bomFormat\":\"SPDX\",\"specVersion\":\"2.3\"}";
+        let err = parse_sbom_cyclonedx_bytes(bytes).expect_err("must reject");
+        assert!(matches!(err, SbomError::NotCycloneDx));
+    }
+
+    #[test]
+    fn sbom_missing_components_yields_zero() {
+        let bytes = br#"{"bomFormat":"CycloneDX","specVersion":"1.5"}"#;
+        let r = parse_sbom_cyclonedx_bytes(bytes).expect("parse ok");
+        assert_eq!(r.component_count, 0);
+        assert_eq!(r.spec_version, "1.5");
+    }
+
+    #[test]
+    fn offline_verified_requires_both_bundle_present_and_match() {
+        let mut a = PluginAttestation {
+            plugin_sha256: "00".repeat(32),
+            bundle_path: None,
+            sbom_path: None,
+            bundle_well_formed: true,
+            payload_digest_match: true,
+            rekor_log_index: None,
+            sbom: None,
+        };
+        assert!(!a.offline_verified(), "bundle_path None fails");
+        a.bundle_path = Some(PathBuf::from("x"));
+        a.bundle_well_formed = false;
+        assert!(!a.offline_verified(), "not well-formed fails");
+        a.bundle_well_formed = true;
+        a.payload_digest_match = false;
+        assert!(!a.offline_verified(), "digest mismatch fails");
+        a.payload_digest_match = true;
+        assert!(a.offline_verified(), "all three required");
+    }
+
+    #[test]
+    fn rekor_log_index_accepts_string_or_number() {
+        let dir = tempdir().unwrap();
+        let wasm = write_wasm(dir.path(), "z.wasm", b"z");
+        let bundle = serde_json::json!({
+            "messageSignature": { "messageDigest": { "digest": "" } },
+            "verificationMaterial": {
+                "tlogEntries": [{ "logIndex": 99 }],
+            },
+        });
+        std::fs::write(
+            dir.path().join("z.wasm.sigstore.json"),
+            serde_json::to_vec(&bundle).unwrap(),
+        )
+        .unwrap();
+        let att = verify_plugin(&wasm).expect("verify ok");
+        assert_eq!(att.rekor_log_index, Some(99));
+    }
+
+    #[test]
+    fn sibling_search_uses_full_wasm_filename_with_suffix() {
+        let dir = tempdir().unwrap();
+        let wasm = write_wasm(dir.path(), "my-plugin.wasm", b"x");
+        std::fs::write(
+            dir.path().join("my-plugin.wasm.sigstore.json"),
+            b"{\"messageSignature\":{\"messageDigest\":{\"digest\":\"\"}}}",
+        )
+        .unwrap();
+        let att = verify_plugin(&wasm).expect("verify ok");
+        assert!(att.bundle_path.is_some());
+        assert!(att.bundle_well_formed); // recognized v03 shape
+    }
+}

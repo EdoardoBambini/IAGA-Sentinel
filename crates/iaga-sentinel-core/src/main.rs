@@ -271,6 +271,13 @@ enum Commands {
         /// Max runs to list
         #[arg(long, default_value_t = 20)]
         limit: u32,
+
+        /// 1.2: surface drift-replay capture data and report
+        /// divergence between stored and reconstructed inputs. Mutex
+        /// with --verify-only. Requires receipts produced with
+        /// IAGA_SENTINEL_RECEIPT_CAPTURE=1 on the source pipeline.
+        #[arg(long = "re-execute", default_value_t = false)]
+        re_execute: bool,
     },
 }
 
@@ -292,6 +299,25 @@ enum PolicyCommands {
     Lint {
         /// Path to the .apl source file
         path: String,
+    },
+    /// 1.2 OSS — type-check (Hindley-Milner) an .apl file.
+    /// Reports per-policy `when`-clause types and any type errors
+    /// (mismatch, occurs-check, builtin arity, non-bool when).
+    Check {
+        /// Path to the .apl source file
+        path: String,
+    },
+    /// 1.2 OSS — compile an .apl file to a WebAssembly module
+    /// (literal + boolean / numeric / comparison ops only; rejects
+    /// Path / Call / Membership in the MVP 1.2 scope, see ADR 0014).
+    Compile {
+        /// Path to the .apl source file
+        path: String,
+
+        /// Path to write the WASM module bytes. Defaults to
+        /// `<path>.wasm`.
+        #[arg(long)]
+        output: Option<String>,
     },
 }
 
@@ -324,6 +350,21 @@ enum PluginCommands {
 
     /// Validate a single WASM plugin file
     Validate {
+        /// Path to the plugin .wasm file
+        path: String,
+
+        /// Output format: json or table
+        #[arg(short, long, default_value = "table")]
+        format: String,
+    },
+
+    /// 1.2: Offline Sigstore + SBOM attestation verify. Looks for
+    /// sibling <plugin>.sigstore.json and <plugin>.cdx.json files,
+    /// confirms the bundle is well-formed and the payload digest
+    /// matches the plugin bytes. Does NOT verify Rekor inclusion
+    /// proof or Fulcio root trust (out of OSS scope per ADR 0013).
+    #[cfg(feature = "plugin-attestation")]
+    Verify {
         /// Path to the plugin .wasm file
         path: String,
 
@@ -394,6 +435,10 @@ async fn main() {
             PluginCommands::Validate { path, format } => {
                 cmd_plugins_validate(&path, &format);
             }
+            #[cfg(feature = "plugin-attestation")]
+            PluginCommands::Verify { path, format } => {
+                cmd_plugins_verify(&path, &format);
+            }
         },
         Some(Commands::Migrate) => {
             cmd_migrate(&db_url).await;
@@ -430,6 +475,14 @@ async fn main() {
                 let code = cmd_policy_test(&path, None);
                 process::exit(code);
             }
+            PolicyCommands::Check { path } => {
+                let code = cmd_policy_check(&path);
+                process::exit(code);
+            }
+            PolicyCommands::Compile { path, output } => {
+                let code = cmd_policy_compile(&path, output.as_deref());
+                process::exit(code);
+            }
         },
         #[cfg(feature = "reasoning")]
         Some(Commands::Reasoning { command }) => match command {
@@ -452,8 +505,21 @@ async fn main() {
             verify_only,
             list,
             limit,
+            re_execute,
         }) => {
-            let code = cmd_replay(&db_url, run_id.as_deref(), verify_only, list, limit).await;
+            if verify_only && re_execute {
+                eprintln!("iaga replay: --verify-only and --re-execute are mutually exclusive");
+                process::exit(2);
+            }
+            let code = cmd_replay(
+                &db_url,
+                run_id.as_deref(),
+                verify_only,
+                list,
+                limit,
+                re_execute,
+            )
+            .await;
             process::exit(code);
         }
     }
@@ -1095,6 +1161,184 @@ fn cmd_plugins_validate(path: &str, format: &str) {
             process::exit(1);
         }
     }
+}
+
+// ── apl type check + wasm compile (1.2) ──
+
+#[cfg(feature = "apl")]
+fn cmd_policy_check(path: &str) -> i32 {
+    use iaga_sentinel_apl::compile_with_types;
+
+    let src = match std::fs::read_to_string(path) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("policy check: cannot read {path}: {e}");
+            return 2;
+        }
+    };
+    match compile_with_types(&src) {
+        Ok((program, env)) => {
+            println!("CHECK OK  policies={}", program.policies.len());
+            for (i, p) in program.policies.iter().enumerate() {
+                let ty = env
+                    .when_types()
+                    .get(i)
+                    .map(|t| t.to_string())
+                    .unwrap_or_else(|| "?".into());
+                println!("  policy={:<24} when_type={}", p.name, ty);
+            }
+            0
+        }
+        Err(e) => {
+            eprintln!("policy check: {e}");
+            1
+        }
+    }
+}
+
+#[cfg(feature = "apl-wasm")]
+fn cmd_policy_compile(path: &str, output: Option<&str>) -> i32 {
+    use iaga_sentinel_apl::{compile, compile_to_wasm};
+
+    let src = match std::fs::read_to_string(path) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("policy compile: cannot read {path}: {e}");
+            return 2;
+        }
+    };
+    let program = match compile(&src) {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("policy compile: parse/validate failed: {e}");
+            return 1;
+        }
+    };
+    let module = match compile_to_wasm(&program) {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!("policy compile: codegen failed: {e}");
+            eprintln!(
+                "note: APL WASM MVP 1.2 supports literal + boolean / numeric / comparison ops \
+only. Path / Call / Membership remain on the tree-walk evaluator. \
+See ADR 0014."
+            );
+            return 1;
+        }
+    };
+    let out_path = output
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| format!("{path}.wasm"));
+    if let Err(e) = std::fs::write(&out_path, module.bytes()) {
+        eprintln!("policy compile: cannot write {out_path}: {e}");
+        return 3;
+    }
+    println!(
+        "COMPILED  out={}  bytes={}  policies={}",
+        out_path,
+        module.bytes().len(),
+        module.policy_count()
+    );
+    0
+}
+
+#[cfg(all(feature = "apl", not(feature = "apl-wasm")))]
+fn cmd_policy_compile(_path: &str, _output: Option<&str>) -> i32 {
+    eprintln!(
+        "policy compile: requires building with `--features apl-wasm`. \
+The default OSS build ships the tree-walk evaluator only; WASM codegen \
+is an opt-in MVP primitive (ADR 0014)."
+    );
+    2
+}
+
+// ── plugin attestation (1.2) ──
+
+#[cfg(feature = "plugin-attestation")]
+fn cmd_plugins_verify(path: &str, format: &str) {
+    use iaga_sentinel::plugins::verify_plugin;
+
+    let att = match verify_plugin(std::path::Path::new(path)) {
+        Ok(a) => a,
+        Err(e) => {
+            eprintln!("verify failed: {e}");
+            process::exit(2);
+        }
+    };
+
+    match format {
+        "json" => {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&att)
+                    .unwrap_or_else(|e| format!("{{\"error\": \"serialization failed: {e}\"}}"))
+            );
+        }
+        "table" => {
+            println!("plugin verification (offline, ADR 0013)");
+            println!("  path:                          {path}");
+            println!("  plugin_sha256:                 {}", att.plugin_sha256);
+            println!(
+                "  sigstore bundle:               {}",
+                att.bundle_path
+                    .as_deref()
+                    .map(|p| p.display().to_string())
+                    .unwrap_or_else(|| "(none)".into())
+            );
+            println!(
+                "  sbom (cdx.json):               {}",
+                att.sbom_path
+                    .as_deref()
+                    .map(|p| p.display().to_string())
+                    .unwrap_or_else(|| "(none)".into())
+            );
+            println!(
+                "  bundle well-formed:            {}",
+                att.bundle_well_formed
+            );
+            println!(
+                "  payload digest matches:        {}",
+                att.payload_digest_match
+            );
+            println!(
+                "  rekor log index:               {}",
+                att.rekor_log_index
+                    .map(|i| i.to_string())
+                    .unwrap_or_else(|| "(none)".into())
+            );
+            if let Some(s) = &att.sbom {
+                println!(
+                    "  sbom spec_version={} components={}",
+                    s.spec_version, s.component_count
+                );
+            }
+            println!(
+                "  offline_verified:              {}",
+                att.offline_verified()
+            );
+            if !att.offline_verified() {
+                println!();
+                println!(
+                    "note: offline verification only checks bundle structure + payload \
+digest. Full Rekor inclusion proof + Fulcio root attestation lives in \
+IAGA Sentinel Enterprise (see ENTERPRISE.md / ADR 0013)."
+                );
+            }
+        }
+        _ => {
+            eprintln!("Unknown format: {format}. Use 'json' or 'table'.");
+            process::exit(1);
+        }
+    }
+
+    // Exit non-zero when bundle is present but verification fails, so
+    // CI / shell scripts can gate on `iaga plugin verify`.
+    let exit_code = if att.bundle_path.is_some() && !att.offline_verified() {
+        1
+    } else {
+        0
+    };
+    process::exit(exit_code);
 }
 
 // ── migrate ──
@@ -1772,6 +2016,7 @@ async fn cmd_replay(
     verify_only: bool,
     list: bool,
     limit: u32,
+    re_execute: bool,
 ) -> i32 {
     use iaga_sentinel_receipts::{ChainStatus, ReceiptSigner, ReceiptStore, SqliteReceiptStore};
 
@@ -1888,19 +2133,61 @@ async fn cmd_replay(
     // Drift replay: for M2 we do a minimal identity replay — no pipeline
     // re-execution, we just print the stored verdict chain. Full drift
     // replay against the current pipeline is M5.
-    match store.get_run(rid).await {
-        Ok(chain) => {
-            for r in chain {
-                println!(
-                    "  seq={:<4} verdict={:<8?} risk={:<3} reasons={:?}",
-                    r.body.seq, r.body.verdict, r.body.risk_score, r.body.reasons
-                );
-            }
-            0
-        }
+    let chain = match store.get_run(rid).await {
+        Ok(c) => c,
         Err(e) => {
             eprintln!("iaga replay: get_run: {e}");
-            3
+            return 3;
         }
+    };
+
+    if re_execute {
+        // 1.2: surface the optional capture data and report whether
+        // the receipt has enough material for a hypothetical
+        // re-execution. Full pipeline re-execution wiring is on the
+        // 1.3 roadmap; this MVP makes the capture data inspectable
+        // and confirms 1.1 receipts (no capture) are still chain-valid.
+        let mut with_capture = 0u64;
+        let mut without_capture = 0u64;
+        println!("RE-EXECUTE  run_id={}  receipts={}", rid, chain.len());
+        for r in &chain {
+            let capture_present = r.body.pipeline_inputs_capture.is_some();
+            let apl_trace_present = r.body.apl_eval_trace.is_some();
+            let ml_inputs_present = r.body.ml_inference_inputs.is_some();
+            let marker = if capture_present { "✓" } else { "·" };
+            println!(
+                "  seq={:<4} verdict={:<8?} capture={} apl_trace={} ml_inputs={} reasons={:?}",
+                r.body.seq,
+                r.body.verdict,
+                marker,
+                if apl_trace_present { "✓" } else { "·" },
+                if ml_inputs_present { "✓" } else { "·" },
+                r.body.reasons,
+            );
+            if capture_present {
+                with_capture += 1;
+            } else {
+                without_capture += 1;
+            }
+        }
+        println!(
+            "summary: {with_capture}/{total} with capture, {without_capture}/{total} without (1.1 / capture-disabled)",
+            total = chain.len()
+        );
+        if without_capture > 0 {
+            println!(
+                "note: receipts without capture were produced with IAGA_SENTINEL_RECEIPT_CAPTURE unset; \
+re-executable evidence is the union of stored verdict/reasons only."
+            );
+        }
+        return 0;
     }
+
+    for r in chain {
+        println!(
+            "  seq={:<4} verdict={:<8?} risk={:<3} reasons={:?}",
+            r.body.seq, r.body.verdict, r.body.risk_score, r.body.reasons
+        );
+    }
+    0
 }

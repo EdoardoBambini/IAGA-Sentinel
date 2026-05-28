@@ -675,6 +675,108 @@ so upgrade deliberately using the table below.
 
 ---
 
+## 1.1 → 1.2.0
+
+**Scope:** the **primitive evolution release**. Ships the four
+primitives that ADR 0010 §3 reinstated to OSS 1.2. **No breaking
+changes.** No runtime semantics change for existing 1.1 callers;
+every callsite (CLI, HTTP, library API) compiles unchanged.
+
+### Signer trait + LocalDiskSigner (ADR 0011)
+
+`iaga_sentinel_receipts::ReceiptSigner` is now a `type alias` for
+`LocalDiskSigner` — every existing import keeps working. The new
+trait `Signer: Send + Sync` (async, object-safe) is what the
+pipeline holds as `Arc<dyn Signer>`. SDK consumers wanting to
+implement custom signers (e.g. for offline KMS testing) should
+target the trait. Native KMS SDK backends (AWS KMS / Azure Key Vault
+/ HashiCorp Vault / PKCS#11 HSM) remain Enterprise (ADR 0010 §2.20).
+BYOK via `IAGA_SENTINEL_SIGNER_KEY_PATH` filesystem-mount remains
+the OSS path forever.
+
+### Drift replay additive (ADR 0012)
+
+Three new optional fields on `ReceiptBody`:
+`pipeline_inputs_capture`, `apl_eval_trace`, `ml_inference_inputs`.
+Populated **only** when the host opts in via env
+`IAGA_SENTINEL_RECEIPT_CAPTURE=1` (default off). When off, the
+serialization is byte-identical to 1.1 — chain hashes and signatures
+stay stable, mixed 1.1/1.2 stores verify cleanly.
+
+**PII warning**: when capture is enabled, `pipeline_inputs_capture.request_json`
+contains the request payload that drove the verdict, which may
+include sensitive content. Backups, exports, and offsite copies of
+receipts pick that up too. **Keep capture disabled in production
+unless the receipt store is in scope of the same data-protection
+controls as the request bus.**
+
+New CLI: `iaga replay --re-execute <run_id>` (mutex with
+`--verify-only`) reports per-receipt capture availability. Full
+pipeline re-execution wiring is a 1.3 follow-up; the 1.2 MVP shows
+which receipts have capture material and which don't.
+
+### Plugin Sigstore + SBOM offline attestation (ADR 0013)
+
+New Cargo feature `plugin-attestation` (default off). When enabled,
+the plugin registry searches for sibling `<plugin>.sigstore.json`
+and `<plugin>.cdx.json` files at load time and populates
+`PluginManifest.attestation` / `.sbom` / `.attestation_offline_verified`.
+
+**Scope honesty**: this is **offline structural verification only**
+— bundle well-formedness + payload digest match. Rekor inclusion
+proof and Fulcio root CA chain validation are **not** performed
+in OSS 1.2. For full chain-of-trust, run `cosign verify` out of
+band, or upgrade to IAGA Sentinel Enterprise (hosted marketplace
++ supply-chain SLA).
+
+CLI: `iaga plugin verify <plugin.wasm>` outputs a table/JSON
+report and exits non-zero if a bundle is present but verification
+fails.
+
+### APL Hindley-Milner + WASM codegen MVP (ADR 0014)
+
+`compile_with_types(src)` is the new entrypoint pairing `compile`
+with Algorithm W type inference over the existing APL AST. CLI:
+`iaga policy check <file.apl>` prints per-policy `when` types and
+reports type errors.
+
+New feature `apl-wasm` (default off) adds the WASM codegen primitive.
+The tree-walk evaluator remains the canonical executor for the full
+APL surface — `evaluate_program()` is unchanged. The WASM MVP only
+handles literal + boolean / numeric / comparison operations; Path
+/ Call / Membership are rejected with clear errors pointing the
+caller back to the tree-walk path. Full WASM coverage + parity
+proptest is a 1.3 follow-up.
+
+CLI: `iaga policy compile <file.apl> [--output bundle.wasm]` (gated
+on `apl-wasm`).
+
+### Feature flag summary
+
+All four primitives are opt-in. Default behaviour matches 1.1 exactly:
+
+| Feature | Crate | Default | Pulls in |
+|---|---|---|---|
+| `plugin-attestation` | `iaga-sentinel-core` | off | `base64` |
+| `apl-wasm` | `iaga-sentinel-apl` (forwarded from core) | off | `wasm-encoder` |
+| Env `IAGA_SENTINEL_RECEIPT_CAPTURE=1` | — (host env) | unset | — |
+
+### What did **not** change
+
+- License: BUSL-1.1 + Change License Apache-2.0 baked in. Change
+  Date `2030-05-03` preserved (1.2 is additive, no new release
+  Change-Date reset).
+- HTTP API surface (`/v1/inspect`, `/v1/receipts`, `/health`).
+- Receipt JSON keys, signing-bytes canonical form, signature alg
+  (Ed25519), Merkle linking.
+- CLI sub-cmd surface that existed in 1.1.
+- Database schema for `iaga-sentinel-receipts` SQLite / Postgres
+  backends.
+- Naming (everything is still `iaga-sentinel` / `iaga` / IAGA
+  Sentinel — see [`feedback_rebrand_iaga_sentinel`] in 1.1).
+
+---
+
 ## Future (not yet released)
 
 The OSS line has no fixed milestone calendar. Bug fixes, dependency

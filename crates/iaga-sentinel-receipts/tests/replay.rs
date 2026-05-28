@@ -25,6 +25,9 @@ async fn seed(store: &SqliteReceiptStore, signer: &ReceiptSigner, n: u64, run: &
             risk_score: 10,
             timestamp: format!("2026-04-23T12:00:{:02}Z", i % 60),
             signer_key_id: signer.key_id().into(),
+            pipeline_inputs_capture: None,
+            apl_eval_trace: None,
+            ml_inference_inputs: None,
         };
         let receipt = signer.sign(body).unwrap();
         store.append(&receipt).await.unwrap();

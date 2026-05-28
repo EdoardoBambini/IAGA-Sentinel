@@ -1410,22 +1410,25 @@ dependencies = [
 
 [[package]]
 name = "iaga-sentinel-apl"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "logos",
  "pretty_assertions",
+ "proptest",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
+ "wasm-encoder 0.220.1",
 ]
 
 [[package]]
 name = "iaga-sentinel-core"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "argon2",
  "async-trait",
  "axum",
+ "base64",
  "chrono",
  "clap",
  "futures-core",
@@ -1446,6 +1449,7 @@ dependencies = [
  "serde_yaml",
  "sha2",
  "sqlx",
+ "tempfile",
  "thiserror 2.0.18",
  "tokio",
  "tokio-stream",
@@ -1459,7 +1463,7 @@ dependencies = [
 
 [[package]]
 name = "iaga-sentinel-kernel"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "serde",
@@ -1472,7 +1476,7 @@ dependencies = [
 
 [[package]]
 name = "iaga-sentinel-reasoning"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "hex",
@@ -1487,7 +1491,7 @@ dependencies = [
 
 [[package]]
 name = "iaga-sentinel-receipts"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1773,6 +1777,12 @@ checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 dependencies = [
  "spin",
 ]
+
+[[package]]
+name = "leb128"
+version = "0.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6cc46bac87ef8093eed6f272babb833b6443374399985ac8ed28471ee0918545"
 
 [[package]]
 name = "leb128fmt"
@@ -4305,6 +4315,16 @@ dependencies = [
 
 [[package]]
 name = "wasm-encoder"
+version = "0.220.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e913f9242315ca39eff82aee0e19ee7a372155717ff0eb082c741e435ce25ed1"
+dependencies = [
+ "leb128",
+ "wasmparser 0.220.1",
+]
+
+[[package]]
+name = "wasm-encoder"
 version = "0.236.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "724fccfd4f3c24b7e589d333fc0429c68042897a7e8a5f8694f31792471841e7"
@@ -4343,6 +4363,16 @@ dependencies = [
  "indexmap",
  "wasm-encoder 0.244.0",
  "wasmparser 0.244.0",
+]
+
+[[package]]
+name = "wasmparser"
+version = "0.220.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8d07b6a3b550fefa1a914b6d54fc175dd11c3392da11eee604e6ffc759805d25"
+dependencies = [
+ "bitflags",
+ "indexmap",
 ]
 
 [[package]]

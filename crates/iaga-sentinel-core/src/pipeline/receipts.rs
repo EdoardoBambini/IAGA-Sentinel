@@ -89,7 +89,8 @@ mod signed {
 
     use async_trait::async_trait;
     use iaga_sentinel_receipts::{
-        chain_link, MlScoreBundle, ReceiptBody, ReceiptSigner, ReceiptStore, Verdict,
+        chain_link, AplEvalTrace, LocalDiskSigner, MlInferenceInputs, MlScoreBundle, MlTokenDigest,
+        PipelineInputsCapture, ReceiptBody, ReceiptStore, Signer, Verdict,
     };
     use sha2::{Digest, Sha256};
     use tokio::sync::Mutex;
@@ -106,7 +107,7 @@ mod signed {
     /// across process restarts.
     pub struct SignedReceiptLogger {
         store: Arc<dyn ReceiptStore>,
-        signer: ReceiptSigner,
+        signer: Arc<dyn Signer>,
         policy_hash: String,
         /// Serializes append operations so concurrent writes to the same
         /// run_id can't race on `head()`/`append()`. A per-run_id mutex map
@@ -118,7 +119,7 @@ mod signed {
     impl SignedReceiptLogger {
         pub fn new(
             store: Arc<dyn ReceiptStore>,
-            signer: ReceiptSigner,
+            signer: Arc<dyn Signer>,
             policy_hash: String,
         ) -> Self {
             Self {
@@ -206,6 +207,39 @@ mod signed {
                 _ => (vec![], None::<MlScoreBundle>),
             };
 
+            // 1.2: optional drift-replay capture, gated by env. When
+            // unset (default), all three fields stay `None` and are
+            // elided from signing_bytes — 1.1 byte-equality preserved.
+            let (pipeline_inputs_capture, apl_eval_trace, ml_inference_inputs) =
+                if capture_enabled() {
+                    let input_h = Self::input_hash(event);
+                    let request_json =
+                        serde_json::to_value(event).unwrap_or(serde_json::Value::Null);
+                    let capture = PipelineInputsCapture {
+                        request_json,
+                        framework: "iaga-sentinel-core".into(),
+                        payload_sha256: input_h.clone(),
+                    };
+                    let apl_trace = AplEvalTrace {
+                        policy_hash: self.policy_hash.clone(),
+                        policies_evaluated: 0,
+                        policies_fired: Vec::new(),
+                    };
+                    let ml_inputs = evidence.map(|ev| MlInferenceInputs {
+                        tokenized_digests: ev
+                            .model_digests
+                            .iter()
+                            .map(|(name, sha)| MlTokenDigest {
+                                model_name: name.clone(),
+                                tokenized_sha256: sha.clone(),
+                            })
+                            .collect(),
+                    });
+                    (Some(capture), Some(apl_trace), ml_inputs)
+                } else {
+                    (None, None, None)
+                };
+
             let body = ReceiptBody {
                 run_id: run_id.clone(),
                 seq,
@@ -220,9 +254,12 @@ mod signed {
                 risk_score: event.risk_score,
                 timestamp: event.timestamp.clone(),
                 signer_key_id: self.signer.key_id().to_string(),
+                pipeline_inputs_capture,
+                apl_eval_trace,
+                ml_inference_inputs,
             };
 
-            let receipt = match self.signer.sign(body) {
+            let receipt = match self.signer.sign_body(body).await {
                 Ok(r) => r,
                 Err(e) => {
                     warn!(run_id = %run_id, error = %e, "receipt signing failed");
@@ -277,6 +314,16 @@ mod signed {
         }
     }
 
+    /// 1.2: opt-in trigger for the drift-replay capture. Default off.
+    /// Accepts `1`, `true`, or `yes` (case-sensitive); anything else
+    /// keeps the receipt bit-identical to 1.1.
+    fn capture_enabled() -> bool {
+        matches!(
+            std::env::var("IAGA_SENTINEL_RECEIPT_CAPTURE").as_deref(),
+            Ok("1") | Ok("true") | Ok("yes")
+        )
+    }
+
     /// Default policy hash placeholder for M2. In M3 APL will replace this
     /// with the SHA-256 of the compiled policy bundle.
     pub fn default_policy_hash() -> String {
@@ -314,13 +361,14 @@ mod signed {
                 return None;
             }
         };
-        let signer = match ReceiptSigner::load_or_create(&key_path) {
+        let signer = match LocalDiskSigner::load_or_create(&key_path) {
             Ok(s) => s,
             Err(e) => {
                 tracing::warn!(error = %e, path = %key_path.display(), "receipts: signer load failed; receipts disabled");
                 return None;
             }
         };
+        let signer: Arc<dyn Signer> = Arc::new(signer);
 
         let store: Arc<dyn ReceiptStore> = if database_url.starts_with("sqlite:") {
             #[cfg(feature = "sqlite")]

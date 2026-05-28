@@ -36,13 +36,21 @@ pub mod errors;
 pub mod eval;
 pub mod lexer;
 pub mod parser;
+pub mod types;
 pub mod validator;
+
+#[cfg(feature = "apl-wasm")]
+pub mod wasm;
 
 pub use ast::{Action, BinOp, Expr, Lit, Policy, Program, UnOp, Verdict};
 pub use errors::{AplError, Result};
 pub use eval::{eval_expr, evaluate_program, Context, EvalBudget, PolicyFired, Value};
 pub use parser::parse;
+pub use types::{infer, Ty, TypeEnv, TypeError};
 pub use validator::validate;
+
+#[cfg(feature = "apl-wasm")]
+pub use wasm::{compile_to_wasm, WasmCompileError, WasmProgram};
 
 /// Parse and validate in one shot. Most hosts want this:
 /// eval comes later with a concrete context.
@@ -51,3 +59,38 @@ pub fn compile(src: &str) -> Result<Program> {
     validate(&program)?;
     Ok(program)
 }
+
+/// 1.2 OSS — parse, validate, and infer types. Companion to
+/// [`compile`] that additionally runs the Hindley-Milner type
+/// checker (ADR 0014). Returns both the program AST and the
+/// inferred [`TypeEnv`] so hosts can introspect the per-policy
+/// `when` types.
+///
+/// Type errors are reported as [`TypeError`] alongside the standard
+/// [`AplError`] (parse / validate). Hosts that only want the syntactic
+/// pipeline should keep using [`compile`].
+pub fn compile_with_types(src: &str) -> std::result::Result<(Program, TypeEnv), CompileError> {
+    let program = parse(src).map_err(CompileError::Apl)?;
+    validate(&program).map_err(CompileError::Apl)?;
+    let env = infer(&program).map_err(CompileError::Type)?;
+    Ok((program, env))
+}
+
+/// Aggregate error for [`compile_with_types`]: either a parse/validate
+/// failure ([`AplError`]) or a type-inference failure ([`TypeError`]).
+#[derive(Debug)]
+pub enum CompileError {
+    Apl(AplError),
+    Type(TypeError),
+}
+
+impl std::fmt::Display for CompileError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CompileError::Apl(e) => write!(f, "{e}"),
+            CompileError::Type(e) => write!(f, "{e}"),
+        }
+    }
+}
+
+impl std::error::Error for CompileError {}

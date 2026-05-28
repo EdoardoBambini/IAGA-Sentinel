@@ -9,6 +9,17 @@ use serde::Serialize;
 use super::host::LoadedPlugin;
 use super::types::{PluginInspectRequest, PluginManifest, PluginOutput};
 
+#[cfg(feature = "plugin-attestation")]
+fn annotate_with_attestation(mut plugin: LoadedPlugin, path: &Path) -> LoadedPlugin {
+    use super::attestation::verify_plugin;
+    if let Ok(att) = verify_plugin(path) {
+        plugin.manifest.attestation_offline_verified = att.offline_verified();
+        plugin.manifest.sbom = att.sbom.clone();
+        plugin.manifest.attestation = Some(att);
+    }
+    plugin
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PluginLoadError {
@@ -100,7 +111,11 @@ impl PluginRegistry {
                     }
 
                     match LoadedPlugin::from_file(&path) {
-                        Ok(plugin) => plugins.push(plugin),
+                        Ok(plugin) => {
+                            #[cfg(feature = "plugin-attestation")]
+                            let plugin = annotate_with_attestation(plugin, &path);
+                            plugins.push(plugin);
+                        }
                         Err(error) => load_errors.push(PluginLoadError {
                             path: path.display().to_string(),
                             error,
@@ -126,6 +141,10 @@ impl PluginRegistry {
         self.snapshot()
     }
 
+    /// Annotate a freshly-loaded plugin with offline attestation data
+    /// when sibling `<wasm>.sigstore.json` / `<wasm>.cdx.json` are
+    /// present. Silent on all attestation errors — failure to verify
+    /// degrades to "no attestation present", never blocks load.
     pub fn evaluate(&self, request: &PluginInspectRequest) -> PluginEvaluation {
         let state = self.state.read().unwrap_or_else(|e| e.into_inner());
         let mut outputs = Vec::new();

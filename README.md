@@ -158,8 +158,8 @@ described in [`IAGA_SENTINEL_1.0.md`](IAGA_SENTINEL_1.0.md):
 
 1. **Enforcement Kernel** — `crates/iaga-sentinel-kernel/` (M4 scaffold + `UserspaceKernel` cross-platform soft enforcement; real eBPF/LSM loader + macOS ES + Windows ETW/WFP backends in IAGA Sentinel Enterprise).
 2. **Signed Receipts** — `crates/iaga-sentinel-receipts/` (M2).
-3. **Agent Policy Language** — `crates/iaga-sentinel-apl/` (M3 tree-walk + M6 live overlay; WASM codegen + Hindley-Milner type checker → OSS 1.2).
-4. **Attested Plugins** — supply-chain integrity. Sigstore + SBOM CycloneDX attestation primitive → OSS 1.2; private hosted marketplace + supply-chain SLA in Enterprise.
+3. **Agent Policy Language** — `crates/iaga-sentinel-apl/` (M3 tree-walk + M6 live overlay + 1.2 Hindley-Milner type checker; 1.2 WASM codegen MVP behind `apl-wasm` feature, full coverage in 1.3).
+4. **Attested Plugins** — supply-chain integrity. 1.2 offline Sigstore + SBOM CycloneDX primitive behind `plugin-attestation` feature; private hosted marketplace + supply-chain SLA + signed threat-intel feed in Enterprise.
 5. **Governance Mesh** — single-cluster baseline + tier-2 multi-region active-active live in Enterprise.
 6. **Visual Plane** — `ui/` embedded via `ui-embed` feature.
 7. **Probabilistic Reasoning** — `crates/iaga-sentinel-reasoning/` (M3.5 scaffold + `tract` backend + BYO ONNX; curated ML library in Enterprise).
@@ -186,7 +186,10 @@ iaga-sentinel/
 
 ## Documentation
 
-- **Design**: [`IAGA_SENTINEL_1.0.md`](IAGA_SENTINEL_1.0.md)
+- **Design**:
+  [`IAGA_SENTINEL_1.0.md`](IAGA_SENTINEL_1.0.md),
+  [`IAGA_SENTINEL_1.1.md`](IAGA_SENTINEL_1.1.md),
+  [`IAGA_SENTINEL_1.2.md`](IAGA_SENTINEL_1.2.md)
 - **Migration from 0.4.0**: [`MIGRATION.md`](MIGRATION.md)
 - **Release notes**: [`CHANGELOG.md`](CHANGELOG.md)
 - **Architectural decisions**:
@@ -198,6 +201,11 @@ iaga-sentinel/
   - [ADR 0006 — Kernel MVP](docs/adr/0006-kernel-mvp.md)
   - [ADR 0007 — M5 hardening + RC posture](docs/adr/0007-m5-hardening-rc.md)
   - [ADR 0008 — APL as live policy engine](docs/adr/0008-apl-as-live-policy-engine.md)
+  - [ADR 0010 — OSS↔Enterprise boundary clarification](docs/adr/0010-oss-enterprise-boundary.md)
+  - [ADR 0011 — `Signer` trait + `LocalDiskSigner` (OSS 1.2)](docs/adr/0011-signer-trait-and-local-disk.md)
+  - [ADR 0012 — Drift replay additive (OSS 1.2)](docs/adr/0012-drift-replay-additive.md)
+  - [ADR 0013 — Plugin Sigstore + SBOM attestation (OSS 1.2)](docs/adr/0013-plugin-attestation.md)
+  - [ADR 0014 — APL HM type checker + WASM codegen scaffolding (OSS 1.2)](docs/adr/0014-apl-wasm-and-types.md)
 - **Contributing**: [`CONTRIBUTING.md`](CONTRIBUTING.md)
 
 ---
@@ -207,7 +215,8 @@ iaga-sentinel/
 **1.0 GA shipped.** All six 1.0 milestones complete, 234/234 default
 tests passing, clippy `--all-targets -D warnings` clean. **1.1.0
 released as a consolidation minor** (binary swap, zero runtime change,
-boundary clarification only).
+boundary clarification only). **1.2.0 ships the four reinstated
+primitives** — see [`IAGA_SENTINEL_1.2.md`](IAGA_SENTINEL_1.2.md).
 
 What's intentionally honest about the posture:
 
@@ -221,18 +230,36 @@ What's intentionally honest about the posture:
   prompt-injection / anomaly-seq pre-trained, signed, threat-intel
   fed) lives in Enterprise.
 - APL today is tree-walking, fully deterministic, and replay-safe.
-  WASM codegen + Hindley-Milner type checker are planned for **OSS
-  1.2** as a performance / sandbox-isolation upgrade.
+  **1.2 adds the Hindley-Milner type checker** (always available via
+  `iaga policy check`) and a **WASM codegen scaffolding MVP** (gated
+  on the `apl-wasm` Cargo feature) for literal + boolean / numeric /
+  comparison expressions. The tree-walk evaluator remains canonical
+  for the full APL surface; full WASM coverage with host imports for
+  Path / Call / Membership is 1.3 work.
 - macOS Endpoint Security + Windows ETW/WFP kernel backends,
   governance mesh, native KMS SDK signers (AWS KMS / Azure Key Vault
   / HashiCorp Vault / PKCS#11), GPU ML — all in IAGA Sentinel
   Enterprise. The boundary is documented in
   [`docs/adr/0010-oss-enterprise-boundary.md`](docs/adr/0010-oss-enterprise-boundary.md).
 
-OSS 1.2 reinstates four primitives originally deferred: APL WASM
-codegen, Sigstore + SBOM plugin attestation, drift replay additivo,
-and the `Signer` trait + `LocalDiskSigner` refactor. The 1.x line
-ships additively; no breaking changes.
+**1.2.0 (shipped)** lands the four primitives ADR 0010 §3
+reinstated to the OSS roadmap:
+
+1. `Signer` trait + `LocalDiskSigner` refactor (ADR 0011).
+2. Drift replay additive + `iaga replay --re-execute` (ADR 0012).
+3. Plugin Sigstore + SBOM CycloneDX offline attestation (ADR 0013,
+   feature `plugin-attestation`).
+4. APL Hindley-Milner type checker + WASM codegen MVP (ADR 0014,
+   feature `apl-wasm`).
+
+All four are additive — no breaking changes against 1.1. Features
+are opt-in; default behaviour matches 1.1 byte-for-byte. The 1.x
+line continues to ship additively.
+
+**1.3 candidates** (no schedule): `iaga policy migrate` (YAML → APL),
+full WASM coverage + parity proptest, postgres CI matrix, dependency
+hardening pass. Larger Enterprise-side capabilities remain in
+[IAGA Sentinel Enterprise](ENTERPRISE.md).
 
 ---
 

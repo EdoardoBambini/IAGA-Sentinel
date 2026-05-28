@@ -29,6 +29,9 @@ fn build_chain(signer: &ReceiptSigner, len: u64) -> Vec<Receipt> {
             risk_score: (i as u32) % 100,
             timestamp: format!("2026-04-23T12:00:{:02}Z", i % 60),
             signer_key_id: signer.key_id().into(),
+            pipeline_inputs_capture: None,
+            apl_eval_trace: None,
+            ml_inference_inputs: None,
         };
         let r = signer.sign(body).expect("sign ok");
         head = Some(r.clone());

@@ -33,6 +33,9 @@ fn body(signer: &ReceiptSigner, seq: u64, parent: Option<String>) -> ReceiptBody
         risk_score: 0,
         timestamp: format!("2026-04-23T12:00:{:02}Z", seq % 60),
         signer_key_id: signer.key_id().into(),
+        pipeline_inputs_capture: None,
+        apl_eval_trace: None,
+        ml_inference_inputs: None,
     }
 }
 

@@ -37,6 +37,10 @@ receipts = ["dep:iaga-sentinel-receipts"]
 # M3: Agent Policy Language (APL) parser + evaluator. When enabled,
 # `iaga policy test` can compile and dry-run .apl files.
 apl = ["dep:iaga-sentinel-apl"]
+# OSS 1.2 — forward the apl-wasm feature on iaga-sentinel-apl
+# (Hindley-Milner type checker + WASM codegen, ADR 0014). Implies
+# `apl`. Default off — the tree-walk evaluator remains canonical.
+apl-wasm = ["apl", "iaga-sentinel-apl/apl-wasm"]
 # M3.5: Probabilistic Reasoning Plane wiring. `reasoning` adds the
 # trait surface and the always-available NoopEngine. `ml` additionally
 # pulls in the tract-onnx backend so real ONNX models can be loaded.
@@ -47,6 +51,11 @@ ml = ["reasoning", "iaga-sentinel-reasoning/ml"]
 # the eBPF/LSM scaffold (Linux-only; the actual loader lands in M4.1).
 kernel = ["dep:iaga-sentinel-kernel"]
 linux-bpf = ["kernel", "iaga-sentinel-kernel/linux-bpf"]
+# OSS 1.2 — Sigstore bundle + CycloneDX SBOM offline attestation primitive
+# for plugin supply-chain integrity (ADR 0013). Default off — the trust-on-path
+# model remains the 1.0/1.1 default. Enterprise hosted marketplace + supply-chain
+# SLA + curated threat-intel feed are *not* in OSS; see ENTERPRISE.md.
+plugin-attestation = ["plugins", "dep:base64"]
 
 [dependencies]
 # workspace-inherited (shared with future crates)
@@ -84,8 +93,10 @@ iaga-sentinel-receipts = { path = "../iaga-sentinel-receipts", optional = true }
 iaga-sentinel-apl = { path = "../iaga-sentinel-apl", optional = true }
 iaga-sentinel-reasoning = { path = "../iaga-sentinel-reasoning", optional = true }
 iaga-sentinel-kernel = { path = "../iaga-sentinel-kernel", optional = true }
+base64 = { version = "0.22", optional = true }
 
 [dev-dependencies]
 proptest = "1.6"
 tokio = { version = "1", features = ["full", "test-util"] }
 wat = "1"
+tempfile = "3"

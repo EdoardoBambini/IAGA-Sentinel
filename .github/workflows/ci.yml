@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, master, "feat/1.0-**"]
+    branches: [main, master, "feat/1.0-**", "feat/1.2-**"]
     tags: ["v*"]
   pull_request:
     branches: [main, master]
@@ -81,6 +81,18 @@ jobs:
       - name: Validate example plugin path
         run: cargo test -p iaga-sentinel-core --features plugins --test plugin_example_tests
 
+      - name: Run iaga-sentinel-apl tests with `apl-wasm` feature (1.2)
+        run: cargo test -p iaga-sentinel-apl --features apl-wasm
+
+      - name: Run iaga-sentinel-core lib tests with `plugin-attestation` feature (1.2)
+        run: cargo test -p iaga-sentinel-core --features plugins,plugin-attestation --lib
+
+      - name: Run iaga-sentinel-receipts tests with `postgres` feature (1.2)
+        run: cargo build -p iaga-sentinel-receipts --features postgres
+        # No live postgres in this job — feature compile-check only.
+        # Promotion to full --features postgres test execution (with a
+        # postgres:16-alpine service container) is on the 1.3 roadmap.
+
       - name: Build TypeScript SDK
         working-directory: sdks/typescript
         run: |
@@ -135,6 +147,34 @@ jobs:
         with:
           name: iaga-sentinel-binary
           path: target/release/iaga-sentinel
+
+  compile-sanity:
+    # 1.2: best-effort cross-platform compile check. Does not gate
+    # release (continue-on-error: true) — promotion to a required
+    # status is on the 1.3 roadmap when the macOS Endpoint Security
+    # backend and Windows ETW backend land in Enterprise / OSS-1.x.
+    name: Compile sanity (${{ matrix.os }})
+    needs: check
+    runs-on: ${{ matrix.os }}
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-sanity-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-sanity-
+      - name: Build workspace (no tests)
+        run: cargo build --workspace
 
   release:
     name: Release

@@ -17,6 +17,9 @@ fn body_template(signer_key_id: &str) -> ReceiptBody {
         risk_score: 10,
         timestamp: "2026-04-23T12:00:00Z".into(),
         signer_key_id: signer_key_id.into(),
+        pipeline_inputs_capture: None,
+        apl_eval_trace: None,
+        ml_inference_inputs: None,
     }
 }
 

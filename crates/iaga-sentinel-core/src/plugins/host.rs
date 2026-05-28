@@ -70,6 +70,12 @@ impl LoadedPlugin {
                     version,
                     path: path_str,
                     loaded: true,
+                    #[cfg(feature = "plugin-attestation")]
+                    attestation: None,
+                    #[cfg(feature = "plugin-attestation")]
+                    sbom: None,
+                    #[cfg(feature = "plugin-attestation")]
+                    attestation_offline_verified: false,
                 },
                 _engine: engine,
                 _module: module,

@@ -15,7 +15,103 @@ Enterprise pitch and the EU AI Act + GDPR + DORA compliance pack mapping.
 
 ---
 
-## [1.1.0] — Unreleased
+## [1.2.0] — Unreleased
+
+The **primitive evolution release**: ships the 4 primitives that
+ADR 0010 §3 reinstated to the OSS 1.2 roadmap. All changes are
+**additive**; no breaking changes against 1.1.0. The
+`IAGA Sentinel Enterprise` boundary (ADR 0010 §2, 20 categories)
+is reaffirmed — see [`ENTERPRISE.md`](ENTERPRISE.md).
+
+### Added
+
+- [`docs/adr/0011-signer-trait-and-local-disk.md`](docs/adr/0011-signer-trait-and-local-disk.md) —
+  `Signer` trait (async, object-safe) + `LocalDiskSigner` reference impl.
+  `ReceiptSigner` becomes a type alias so every 1.0 / 1.1 callsite —
+  production and test — compiles unchanged. `SignedReceiptLogger` now
+  holds `Arc<dyn Signer>`, giving Enterprise builds a clean injection
+  point for KMS-backed signers without ricompiling the OSS core.
+- [`docs/adr/0012-drift-replay-additive.md`](docs/adr/0012-drift-replay-additive.md) —
+  three new optional fields on `ReceiptBody` (`pipeline_inputs_capture`,
+  `apl_eval_trace`, `ml_inference_inputs`), opt-in via host env
+  `IAGA_SENTINEL_RECEIPT_CAPTURE=1`. New CLI flag
+  `iaga replay --re-execute` surfaces per-receipt capture availability.
+  Receipts produced with capture disabled are **byte-identical** to
+  1.1 — chain hashes and signatures stay stable.
+- [`docs/adr/0013-plugin-attestation.md`](docs/adr/0013-plugin-attestation.md) —
+  new Cargo feature `plugin-attestation` (default off) gates offline
+  Sigstore bundle + CycloneDX 1.5 SBOM verification. Looks for sibling
+  `<plugin>.sigstore.json` and `<plugin>.cdx.json` next to each WASM
+  plugin; validates bundle well-formedness and confirms the payload
+  digest matches the plugin bytes. New CLI subcmd
+  `iaga plugin verify <path>`.
+- [`docs/adr/0014-apl-wasm-and-types.md`](docs/adr/0014-apl-wasm-and-types.md) —
+  Hindley-Milner type checker (Algorithm W) over the existing APL AST,
+  always-available via `compile_with_types(src)` and the CLI
+  `iaga policy check <file.apl>`. New Cargo feature `apl-wasm`
+  (default off) adds a WASM codegen scaffolding for literal +
+  boolean / numeric / comparison operations; `iaga policy compile`
+  emits the module. The tree-walk evaluator remains canonical for the
+  full APL surface — Path / Call / Membership are rejected by the WASM
+  MVP with clear errors.
+- New CLI subcmds (additive): `iaga replay --re-execute`,
+  `iaga plugin verify <path>`, `iaga policy check <file.apl>`,
+  `iaga policy compile <file.apl> [--output bundle.wasm]`.
+
+### Changed
+
+- Workspace version bumped to `1.2.0`. License **unchanged**
+  (BUSL-1.1 + Change License Apache-2.0 baked-in).
+- `ReceiptBody` gains three optional capture fields, elided from
+  serialization when `None` (1.1 byte-equality preserved).
+- `PluginManifest` gains three cfg-gated optional fields under
+  `plugin-attestation` (`attestation`, `sbom`,
+  `attestation_offline_verified`). All `None`/`false` by default.
+- `PluginDigest` (in the receipt body) gains optional `attested`
+  and `attestation_issuer`. Elided when `None`.
+- `SignedReceiptLogger` now accepts `Arc<dyn Signer>` rather than
+  the concrete struct. `ReceiptSigner` preserved as a type alias —
+  zero breaking change for existing callers.
+
+### Deferred (still OSS-eligible, no schedule)
+
+- `iaga policy migrate` (YAML → APL converter) — debt closure for
+  ADR 0008, not a primitive evolution. Lands in 1.2.x or 1.3.
+- Address the 3 RUSTSEC ignores in CI (`RUSTSEC-2023-0071`,
+  `-2025-0057`, `-2024-0436`) via dependency hardening pass.
+- APL WASM codegen full support for Path / Call / Membership +
+  parity proptest tree-walk vs WASM. The 1.2 MVP ships scaffolding
+  (literal + ops only); full coverage is 1.3.
+- Postgres + macOS / Windows full CI matrix (1.2 adds compile
+  sanity best-effort; promotion to required CI status is 1.3).
+
+### Still Enterprise (boundary reaffirmed — see [`ENTERPRISE.md`](ENTERPRISE.md))
+
+The OSS 1.2 primitive scope is intentionally narrow. The full
+chain-of-trust / production-grade implementations remain in
+IAGA Sentinel Enterprise per ADR 0010 §2 (20 categories), including:
+
+- Native KMS SDK backends (AWS KMS / Azure Key Vault / HashiCorp
+  Vault / PKCS#11 HSM) plug behind the new `Signer` trait but ship
+  Enterprise-only.
+- Forensic time-travel replay (event sourcing + DB-state-per-verdict
+  temporal queries) vs OSS's input-capture-only drift replay.
+- Hosted plugin marketplace + supply-chain SLA + signed threat-intel
+  feed integration vs OSS's offline-only Sigstore / SBOM primitive.
+- APL AOT optimized codegen (cranelift opt-levels, WASI side-effects)
+  + curated rule library + LSP / language server.
+- All other ADR 0010 §2 categories: eIDAS qualified signature, managed
+  key lifecycle, mesh tier-2, multi-tenant, Enterprise SSO, SIEM
+  connectors, air-gap distro, EU AI Act + GDPR + DORA compliance pack,
+  DPO dashboard, curated ML library, curated eBPF/LSM library,
+  confidential-computing receipts, founder-led contractual support,
+  conformity assessment notified-body, real eBPF/LSM loader,
+  cross-platform kernel macOS/Windows, mesh single-cluster baseline,
+  curated ONNX models + HF tokenizers.
+
+---
+
+## [1.1.0] — 2026-05-23
 
 A consolidation + rebrand release. 1.1.0 keeps 1.0.0's runtime
 behaviour and API contract, but **renames the project Agent Armor →

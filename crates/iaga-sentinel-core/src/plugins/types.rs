@@ -2,7 +2,17 @@
 
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "plugin-attestation")]
+use super::attestation::{PluginAttestation, SbomReport};
+
 /// Metadata about a loaded plugin, derived from its exported `name()` and `version()`.
+///
+/// 1.2 additions (additive, optional, serde-default): `attestation`,
+/// `sbom`, `attestation_offline_verified`. All `None` / `false` when
+/// the `plugin-attestation` feature is disabled or no sibling
+/// `<wasm>.sigstore.json` / `<wasm>.cdx.json` is present. Existing
+/// 1.0 / 1.1 consumers see byte-identical JSON when the new fields
+/// are absent.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PluginManifest {
@@ -10,6 +20,26 @@ pub struct PluginManifest {
     pub version: String,
     pub path: String,
     pub loaded: bool,
+    /// 1.2: Sigstore bundle attestation summary. Populated only when
+    /// `plugin-attestation` feature is on and a sibling
+    /// `<plugin>.sigstore.json` is found.
+    #[cfg(feature = "plugin-attestation")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attestation: Option<PluginAttestation>,
+    /// 1.2: CycloneDX SBOM summary. Populated only when
+    /// `plugin-attestation` feature is on and a sibling
+    /// `<plugin>.cdx.json` is found.
+    #[cfg(feature = "plugin-attestation")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sbom: Option<SbomReport>,
+    /// 1.2: convenience flag. `true` iff `attestation.is_some()` and
+    /// the offline check passed (bundle well-formed + payload digest
+    /// matches plugin bytes). Does **not** indicate Rekor inclusion
+    /// proof or Fulcio root trust — those checks are out of scope
+    /// per ADR 0013.
+    #[cfg(feature = "plugin-attestation")]
+    #[serde(default)]
+    pub attestation_offline_verified: bool,
 }
 
 /// The result returned by a single plugin's `on_inspect()` call.
@@ -93,6 +123,12 @@ mod tests {
             version: "0.1.0".into(),
             path: "/plugins/my-plugin.wasm".into(),
             loaded: true,
+            #[cfg(feature = "plugin-attestation")]
+            attestation: None,
+            #[cfg(feature = "plugin-attestation")]
+            sbom: None,
+            #[cfg(feature = "plugin-attestation")]
+            attestation_offline_verified: false,
         };
         let json = serde_json::to_value(&m).unwrap();
         assert_eq!(json["name"], "my-plugin");

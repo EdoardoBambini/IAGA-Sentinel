@@ -8,10 +8,14 @@ Merkle-chained receipts, deterministic APL policy language with live
 overlay, replay verifier, `UserspaceKernel` cross-platform, `BpfKernel`
 Linux scaffold with honest "soft enforcement" posture, BYOK signer
 pattern (`IAGA_SENTINEL_SIGNER_KEY_PATH` filesystem-mount), reasoning plane
-with BYO ONNX. Capabilities planned for OSS 1.2: APL WASM codegen +
-Hindley-Milner type checker, Plugin Sigstore + SBOM CycloneDX
-attestation primitive, drift replay additivo, Signer trait +
-`LocalDiskSigner` refactor.
+with BYO ONNX. **OSS 1.2 (shipped)** adds the four primitives ADR
+0010 §3 reinstated: the `Signer` trait + `LocalDiskSigner` refactor,
+drift replay additive (env `IAGA_SENTINEL_RECEIPT_CAPTURE=1`),
+offline Sigstore + SBOM CycloneDX attestation primitive (feature
+`plugin-attestation`), and the APL Hindley-Milner type checker +
+WASM codegen MVP (feature `apl-wasm`). All four are scope-honest
+primitives — see [`IAGA_SENTINEL_1.2.md`](IAGA_SENTINEL_1.2.md) and
+ADRs 0011–0014.
 **IAGA Sentinel Enterprise** is the commercial edition built on top.
 The two share the same governance core; Enterprise adds the parts a
 bank, insurer, hospital, or public-sector buyer needs to **prove**
@@ -324,12 +328,14 @@ Reach out and we scope it together. Contact:
 This is a commitment, not a feature list:
 
 - Enterprise will **never** gate the conceptual governance kernel.
-  Receipt schema, replay algorithm, APL evaluator (with WASM codegen
-  in OSS 1.2), reasoning framework + BYO ONNX, `UserspaceKernel`
-  cross-platform soft enforcement, `BpfKernel` Linux scaffold with
-  honest posture, the BYOK signer pattern + `Signer` trait
-  (OSS 1.2), Sigstore + SBOM plugin attestation primitive (OSS 1.2)
-  — these stay in the open-source kernel under BUSL-1.1 with the
+  Receipt schema, replay algorithm, APL evaluator (with Hindley-Milner
+  type checker + WASM codegen MVP shipped in OSS 1.2), reasoning
+  framework + BYO ONNX, `UserspaceKernel` cross-platform soft
+  enforcement, `BpfKernel` Linux scaffold with honest posture, the
+  BYOK signer pattern + `Signer` trait (shipped in OSS 1.2), offline
+  Sigstore + SBOM plugin attestation primitive (shipped in OSS 1.2),
+  drift replay additive with `--re-execute` (shipped in OSS 1.2) —
+  these stay in the open-source kernel under BUSL-1.1 with the
   automatic Apache-2.0 conversion four years after each release.
   The implementations that require specialist engineering at scale
   (the real eBPF/LSM loader on Linux, the macOS Endpoint Security

@@ -36,11 +36,11 @@ pub mod postgres;
 pub use errors::{ReceiptError, Result};
 pub use merkle::{chain_link, next_parent_hash, verify_chain};
 pub use receipt::{
-    ChainStatus, MlScoreBundle, ModelDigest, PluginDigest, Receipt, ReceiptBody, RunSummary,
-    Verdict,
+    AplEvalTrace, ChainStatus, MlInferenceInputs, MlScoreBundle, MlTokenDigest, ModelDigest,
+    PipelineInputsCapture, PluginDigest, Receipt, ReceiptBody, RunSummary, Verdict,
 };
 pub use replay::{replay, verify_only, CurrentOutcome, DriftRecord, ReplayReport};
-pub use signer::{verify_receipt, ReceiptSigner};
+pub use signer::{verify_receipt, LocalDiskSigner, ReceiptSigner, Signer};
 pub use store::ReceiptStore;
 
 #[cfg(feature = "sqlite")]
