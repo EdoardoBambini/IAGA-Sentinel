@@ -1,6 +1,6 @@
 # iaga-sentinel-reasoning
 
-Probabilistic Reasoning Plane for IAGA Sentinel 1.0 (M3.5).
+Probabilistic Reasoning Plane for IAGA Sentinel (introduced in 1.0 M3.5).
 
 ML produces **evidence**, never verdicts. The deterministic policy layer
 decides; this crate just feeds it scores.

@@ -1,18 +1,18 @@
-<h1 align="center">IAGA Sentinel 1.0</h1>
+<h1 align="center">IAGA Sentinel</h1>
 
 <p align="center">
   <strong>Zero-trust governance kernel for autonomous AI agents.</strong>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.1.0-blue" alt="version" />
+  <img src="https://img.shields.io/badge/version-1.2.0-blue" alt="version" />
   <img src="https://img.shields.io/badge/license-BUSL--1.1-blue" alt="license" />
   <img src="https://img.shields.io/badge/12%20layers-defense%20in%20depth-green" alt="12 layers" />
   <img src="https://img.shields.io/badge/Rust-stable-orange" alt="Rust" />
 </p>
 
 <p align="center">
-  <a href="#what-1-0-is">What 1.0 is</a> ·
+  <a href="#what-iaga-sentinel-is">What IAGA Sentinel is</a> ·
   <a href="#quickstart">Quickstart</a> ·
   <a href="#features">Features</a> ·
   <a href="#architecture">Architecture</a> ·
@@ -26,7 +26,7 @@
 
 ---
 
-## What 1.0 is
+## What IAGA Sentinel is
 
 Three things in one binary, glued by a typed deterministic policy language:
 
@@ -36,14 +36,38 @@ Three things in one binary, glued by a typed deterministic policy language:
    the kernel is the chokepoint for everything else.
 2. **A signed log.** Every governance verdict produces an Ed25519-signed
    receipt linked to the previous one in a Merkle append-log per run.
-   Replay verifies the chain bit-exact and detects policy drift.
+   Replay verifies the chain bit-exact and detects policy drift. The
+   signer is a pluggable trait (`LocalDiskSigner` ships in OSS), and
+   receipts can optionally capture the pipeline inputs that drove each
+   verdict so a run can be re-executed against the current policy.
 3. **A reasoning brain.** Optional ML models (ONNX, opt-in) emit
    evidence — never verdicts. The deterministic policy decides; ML
    produces scores the policy can read. Receipts embed the SHA-256 of
    every model that touched the decision.
 
-All driven by APL: a typed DSL with deterministic tree-walk evaluation,
-loadable as a `--policy` overlay on top of the YAML profile system.
+All driven by APL: a typed DSL with deterministic tree-walk evaluation
+and a Hindley-Milner type checker, loadable as a `--policy` overlay on
+top of the YAML profile system, with an optional WASM codegen path.
+
+### What 1.2 adds
+
+The current release is the **primitive evolution release** — four
+additive, opt-in capabilities, zero breaking changes against 1.1
+(full notes in [`IAGA_SENTINEL_1.2.md`](IAGA_SENTINEL_1.2.md)):
+
+1. **`Signer` trait + `LocalDiskSigner`** — the receipt signer is now a
+   public trait. KMS-backed signers plug in behind it (Enterprise);
+   the filesystem-mount BYOK pattern stays OSS.
+2. **Drift-replay capture** — `iaga replay --re-execute`, gated by
+   `IAGA_SENTINEL_RECEIPT_CAPTURE=1`. Off by default and byte-identical
+   to 1.1 receipts when off.
+3. **Plugin Sigstore + SBOM attestation** — offline bundle + CycloneDX
+   verification via `iaga plugins verify` (feature `plugin-attestation`).
+4. **APL Hindley-Milner type checker + WASM codegen** — `iaga policy
+   check` (always on) and `iaga policy compile` (feature `apl-wasm`).
+
+Everything is feature-flagged off by default: a 1.1 → 1.2 upgrade is
+risk-free, the binary behaves identically until you opt in.
 
 ---
 
