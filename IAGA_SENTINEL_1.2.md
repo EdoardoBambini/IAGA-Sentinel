@@ -1,4 +1,4 @@
-# IAGA Sentinel 1.2 — Notes
+# IAGA Sentinel 1.2, Notes
 
 > 1.2 is the **primitive evolution release** of the OSS line. The
 > 1.0 design shipped the full governance kernel; 1.1 held that line
@@ -16,7 +16,7 @@
 
 Four primitives, all additive, all opt-in. **No breaking changes**
 against 1.1. The OSS↔Enterprise boundary from ADR 0010 §2 is
-reaffirmed verbatim — none of the 20 Enterprise categories slip
+reaffirmed verbatim, none of the 20 Enterprise categories slip
 into OSS.
 
 ### 1. `Signer` trait + `LocalDiskSigner` (ADR 0011)
@@ -40,7 +40,7 @@ LocalDiskSigner;` keeps every existing callsite compiling unchanged.
 builds a clean injection point for KMS-backed signers without
 recompiling the OSS core. The four native KMS SDK backends
 (AWS KMS / Azure Key Vault / HashiCorp Vault / PKCS#11 HSM) remain
-Enterprise — they plug behind the same trait. BYOK via filesystem
+Enterprise, they plug behind the same trait. BYOK via filesystem
 mount (`IAGA_SENTINEL_SIGNER_KEY_PATH`) stays OSS forever.
 
 ### 2. Drift replay additive (ADR 0012)
@@ -70,7 +70,7 @@ and populates `PluginManifest.attestation` / `.sbom` /
 gains optional `attested` and `attestation_issuer`.
 
 **Scope is honest**: this is **offline structural verification only**
-— bundle well-formedness + payload digest match. Rekor inclusion
+- bundle well-formedness + payload digest match. Rekor inclusion
 proof and Fulcio root CA chain validation are not performed in
 OSS 1.2. The CLI says so loudly:
 
@@ -103,7 +103,7 @@ hardcoded for the seven APL builtins (`contains`, `starts_with`,
 
 New Cargo feature `apl-wasm` (default off, depends on `wasm-encoder`)
 adds a WASM codegen scaffolding. The tree-walk evaluator
-(`evaluate_program()`) remains the canonical executor — the WASM
+(`evaluate_program()`) remains the canonical executor, the WASM
 MVP only handles literal + boolean / numeric / comparison
 operations. Path / Call / Membership are rejected with clear errors.
 
@@ -155,7 +155,7 @@ iaga-sentinel-core = { version = "1.2", features = [
 ```
 
 ```bash
-# Drift-replay capture (off by default — PII implications)
+# Drift-replay capture (off by default, PII implications)
 export IAGA_SENTINEL_RECEIPT_CAPTURE=1
 ```
 
@@ -169,7 +169,7 @@ no WASM codegen. Upgrade to 1.2 is risk-free.
 The OSS line continues to ship additively. 1.3 candidates
 (no fixed schedule):
 
-- `iaga policy migrate` (YAML → APL converter) — debt closure for
+- `iaga policy migrate` (YAML → APL converter), debt closure for
   ADR 0008.
 - Full APL WASM coverage (Path / Call / Membership with host imports)
   + parity proptest tree-walk vs WASM.
@@ -177,9 +177,9 @@ The OSS line continues to ship additively. 1.3 candidates
   to required CI status).
 - Dependency hardening pass (the 3 RUSTSEC ignores).
 
-Larger capabilities — real eBPF/LSM loader on Linux, macOS Endpoint
+Larger capabilities, real eBPF/LSM loader on Linux, macOS Endpoint
 Security + Windows ETW kernel backends, governance mesh, native
 KMS SDK backends, curated ML library, EU AI Act + GDPR + DORA
 compliance pack, confidential-computing receipts, forensic
-time-travel replay — remain part of IAGA Sentinel Enterprise
+time-travel replay, remain part of IAGA Sentinel Enterprise
 (see [`ENTERPRISE.md`](ENTERPRISE.md)).

@@ -1,4 +1,4 @@
-//! LAYER 2 — Taint Tracking for Data Flow
+//! LAYER 2, Taint Tracking for Data Flow
 //!
 //! Every piece of data gets tagged with a taint label at its source.
 //! Taint propagates through the flow. When tainted data reaches a

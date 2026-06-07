@@ -33,6 +33,7 @@ impl From<ed25519_dalek::SignatureError> for ReceiptError {
     }
 }
 
+#[cfg(any(feature = "sqlite", feature = "postgres"))]
 impl From<sqlx::Error> for ReceiptError {
     fn from(err: sqlx::Error) -> Self {
         ReceiptError::Storage(err.to_string())

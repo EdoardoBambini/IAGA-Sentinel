@@ -1,6 +1,6 @@
 //! Append-only hash chain that links receipts within a run.
 //!
-//! This is not a full Merkle tree — it is a linear hash chain (i.e. a
+//! This is not a full Merkle tree, it is a linear hash chain (i.e. a
 //! degenerate Merkle list) where each receipt's `parent_hash` is the
 //! SHA-256 of the previous receipt's canonical body. Linear chains are
 //! sufficient for per-run ordering and tamper detection; a balanced tree

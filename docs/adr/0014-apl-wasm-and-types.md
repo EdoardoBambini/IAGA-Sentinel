@@ -1,9 +1,9 @@
-# ADR 0014 — APL Hindley-Milner Type Checker + WASM Codegen Scaffolding (OSS 1.2)
+# ADR 0014, APL Hindley-Milner Type Checker + WASM Codegen Scaffolding (OSS 1.2)
 
 - **Status**: Accepted
 - **Date**: 2026-05-28
 - **Deciders**: Edoardo Bambini
-- **Milestone**: 1.2 — primitive evolution release
+- **Milestone**: 1.2, primitive evolution release
 - **Relates to**: ADR 0004 (APL MVP), ADR 0008 (APL as live policy engine),
   ADR 0010 (OSS↔Enterprise boundary §3)
 
@@ -16,7 +16,7 @@ follow-ups"*. ADR 0010 §3 ha riconfermato quei due item come la
 quarta primitiva reinstaurata in OSS 1.2.
 
 L'effort grezzo per *full* HM + *full* WASM codegen è ~10 dev-days
-con parity proptest e ottimizzazioni — al di sopra del budget
+con parity proptest e ottimizzazioni, al di sopra del budget
 realistico per una release minor additive. Allo stesso tempo,
 rinviare entrambi a 1.3 lascerebbe la roadmap 1.2 con solo 3/4
 primitive shippate.
@@ -28,12 +28,12 @@ WASI side-effects)?**
 
 ## Decisioni
 
-### 1. HM type checker — implementazione completa
+### 1. HM type checker, implementazione completa
 
 `crates/iaga-sentinel-apl/src/types.rs` implementa Algorithm W
 classico sulla forma esistente `Expr` (no AST changes). Tipi:
 `Bool | Int | Str | Unknown | List(Box<Ty>) | Var(u32)`. `Unknown`
-è il sentinel per path lookups dinamici contro il JSON context —
+è il sentinel per path lookups dinamici contro il JSON context -
 si unifica con qualsiasi tipo concreto.
 
 Builtin signatures hardcoded per i 7 builtin APL (`contains`,
@@ -47,13 +47,13 @@ ritorna il substitution + i tipi per-policy del `when` clause
 `lib.rs` combina parse + validate + infer in una chiamata.
 
 Errori strutturati (`TypeError::{Mismatch, OccursCheck,
-BuiltinArity, NonBoolWhen}`) — span-level pretty printing è
+BuiltinArity, NonBoolWhen}`), span-level pretty printing è
 deferred (l'editor Enterprise lo aggiungerà).
 
 CLI: `iaga policy check <file.apl>` stampa il tipo inferito di ogni
 policy `when` clause e segnala errori.
 
-### 2. WASM codegen — **scaffolding MVP, scope limitato**
+### 2. WASM codegen, **scaffolding MVP, scope limitato**
 
 `crates/iaga-sentinel-apl/src/wasm.rs` (cfg-gated dietro feature
 `apl-wasm`) emette un modulo WASM valido per il sottoinsieme di
@@ -98,7 +98,7 @@ Nuova Cargo feature `apl-wasm` sul `iaga-sentinel-apl` crate (deps
 `apl-wasm = ["apl", "iaga-sentinel-apl/apl-wasm"]`. Default off:
 
 - Zero impact su build time per hosts che non lo abilitano.
-- Tree-walk evaluator resta la default — `evaluate_program()` non
+- Tree-walk evaluator resta la default, `evaluate_program()` non
   cambia.
 - Receipt schema non cambia (type info è pre-receipt, non escapa
   nel body).
@@ -158,7 +158,7 @@ in 1.2.x o 1.3 quando lo scope WASM si espande oltre il MVP.
 
 ### Negative
 
-- **WASM MVP è limitato**. Non utile in production da solo —
+- **WASM MVP è limitato**. Non utile in production da solo -
   policy reali usano Path/Call. Funziona come "API present" + "1.3
   expansion path clear".
 - **Parity proptest deferred**. Senza esecuzione WASM completa,
@@ -178,13 +178,13 @@ in 1.2.x o 1.3 quando lo scope WASM si espande oltre il MVP.
 
 ## Riferimenti
 
-- ADR 0004 — APL MVP (tree-walk + structural validator).
-- ADR 0008 — APL as Live Policy Engine M6 (overlay stricter-wins).
-- ADR 0010 — OSS↔Enterprise Boundary, §3 (4 primitive 1.2),
+- ADR 0004, APL MVP (tree-walk + structural validator).
+- ADR 0008, APL as Live Policy Engine M6 (overlay stricter-wins).
+- ADR 0010, OSS↔Enterprise Boundary, §3 (4 primitive 1.2),
   §6 (cosa NON è mai gating).
-- `crates/iaga-sentinel-apl/src/types.rs` — Hindley-Milner.
-- `crates/iaga-sentinel-apl/src/wasm.rs` — WASM codegen scaffolding.
-- `crates/iaga-sentinel-apl/src/lib.rs` — `compile_with_types`,
+- `crates/iaga-sentinel-apl/src/types.rs`, Hindley-Milner.
+- `crates/iaga-sentinel-apl/src/wasm.rs`, WASM codegen scaffolding.
+- `crates/iaga-sentinel-apl/src/lib.rs`, `compile_with_types`,
   `CompileError`.
-- `crates/iaga-sentinel-core/src/main.rs` — `iaga policy check`,
+- `crates/iaga-sentinel-core/src/main.rs`, `iaga policy check`,
   `iaga policy compile`.

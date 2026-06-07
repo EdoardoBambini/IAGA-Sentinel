@@ -203,14 +203,14 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/v1/plugins", get(list_plugins_handler))
         .route("/v1/plugins/reload", post(reload_plugins_handler))
         // ── 1.0 Pillar surfaces ──
-        // M2 — Signed receipts read API
+        // M2, Signed receipts read API
         .route("/v1/receipts", get(receipts_list_handler))
         .route("/v1/receipts/{run_id}", get(receipts_run_handler))
-        // M3 / M6 — APL live overlay status
+        // M3 / M6, APL live overlay status
         .route("/v1/policy/overlay", get(policy_overlay_handler))
-        // M3.5 — Reasoning plane status
+        // M3.5, Reasoning plane status
         .route("/v1/reasoning/status", get(reasoning_status_handler))
-        // M4 — Enforcement kernel status
+        // M4, Enforcement kernel status
         .route("/v1/kernel/status", get(kernel_status_handler))
         // Demo
         .route("/v1/demo/scenarios", get(demo_scenarios_handler))
@@ -1178,7 +1178,7 @@ async fn add_workspace_rule_handler(
 
 // ── 1.0 Pillar surfaces ──
 
-/// M2 — list signed receipt runs. Returns `{ signerKeyId, policyHash,
+/// M2, list signed receipt runs. Returns `{ signerKeyId, policyHash,
 /// runs: [...] }`. Empty runs array when receipts feature is disabled
 /// or no runs have been recorded yet.
 #[derive(Deserialize)]

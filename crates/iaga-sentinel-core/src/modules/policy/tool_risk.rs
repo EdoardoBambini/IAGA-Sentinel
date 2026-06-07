@@ -134,14 +134,14 @@ pub fn score_tool_risk_with_thresholds(
     // then compute a weighted composite.
     //
     // Weight allocation:
-    //   - Pattern matching (local):  15%  — fast regex-based detection
-    //   - Adaptive ensemble:         20%  — 5-signal ML-style scoring
-    //   - Firewall:                  20%  — injection-specific detection
-    //   - Policy + behavioral:       15%  — authorization & baseline
-    //   - Taint + threat intel:      15%  — data flow & IOC matching
-    //   - Secrets:                   10%  — vault policy enforcement
-    //   - Session graph:              5%  — stateful anomaly
-    //   - WASM plugins:              10%  — custom detectors/community extensions
+    //   - Pattern matching (local):  15% , fast regex-based detection
+    //   - Adaptive ensemble:         20% , 5-signal ML-style scoring
+    //   - Firewall:                  20% , injection-specific detection
+    //   - Policy + behavioral:       15% , authorization & baseline
+    //   - Taint + threat intel:      15% , data flow & IOC matching
+    //   - Secrets:                   10% , vault policy enforcement
+    //   - Session graph:              5% , stateful anomaly
+    //   - WASM plugins:              10% , custom detectors/community extensions
 
     let composite = (pattern_score as f64 * 0.15)
         + (layers.adaptive as f64 * 0.20)
@@ -156,7 +156,7 @@ pub fn score_tool_risk_with_thresholds(
 
     // ── Decision-aware score adjustment ──
     // When security layers force a higher decision, the score should
-    // reflect that severity — but proportionally, not as a flat floor.
+    // reflect that severity, but proportionally, not as a flat floor.
     // This ensures Block decisions always score >= 70 and Review >= 35,
     // while preserving granularity WITHIN each band.
     match minimum_decision {

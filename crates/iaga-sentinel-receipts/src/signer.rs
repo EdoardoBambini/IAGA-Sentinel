@@ -1,4 +1,4 @@
-//! Ed25519 signer for receipts — `Signer` trait + `LocalDiskSigner`
+//! Ed25519 signer for receipts, `Signer` trait + `LocalDiskSigner`
 //! reference impl (OSS 1.2 refactor, ADR 0011).
 //!
 //! The `Signer` trait is the public abstraction every governance
@@ -63,7 +63,7 @@ pub trait Signer: Send + Sync {
 
 /// Reference [`Signer`] implementation backed by a single Ed25519
 /// signing key on local disk. This is the BYOK filesystem-mount
-/// pattern kept in OSS forever — the public verifying key is
+/// pattern kept in OSS forever, the public verifying key is
 /// identified by a stable `key_id` derived from
 /// `SHA-256(pubkey)[0..16]`, hex-encoded.
 pub struct LocalDiskSigner {
@@ -156,6 +156,13 @@ impl LocalDiskSigner {
             body,
             signature: hex::encode(sig.to_bytes()),
         })
+    }
+
+    /// Sign arbitrary bytes with this key, returning the detached Ed25519
+    /// signature. Used for signing plugin manifests; the receipt path uses
+    /// `sign` and `sign_body`.
+    pub fn sign_detached(&self, msg: &[u8]) -> Signature {
+        self.signing_key.sign(msg)
     }
 
     /// Path on disk if this signer was loaded from / written to a file.

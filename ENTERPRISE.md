@@ -1,34 +1,14 @@
 # IAGA Sentinel Enterprise
 
-> **From governance kernel to audit dossier in 14 days.**
+> From signed evidence to audit dossier in 14 days.
 
-IAGA Sentinel (BUSL-1.1, with Change License: Apache-2.0 baked in) is
-the open-source governance kernel: 12-layer pipeline, Ed25519-signed
-Merkle-chained receipts, deterministic APL policy language with live
-overlay, replay verifier, `UserspaceKernel` cross-platform, `BpfKernel`
-Linux scaffold with honest "soft enforcement" posture, BYOK signer
-pattern (`IAGA_SENTINEL_SIGNER_KEY_PATH` filesystem-mount), reasoning plane
-with BYO ONNX. **OSS 1.2 (shipped)** adds the four primitives ADR
-0010 §3 reinstated: the `Signer` trait + `LocalDiskSigner` refactor,
-drift replay additive (env `IAGA_SENTINEL_RECEIPT_CAPTURE=1`),
-offline Sigstore + SBOM CycloneDX attestation primitive (feature
-`plugin-attestation`), and the APL Hindley-Milner type checker +
-WASM codegen MVP (feature `apl-wasm`). All four are scope-honest
-primitives — see [`IAGA_SENTINEL_1.2.md`](IAGA_SENTINEL_1.2.md) and
-ADRs 0011–0014.
-**IAGA Sentinel Enterprise** is the commercial edition built on top.
-The two share the same governance core; Enterprise adds the parts a
-bank, insurer, hospital, or public-sector buyer needs to **prove**
-compliance, not just **achieve** it — including the real eBPF/LSM
-loader on Linux (authoritative kernel enforcement), the macOS Endpoint
-Security and Windows ETW/WFP backends, the governance mesh
-(single-cluster + multi-region), the four native KMS SDK backends
-(AWS KMS / Azure Key Vault / HashiCorp Vault / PKCS#11 HSM), and the
-curated ML model library.
+IAGA Sentinel is the source-available open build (BUSL-1.1, with Change License Apache-2.0 baked in): a 12-layer governance pipeline, Ed25519-signed Merkle-chained receipts that verify offline, the deterministic APL policy language with a live overlay, the replay verifier and the standalone `iaga-verify` tool, the cross-platform `UserspaceKernel` with its honest soft-enforcement posture, the BYOK signer pattern (`IAGA_SENTINEL_SIGNER_KEY_PATH` filesystem-mount), the reasoning plane with BYO ONNX, offline Sigstore and SBOM plugin attestation, OpenTelemetry receipt export, and Ed25519-signed plugin manifests. The 1.3 release notes are in [`IAGA_SENTINEL_1.3.md`](IAGA_SENTINEL_1.3.md).
 
-If you can run OSS happily, run OSS happily. Enterprise exists for
-teams whose blocker is no longer technical — it is regulatory, audit,
-and operational scale.
+IAGA Sentinel Enterprise is the commercial edition built on top. The two share the same evidence core, and every Enterprise artifact cites the open-build receipt chain that anyone can verify offline. What Enterprise sells is not the code, it is the conformity outcome: a correct Annex IV dossier, the legal weight of a qualified eIDAS signature, liability coverage, and a phone number to the people who wrote the receipt schema. The distinction that protects the sale: the open build signs with Ed25519, an advanced signature, while Enterprise adds the qualified eIDAS seal that carries legal weight in EU jurisdictions. Selling the open-build signature as if it were qualified is the one mistake that ends a conversation with a competent risk officer, so the boundary stays explicit.
+
+Enterprise also brings the parts that need specialist engineering or an environment the open build does not target: the real eBPF/LSM loader on Linux (authoritative kernel enforcement), the macOS Endpoint Security and Windows ETW/WFP backends, the governance mesh (single-cluster and multi-region), the four native KMS SDK backends (AWS KMS, Azure Key Vault, HashiCorp Vault, PKCS#11 HSM), and the curated ML model library.
+
+If you can run the open build happily, run it. Enterprise exists for teams whose blocker is no longer technical: it is regulatory, audit, and operational scale. It does not replace your GRC platform or your SIEM; it feeds them signed runtime evidence they can consume.
 
 ---
 
@@ -57,18 +37,18 @@ each regulator accepts:
 
 | EU AI Act article | What it requires | What Enterprise ships |
 |---|---|---|
-| **Art. 9** — Risk management system | documented, iterative risk mgmt across the lifecycle | Risk Management dossier auto-generated from receipt history + ADR + change log |
-| **Art. 10** — Data and data governance | provenance, quality, bias mitigation for training data | Model card registry with dataset lineage, bias scorecards, retraining log |
-| **Art. 11 + Annex IV** — Technical documentation | full dossier covering design, dev, deployment | `iaga compliance generate-dossier` produces a signed PDF + JSON-LD Annex-IV-conformant package |
-| **Art. 12** — Record keeping | automatic, tamper-resistant logs of operation | already in OSS via signed receipts; Enterprise exports them in audit-acceptable bundles (PDF + ETSI-aligned attestation) |
-| **Art. 13** — Transparency to deployers | clear instructions for use, accuracy, limitations | Public model cards + accuracy benchmarks continuously updated, citable in user docs |
-| **Art. 14** — Human oversight | hold-on-block, escalation, kill-switch, intelligible interface | DPO Dashboard with review queue, SLA timer, audit-trailed approvals/rejections, hardware kill-switch endpoint |
-| **Art. 15** — Accuracy, robustness, cybersecurity | adversarial resilience, attack documentation | Continuous adversarial test suite (prompt injection, jailbreak, model evasion) with metrics report |
-| **Art. 16-19** — Provider quality management | ISO/IEC 42001-equivalent QMS | QMS console: process docs, training records, change control, internal audits |
-| **Art. 50** — Transparency for AI interactions | users must know they're interacting with AI | Built-in markers on every receipt + downstream-facing disclosure helper |
-| **Art. 53-55** — GPAI obligations | model cards, training data summary, incident reporting | Hooks into the Model Card Registry; the operator only manages the agent, the model provider obligations are scoped clearly |
-| **Art. 72** — Post-market monitoring | continuous monitoring of system in production | `iaga monitor watch` runs continuous drift detection across receipt chains, raising alerts when behavior departs from the validated baseline |
-| **Art. 73** — Serious incident reporting | report to market surveillance authority within 15 days | Incident Report Generator: produces the EU AI Office notification template prefilled from receipt + drift evidence |
+| **Art. 9**, Risk management system | documented, iterative risk mgmt across the lifecycle | Risk Management dossier auto-generated from receipt history + ADR + change log |
+| **Art. 10**, Data and data governance | provenance, quality, bias mitigation for training data | Model card registry with dataset lineage, bias scorecards, retraining log |
+| **Art. 11 + Annex IV**, Technical documentation | full dossier covering design, dev, deployment | `iaga compliance generate-dossier` produces a signed PDF + JSON-LD Annex-IV-conformant package |
+| **Art. 12**, Record keeping | automatic, tamper-resistant logs of operation | already in OSS via signed receipts; Enterprise exports them in audit-acceptable bundles (PDF + ETSI-aligned attestation) |
+| **Art. 13**, Transparency to deployers | clear instructions for use, accuracy, limitations | Public model cards + accuracy benchmarks continuously updated, citable in user docs |
+| **Art. 14**, Human oversight | hold-on-block, escalation, kill-switch, intelligible interface | DPO Dashboard with review queue, SLA timer, audit-trailed approvals/rejections, hardware kill-switch endpoint |
+| **Art. 15**, Accuracy, robustness, cybersecurity | adversarial resilience, attack documentation | Continuous adversarial test suite (prompt injection, jailbreak, model evasion) with metrics report |
+| **Art. 16-19**, Provider quality management | ISO/IEC 42001-equivalent QMS | QMS console: process docs, training records, change control, internal audits |
+| **Art. 50**, Transparency for AI interactions | users must know they're interacting with AI | Built-in markers on every receipt + downstream-facing disclosure helper |
+| **Art. 53-55**, GPAI obligations | model cards, training data summary, incident reporting | Hooks into the Model Card Registry; the operator only manages the agent, the model provider obligations are scoped clearly |
+| **Art. 72**, Post-market monitoring | continuous monitoring of system in production | `iaga monitor watch` runs continuous drift detection across receipt chains, raising alerts when behavior departs from the validated baseline |
+| **Art. 73**, Serious incident reporting | report to market surveillance authority within 15 days | Incident Report Generator: produces the EU AI Office notification template prefilled from receipt + drift evidence |
 
 > Notified body integration (TÜV / Dekra / Bureau Veritas) is on the
 > roadmap for the conformity assessment workflow. We are actively
@@ -76,26 +56,26 @@ each regulator accepts:
 
 For GDPR specifically:
 
-- **Art. 30 — RoPA** (Record of Processing Activities): auto-generated
+- **Art. 30, RoPA** (Record of Processing Activities): auto-generated
   from the system's processing inventory, exportable to the format
   national authorities accept.
-- **Art. 35 — DPIA** (Data Protection Impact Assessment): template
+- **Art. 35, DPIA** (Data Protection Impact Assessment): template
   + automated population from agent profiles, action types,
   allowlists, and cross-border data flows.
-- **Art. 22** — automated decision-making safeguards: the receipt
+- **Art. 22**, automated decision-making safeguards: the receipt
   chain becomes the proof that human review was offered when required.
-- **Art. 5** — accountability: signed receipts + replay are the
+- **Art. 5**, accountability: signed receipts + replay are the
   literal artifact of accountability the regulator will accept.
 
 For DORA (financial entities in EU only):
 
-- **Art. 17-23 — ICT-related incident management**: the receipt chain
+- **Art. 17-23, ICT-related incident management**: the receipt chain
   + drift detection produces the audit trail; Enterprise wraps it in
   the major incident classification + reporting templates DORA expects.
-- **Art. 24-27 — Digital operational resilience testing**: the
+- **Art. 24-27, Digital operational resilience testing**: the
   adversarial test suite (also used for EU AI Act Art. 15) doubles as
   DORA TLPT-equivalent evidence.
-- **Art. 28-44 — Third-party ICT risk**: the supply chain attestation
+- **Art. 28-44, Third-party ICT risk**: the supply chain attestation
   layer (signed plugins + SBOM) maps directly to DORA's expectations
   about critical third-party providers.
 
@@ -153,10 +133,10 @@ The OSS reasoning plane lets you bring your own ONNX models.
 Enterprise ships a library of curated models so the operator does
 not have to source, fine-tune, and version them in-house:
 
-- **intent-drift** — agent behaviour drift from baseline.
-- **prompt-injection** — adversarial prompt detection (jailbreak,
+- **intent-drift**, agent behaviour drift from baseline.
+- **prompt-injection**, adversarial prompt detection (jailbreak,
   prompt smuggling, indirect injection).
-- **anomaly-seq** — sequence-of-actions anomaly detection.
+- **anomaly-seq**, sequence-of-actions anomaly detection.
 - **GPU acceleration** for models where latency/throughput
   warrants it.
 - **Threat intel feed** with AI-specific IoCs (known jailbreak
@@ -164,7 +144,7 @@ not have to source, fine-tune, and version them in-house:
   refreshed continuously as new attack patterns surface in the wild.
 
 Models are versioned, signed, and the SHA-256 of the active model
-ends up in every receipt — same M2 mechanism as OSS, just with the
+ends up in every receipt, same M2 mechanism as OSS, just with the
 maintenance burden taken off your team.
 
 ### 6. Skills marketplace and supply chain
@@ -213,7 +193,7 @@ Enterprise is not "OSS with a dashboard glued on top". It is a set of
 modules that live in a separate repository and are not feasible to
 reimplement quickly from the OSS surface. Two layers of differentiation:
 
-### Layer 1 — Application code (6 to 12 months to reimplement)
+### Layer 1, Application code (6 to 12 months to reimplement)
 
 - **Compliance evidence engine.** PDF and JSON-LD generators for EU
   AI Act Annex IV dossiers, RoPA, DPIA, post-market monitoring
@@ -254,7 +234,7 @@ reimplement quickly from the OSS surface. Two layers of differentiation:
 - **Native SIEM connectors.** Splunk, Datadog, Elastic, Sentinel,
   Chronicle, with field mappings already in place per vendor.
 
-### Layer 2 — Heavy-engineering code moat
+### Layer 2, Heavy-engineering code moat
 
 Three engineering tracks where the gap between OSS and Enterprise
 stops being "more features" and becomes "different category of
@@ -319,7 +299,7 @@ combination. A typical conversation covers:
 - support level (business hours vs 24/7 oncall, response SLA).
 
 Reach out and we scope it together. Contact:
-`enterprise@iaga.start@gmail.com`.
+`info@iaga.tech` or `info@edoardobambini.dev`.
 
 ---
 
@@ -334,14 +314,14 @@ This is a commitment, not a feature list:
   enforcement, `BpfKernel` Linux scaffold with honest posture, the
   BYOK signer pattern + `Signer` trait (shipped in OSS 1.2), offline
   Sigstore + SBOM plugin attestation primitive (shipped in OSS 1.2),
-  drift replay additive with `--re-execute` (shipped in OSS 1.2) —
+  drift replay additive with `--re-execute` (shipped in OSS 1.2) -
   these stay in the open-source kernel under BUSL-1.1 with the
   automatic Apache-2.0 conversion four years after each release.
   The implementations that require specialist engineering at scale
   (the real eBPF/LSM loader on Linux, the macOS Endpoint Security
   and Windows ETW/WFP backends, the governance mesh, the four
   native KMS SDK backends, the curated ML model library) live in
-  Enterprise — not as gating of OSS primitives, but as the
+  Enterprise, not as gating of OSS primitives, but as the
   heavy-engineering tier built on top of them.
 - Enterprise will **never** require Iaga Cloud. You can run Enterprise
   fully on-prem, air-gapped if you need.
@@ -350,7 +330,7 @@ This is a commitment, not a feature list:
 - Enterprise will **never** retroactively remove features from OSS.
   If something works in OSS today, it works in OSS forever. The
   capabilities listed above as Enterprise were planned but never
-  shipped in the OSS 1.0 GA — none of them are being removed from
+  shipped in the OSS 1.0 GA, none of them are being removed from
   any release that ships them publicly. The full boundary is in
   [`docs/adr/0010-oss-enterprise-boundary.md`](docs/adr/0010-oss-enterprise-boundary.md).
 
@@ -362,7 +342,7 @@ business depends on community trust.
 ## How to evaluate
 
 1. Run **OSS** for two weeks. If it does not deliver the technical
-   capability you need, Enterprise will not magically solve that —
+   capability you need, Enterprise will not magically solve that -
    open an issue first.
 2. If OSS works but you cannot ship to a regulated buyer because of
    audit / dossier / SLA gaps, **then** Enterprise is the right
@@ -372,6 +352,6 @@ business depends on community trust.
    tenant. We help you map the article-to-evidence path for your
    specific deployment.
 
-Contact: `enterprise@iaga.start@gmail.com`
+Contact: `info@iaga.tech` or `info@edoardobambini.dev`
 Iaga Cloud: <https://iaga.cloud>
 Repository (OSS): <https://github.com/EdoardoBambini/IAGA-Sentinel>

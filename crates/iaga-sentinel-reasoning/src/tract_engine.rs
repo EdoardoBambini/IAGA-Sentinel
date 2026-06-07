@@ -8,14 +8,14 @@
 //! - Tokenization is deliberately primitive (hash-bag of byte n-grams)
 //!   so the MVP can run any model with a `[1, N]` float32 input
 //!   without dragging in HuggingFace tokenizers. Real workloads will
-//!   ship a tokenizer alongside the model — wired in M3.5.1.
+//!   ship a tokenizer alongside the model, wired in M3.5.1.
 //! - Inference produces a single scalar score per model, taken as the
 //!   first element of the output tensor. Models with richer outputs
 //!   are supported in M5 when APL gains `ml.*` evidence paths.
 //!
 //! Failure policy: any per-model failure during `evaluate` is logged
 //! (via `tracing` if the host wires it) and contributes nothing to
-//! the evidence — never propagated as an error. A broken model must
+//! the evidence, never propagated as an error. A broken model must
 //! not knock the pipeline offline.
 
 #![cfg(feature = "ml")]
@@ -50,7 +50,7 @@ pub struct TractEngine {
 }
 
 impl TractEngine {
-    /// Empty engine — useful as a placeholder before models are loaded
+    /// Empty engine, useful as a placeholder before models are loaded
     /// or in tests that don't need real inference.
     pub fn empty() -> Self {
         Self { models: Vec::new() }

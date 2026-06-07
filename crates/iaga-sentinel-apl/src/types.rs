@@ -1,8 +1,8 @@
-//! OSS 1.2 — Hindley-Milner type checker for APL (ADR 0014).
+//! OSS 1.2, Hindley-Milner type checker for APL (ADR 0014).
 //!
 //! Algorithm W over the existing [`crate::ast::Expr`] enum with a
 //! substitution-based unification. Path references (`action.url.host`)
-//! receive fresh type variables — the host context is dynamically
+//! receive fresh type variables, the host context is dynamically
 //! typed and the inferer cannot know the shape ahead of time. Builtin
 //! `Call(name, args)` lookups consult a small table; unknown builtins
 //! degrade to fresh-var return type.
@@ -30,7 +30,7 @@ pub enum Ty {
     Bool,
     Int,
     Str,
-    /// Catch-all for path lookups (`action.url.host`) — the runtime
+    /// Catch-all for path lookups (`action.url.host`), the runtime
     /// context is JSON, so the static shape is genuinely unknown.
     /// Treated as compatible with any concrete type during
     /// unification.
@@ -140,7 +140,7 @@ fn occurs_in(v: u32, ty: &Ty, env: &TypeEnv) -> bool {
     }
 }
 
-/// Structured type error. Keeps shape-only signatures — span-level
+/// Structured type error. Keeps shape-only signatures, span-level
 /// pretty printing is left to the host (or to the future Enterprise
 /// editor integration).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -220,7 +220,7 @@ fn builtin_signature(name: &str) -> Option<(Ty, Vec<Ty>)> {
         "len" => Some((Ty::Int, vec![Ty::Unknown])),
         "lower" => Some((Ty::Str, vec![Ty::Str])),
         "upper" => Some((Ty::Str, vec![Ty::Str])),
-        // `secret_ref` accepts anything, returns bool — the runtime
+        // `secret_ref` accepts anything, returns bool, the runtime
         // detects sensitive material structurally.
         "secret_ref" => Some((Ty::Bool, vec![Ty::Unknown])),
         _ => None,
@@ -232,7 +232,7 @@ fn infer_expr(env: &mut TypeEnv, expr: &Expr) -> Result<Ty, TypeError> {
         Expr::Lit(Lit::Bool(_)) => Ok(Ty::Bool),
         Expr::Lit(Lit::Int(_)) => Ok(Ty::Int),
         Expr::Lit(Lit::Str(_)) => Ok(Ty::Str),
-        // Dotted path lookups walk JSON — dynamically typed.
+        // Dotted path lookups walk JSON, dynamically typed.
         Expr::Path(_) => Ok(Ty::Unknown),
         Expr::Unary(UnOp::Not, inner) => {
             let t = infer_expr(env, inner)?;
@@ -268,7 +268,7 @@ fn infer_expr(env: &mut TypeEnv, expr: &Expr) -> Result<Ty, TypeError> {
         } => {
             let _ = infer_expr(env, needle)?;
             let _ = infer_expr(env, haystack)?;
-            // No constraint on element/container type for MVP — both
+            // No constraint on element/container type for MVP, both
             // sides are commonly dynamic (path lookups).
             Ok(Ty::Bool)
         }
@@ -287,7 +287,7 @@ fn infer_expr(env: &mut TypeEnv, expr: &Expr) -> Result<Ty, TypeError> {
                 }
                 Ok(ret)
             } else {
-                // Unknown builtin — fresh var return, no constraint
+                // Unknown builtin, fresh var return, no constraint
                 // on args. The validator already catches truly
                 // unknown calls at parse-validate time.
                 for arg in args {
@@ -414,7 +414,7 @@ mod tests {
 
     #[test]
     fn builtin_len_returns_int_not_bool() {
-        // len(x) is int, not bool — should fail as when-clause.
+        // len(x) is int, not bool, should fail as when-clause.
         let when = Expr::Call("len".into(), vec![Expr::Lit(Lit::Str("x".into()))]);
         let err = infer(&prog(when)).expect_err("must reject int when");
         assert!(matches!(err, TypeError::NonBoolWhen { .. }));
@@ -453,7 +453,7 @@ mod tests {
             Box::new(Expr::Lit(Lit::Bool(true))),
         );
         // Unknown builtin returns a fresh var; the var unifies with
-        // bool via equality with the literal — so the when clause
+        // bool via equality with the literal, so the when clause
         // resolves to bool.
         let env = infer(&prog(when)).expect("infer ok");
         assert_eq!(env.when_types(), &[Ty::Bool]);

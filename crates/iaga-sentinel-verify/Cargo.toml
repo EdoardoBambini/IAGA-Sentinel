@@ -1,0 +1,22 @@
+[package]
+name = "iaga-sentinel-verify"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "IAGA Sentinel standalone receipt verifier: verify a signed receipt chain offline, no database or server"
+
+[lib]
+name = "iaga_sentinel_verify"
+path = "src/lib.rs"
+
+[[bin]]
+name = "iaga-verify"
+path = "src/main.rs"
+
+[dependencies]
+iaga-sentinel-receipts = { path = "../iaga-sentinel-receipts", default-features = false }
+ed25519-dalek = { workspace = true }
+serde_json = { workspace = true }
+hex = { workspace = true }

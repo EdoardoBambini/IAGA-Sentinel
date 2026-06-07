@@ -291,7 +291,7 @@ async fn deliver_with_retry(
         }
     }
 
-    // All retries exhausted — send to dead letter queue
+    // All retries exhausted, send to dead letter queue
     let entry = DeadLetterEntry {
         id: uuid::Uuid::new_v4().to_string(),
         webhook_id: hook.id.clone(),
@@ -307,7 +307,7 @@ async fn deliver_with_retry(
     tracing::error!(
         webhook_id = %hook.id,
         url = %hook.url,
-        "Webhook delivery failed after all retries — added to DLQ"
+        "Webhook delivery failed after all retries, added to DLQ"
     );
 }
 

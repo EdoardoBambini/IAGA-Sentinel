@@ -807,7 +807,7 @@ fn pg_row_to_policy_rule(row: &sqlx::postgres::PgRow) -> Result<PolicyRule, Sent
 }
 
 // ═══════════════════════════════════════════════════════════════
-// v0.4.0 — Durable State Storage Implementations
+// v0.4.0, Durable State Storage Implementations
 // ═══════════════════════════════════════════════════════════════
 
 use crate::modules::fingerprint::behavioral::AgentFingerprint;

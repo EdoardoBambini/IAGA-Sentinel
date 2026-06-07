@@ -5,7 +5,7 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
-description = "IAGA Sentinel — Agent Policy Language (APL) parser, Hindley-Milner type checker, deterministic evaluator, optional WASM codegen"
+description = "IAGA Sentinel, Agent Policy Language (APL) parser, Hindley-Milner type checker, deterministic evaluator, optional WASM codegen"
 
 [lib]
 name = "iaga_sentinel_apl"
@@ -13,12 +13,12 @@ path = "src/lib.rs"
 
 [features]
 default = []
-# OSS 1.2 — Hindley-Milner type checker + WASM codegen (ADR 0014).
+# OSS 1.2, Hindley-Milner type checker + WASM codegen (ADR 0014).
 # Default off: the tree-walk evaluator at `eval.rs` remains the
 # canonical entrypoint. Enabling this feature adds the `types::infer`
 # entrypoint and the `wasm::compile_to_wasm` scaffolding. Enterprise
 # AOT-optimized codegen (cranelift opt-levels, JIT tuning, WASI
-# side-effect policies) is *not* in OSS — see ENTERPRISE.md.
+# side-effect policies) is *not* in OSS, see ENTERPRISE.md.
 apl-wasm = ["dep:wasm-encoder"]
 
 [dependencies]

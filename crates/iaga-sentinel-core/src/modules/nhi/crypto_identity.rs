@@ -1,4 +1,4 @@
-//! LAYER 3 — Non-Human Identity (NHI)
+//! LAYER 3, Non-Human Identity (NHI)
 //!
 //! SPIFFE-style identity for agents, HMAC-SHA256 attestation,
 //! capability tokens with expiry, and mutual verification.
@@ -105,7 +105,7 @@ fn get_master_seed() -> Vec<u8> {
         .map(|s| s.into_bytes())
         .unwrap_or_else(|_| {
             tracing::warn!(
-                "IAGA_SENTINEL_NHI_MASTER_SEED not set — using random ephemeral seed. \
+                "IAGA_SENTINEL_NHI_MASTER_SEED not set, using random ephemeral seed. \
                  Set this env var for persistent identity across restarts."
             );
             // Generate a random seed for this process lifetime
@@ -241,7 +241,7 @@ pub fn attest_agent(agent_id: &str, challenge: &str) -> AttestationResult {
             verified,
             spiffe_id: stored.identity.spiffe_id.clone(),
             trust_score: stored.identity.trust_score,
-            reason: "simulated attestation — use /v1/nhi/challenge for real verification".into(),
+            reason: "simulated attestation, use /v1/nhi/challenge for real verification".into(),
             mode: "simulated".into(),
         }
     } else {
@@ -250,7 +250,7 @@ pub fn attest_agent(agent_id: &str, challenge: &str) -> AttestationResult {
             verified: false,
             spiffe_id: String::new(),
             trust_score: 0.0,
-            reason: "unknown agent — no identity registered".into(),
+            reason: "unknown agent, no identity registered".into(),
             mode: "simulated".into(),
         }
     }
@@ -372,7 +372,7 @@ pub fn verify_attestation(
             verified: false,
             spiffe_id: String::new(),
             trust_score: 0.0,
-            reason: "unknown agent — no identity registered".into(),
+            reason: "unknown agent, no identity registered".into(),
             mode: "verified".into(),
         },
     }
@@ -516,7 +516,7 @@ pub fn update_trust_score(agent_id: &str, delta: f64) -> Option<f64> {
 
 /// Severity-aware trust update based on the actual risk score.
 ///
-/// - ALLOW:  +0.02 (was +0.01 — faster recovery)
+/// - ALLOW:  +0.02 (was +0.01, faster recovery)
 /// - BLOCK with risk < 50 (policy violation, not malicious): -0.01
 /// - BLOCK with risk 50-79 (suspicious): -0.03
 /// - BLOCK with risk >= 80 (clearly malicious): -0.05

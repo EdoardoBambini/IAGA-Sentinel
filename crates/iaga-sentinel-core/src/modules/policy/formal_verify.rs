@@ -1,4 +1,4 @@
-//! LAYER 6 — Formal Policy Verification
+//! LAYER 6, Formal Policy Verification
 //!
 //! SAT-solver-inspired consistency, completeness, and satisfiability checks
 //! for workspace policies. Catches contradictions, unreachable states, and
@@ -121,7 +121,7 @@ fn check_consistency(policy: &WorkspacePolicy) -> Vec<PolicyIssue> {
                 severity: "high".into(),
                 category: "contradiction".into(),
                 description: format!(
-                    "Tool '{}' requires human review but max_decision is Allow — review will never trigger",
+                    "Tool '{}' requires human review but max_decision is Allow, review will never trigger",
                     tool.tool_name
                 ),
                 affected_tools: vec![tool.tool_name.clone()],
@@ -137,7 +137,7 @@ fn check_consistency(policy: &WorkspacePolicy) -> Vec<PolicyIssue> {
                 severity: "high".into(),
                 category: "dead_rule".into(),
                 description: format!(
-                    "Tool '{}' has no allowed action types — all requests will be blocked",
+                    "Tool '{}' has no allowed action types, all requests will be blocked",
                     tool.tool_name
                 ),
                 affected_tools: vec![tool.tool_name.clone()],
@@ -153,7 +153,7 @@ fn check_consistency(policy: &WorkspacePolicy) -> Vec<PolicyIssue> {
                 severity: "medium".into(),
                 category: "contradiction".into(),
                 description: format!(
-                    "Tool '{}' has max_decision=Block but lists allowed action types — action types are meaningless",
+                    "Tool '{}' has max_decision=Block but lists allowed action types, action types are meaningless",
                     tool.tool_name
                 ),
                 affected_tools: vec![tool.tool_name.clone()],
@@ -233,7 +233,7 @@ fn check_satisfiability(policy: &WorkspacePolicy) -> Vec<PolicyIssue> {
         issues.push(PolicyIssue {
             severity: "critical".into(),
             category: "unsatisfiable".into(),
-            description: "No protocols are allowed — all requests will be blocked".into(),
+            description: "No protocols are allowed, all requests will be blocked".into(),
             affected_tools: Vec::new(),
             suggestion: "Add at least one allowed protocol (e.g., Mcp, Acp)".into(),
         });
@@ -244,7 +244,7 @@ fn check_satisfiability(policy: &WorkspacePolicy) -> Vec<PolicyIssue> {
         issues.push(PolicyIssue {
             severity: "critical".into(),
             category: "unsatisfiable".into(),
-            description: "No tools are defined — all tool calls will be blocked".into(),
+            description: "No tools are defined, all tool calls will be blocked".into(),
             affected_tools: Vec::new(),
             suggestion: "Define tool policies for expected tools".into(),
         });
@@ -259,7 +259,7 @@ fn check_satisfiability(policy: &WorkspacePolicy) -> Vec<PolicyIssue> {
         issues.push(PolicyIssue {
             severity: "critical".into(),
             category: "unsatisfiable".into(),
-            description: "All tools have max_decision=Block — nothing can execute".into(),
+            description: "All tools have max_decision=Block, nothing can execute".into(),
             affected_tools: policy.tools.iter().map(|t| t.tool_name.clone()).collect(),
             suggestion: "Set max_decision to Allow or Review for at least one tool".into(),
         });
@@ -275,7 +275,7 @@ fn check_satisfiability(policy: &WorkspacePolicy) -> Vec<PolicyIssue> {
             severity: "high".into(),
             category: "unsatisfiable".into(),
             description:
-                "Tools allow HTTP actions but no domains are whitelisted — all HTTP will be blocked"
+                "Tools allow HTTP actions but no domains are whitelisted, all HTTP will be blocked"
                     .into(),
             affected_tools: policy
                 .tools
@@ -304,7 +304,7 @@ fn check_satisfiability(policy: &WorkspacePolicy) -> Vec<PolicyIssue> {
             severity: "high".into(),
             category: "privilege_escalation".into(),
             description: format!(
-                "Tool '{}' can execute shell AND network actions with Allow — potential exfiltration path",
+                "Tool '{}' can execute shell AND network actions with Allow, potential exfiltration path",
                 tool.tool_name
             ),
             affected_tools: vec![tool.tool_name.clone()],

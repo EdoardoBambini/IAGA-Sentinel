@@ -4,13 +4,13 @@ build-backend = "hatchling.build"
 
 [project]
 name = "iaga-sentinel"
-version = "0.4.0"
-description = "IAGA Sentinel Python SDK for zero-trust governance of AI agent actions"
+version = "1.3.0"
+description = "IAGA Sentinel Python SDK: signed, replay-verifiable audit evidence for AI agent actions"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.9"
 authors = [
-    { name = "IAGA", email = "iaga.start@gmail.com" },
+    { name = "IAGA", email = "info@iaga.tech" },
 ]
 keywords = ["ai", "agents", "governance", "security", "mcp", "a2a"]
 classifiers = [

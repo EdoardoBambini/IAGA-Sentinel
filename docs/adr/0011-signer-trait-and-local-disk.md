@@ -1,9 +1,9 @@
-# ADR 0011 — `Signer` Trait + `LocalDiskSigner` Refactor (OSS 1.2)
+# ADR 0011, `Signer` Trait + `LocalDiskSigner` Refactor (OSS 1.2)
 
 - **Status**: Accepted
 - **Date**: 2026-05-28
 - **Deciders**: Edoardo Bambini
-- **Milestone**: 1.2 — primitive evolution release
+- **Milestone**: 1.2, primitive evolution release
 - **Relates to**: ADR 0003 (signed receipts design), ADR 0010 (OSS↔Enterprise boundary)
 
 ## Contesto
@@ -64,7 +64,7 @@ pub type ReceiptSigner = LocalDiskSigner;
 ```
 
 Questa è la chiave del "zero breaking change". Ogni callsite del 1.0
-/ 1.1 — production e test — continua a compilare senza modifiche:
+/ 1.1, production e test, continua a compilare senza modifiche:
 
 - `ReceiptSigner::generate()` → metodo associato del type alias.
 - `ReceiptSigner::load_or_create(path)` → idem.
@@ -102,13 +102,13 @@ L'OSS espone **solo** il trait + `LocalDiskSigner`. Esplicitamente
 **non** esposto:
 
 - `KmsSigner`, `VaultSigner`, `AwsKmsSigner`, `AzureKeyVaultSigner`,
-  `PKCS11Signer` — variants concreti per i 4 native KMS SDK
+  `PKCS11Signer`, variants concreti per i 4 native KMS SDK
   backend, che restano Enterprise (ADR 0010 §2.20).
-- Factory `Signer::from_url(uri)` o `BackendKind` enum — niente
+- Factory `Signer::from_url(uri)` o `BackendKind` enum, niente
   discovery mechanism in OSS. L'host Enterprise plug-a la propria
   impl direttamente con `Arc::new(MyBackend::new(...))`.
 - Managed key lifecycle (auto-rotation, audit-trailed approvals UI)
-  — resta Enterprise (ADR 0010 §2.2).
+ , resta Enterprise (ADR 0010 §2.2).
 
 Il pattern BYOK via `IAGA_SENTINEL_SIGNER_KEY_PATH` filesystem-mount
 resta in OSS forever, come confermato da ADR 0010 §6.
@@ -126,7 +126,7 @@ resta in OSS forever, come confermato da ADR 0010 §6.
   asincroni dietro lo stesso trait senza forzare un'altra rivisione
   di signature.
 - **`Arc<dyn Signer>` shareable**. Lo stesso signer può essere
-  condiviso tra `SignedReceiptLogger` e — in futuro — altri
+  condiviso tra `SignedReceiptLogger` e, in futuro, altri
   consumatori (es. live attestation di plugin), senza dover
   passare reference o clonare lo state interno.
 
@@ -148,8 +148,8 @@ resta in OSS forever, come confermato da ADR 0010 §6.
 
 ## Riferimenti
 
-- ADR 0003 — Signed Receipts Design.
-- ADR 0010 — OSS↔Enterprise Boundary, §3 (4 primitive reinstaurate),
+- ADR 0003, Signed Receipts Design.
+- ADR 0010, OSS↔Enterprise Boundary, §3 (4 primitive reinstaurate),
   §2.20 (4 KMS SDK Enterprise), §6 (BYOK filesystem-mount in OSS).
-- `crates/iaga-sentinel-receipts/src/signer.rs` — trait + impl + alias.
-- `crates/iaga-sentinel-core/src/pipeline/receipts.rs` — callsite migrato.
+- `crates/iaga-sentinel-receipts/src/signer.rs`, trait + impl + alias.
+- `crates/iaga-sentinel-core/src/pipeline/receipts.rs`, callsite migrato.

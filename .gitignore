@@ -38,6 +38,16 @@ INTERNAL_*.md
 docs/internal/
 docs/enterprise/
 
+# Confidential strategy artifacts that sometimes land in the working dir.
+# Roadmap and GTM PDFs, and the untracked FEATURES draft, stay local only.
+/*.pdf
+FEATURES.md
+IAGA_SENTINEL_FEATURES_AND_POSITIONING.md
+
+# Stale or internal docs pulled from the public repo (kept local on disk).
+docs/ROADMAP_v0.4.0.md
+docs/DEMO.md
+
 # Media (large, kept local)
 media/hero.mp4
 
@@ -45,6 +55,5 @@ media/hero.mp4
 *.log
 !.claude/**/*.log
 iaga-sentinel-video/out/
-ui/dist/
 crates/iaga-sentinel-core/*.db
 crates/iaga-sentinel-core/*.sqlite

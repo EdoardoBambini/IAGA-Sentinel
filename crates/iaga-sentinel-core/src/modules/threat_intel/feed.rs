@@ -241,31 +241,31 @@ fn builtin_indicators() -> Vec<ThreatIndicator> {
         ThreatType::MaliciousDomain,
         "webhook.site",
         "high",
-        "Known data exfiltration endpoint — webhook.site",
+        "Known data exfiltration endpoint, webhook.site",
     );
     add(
         ThreatType::MaliciousDomain,
         "requestbin.com",
         "high",
-        "Known data exfiltration endpoint — requestbin.com",
+        "Known data exfiltration endpoint, requestbin.com",
     );
     add(
         ThreatType::MaliciousDomain,
         "burpcollaborator.net",
         "critical",
-        "Burp Suite collaborator — used in security testing/attacks",
+        "Burp Suite collaborator, used in security testing/attacks",
     );
     add(
         ThreatType::MaliciousDomain,
         "ngrok.io",
         "high",
-        "Tunnel service often used for exfiltration — ngrok.io",
+        "Tunnel service often used for exfiltration, ngrok.io",
     );
     add(
         ThreatType::MaliciousDomain,
         "pipedream.net",
         "high",
-        "Known data exfiltration endpoint — pipedream.net",
+        "Known data exfiltration endpoint, pipedream.net",
     );
 
     // ── Malicious Commands ──
@@ -273,43 +273,43 @@ fn builtin_indicators() -> Vec<ThreatIndicator> {
         ThreatType::MaliciousCommand,
         "rm -rf /",
         "critical",
-        "Destructive command — recursive force-delete root filesystem",
+        "Destructive command, recursive force-delete root filesystem",
     );
     add(
         ThreatType::MaliciousCommand,
         "mkfs",
         "critical",
-        "Destructive command — formats a filesystem",
+        "Destructive command, formats a filesystem",
     );
     add(
         ThreatType::MaliciousCommand,
         "dd if=/dev/zero",
         "critical",
-        "Destructive command — overwrites device with zeros",
+        "Destructive command, overwrites device with zeros",
     );
     add(
         ThreatType::MaliciousCommand,
         "regex::\\(\\)\\s*\\{\\s*:\\|:\\s*&\\s*\\}\\s*;\\s*:",
         "critical",
-        "Fork bomb — exhausts system resources",
+        "Fork bomb, exhausts system resources",
     );
     add(
         ThreatType::MaliciousCommand,
         "chmod 777",
         "high",
-        "Dangerous permissions — world-readable/writable/executable",
+        "Dangerous permissions, world-readable/writable/executable",
     );
     add(
         ThreatType::MaliciousCommand,
         "regex:curl\\s+.*\\|\\s*sh",
         "critical",
-        "Remote code execution — piping curl output to shell",
+        "Remote code execution, piping curl output to shell",
     );
     add(
         ThreatType::MaliciousCommand,
         "regex:wget\\s+.*\\|\\s*bash",
         "critical",
-        "Remote code execution — piping wget output to bash",
+        "Remote code execution, piping wget output to bash",
     );
 
     // ── Data Exfiltration ──
@@ -317,31 +317,31 @@ fn builtin_indicators() -> Vec<ThreatIndicator> {
         ThreatType::DataExfiltration,
         "regex:base64.*curl|curl.*base64",
         "high",
-        "Data exfiltration — base64 encoding combined with curl",
+        "Data exfiltration, base64 encoding combined with curl",
     );
     add(
         ThreatType::DataExfiltration,
         "regex:tar\\s+.*\\|\\s*nc\\s+",
         "high",
-        "Data exfiltration — tar piped to netcat",
+        "Data exfiltration, tar piped to netcat",
     );
     add(
         ThreatType::DataExfiltration,
         "/etc/passwd",
         "high",
-        "Sensitive file access — system password file",
+        "Sensitive file access, system password file",
     );
     add(
         ThreatType::DataExfiltration,
         "/etc/shadow",
         "critical",
-        "Sensitive file access — system shadow password file",
+        "Sensitive file access, system shadow password file",
     );
     add(
         ThreatType::DataExfiltration,
         ".ssh/id_rsa",
         "critical",
-        "Sensitive file access — SSH private key",
+        "Sensitive file access, SSH private key",
     );
 
     // ── Known Exploits ──
@@ -349,19 +349,19 @@ fn builtin_indicators() -> Vec<ThreatIndicator> {
         ThreatType::KnownExploit,
         "regex:\\$\\{jndi:(ldap|rmi|dns)://",
         "critical",
-        "Log4Shell (CVE-2021-44228) — JNDI injection pattern",
+        "Log4Shell (CVE-2021-44228), JNDI injection pattern",
     );
     add(
         ThreatType::KnownExploit,
         "169.254.169.254",
         "critical",
-        "SSRF — AWS/cloud metadata endpoint",
+        "SSRF, AWS/cloud metadata endpoint",
     );
     add(
         ThreatType::KnownExploit,
         "metadata.google",
         "critical",
-        "SSRF — GCP metadata endpoint",
+        "SSRF, GCP metadata endpoint",
     );
 
     // ── Prompt Injection ──
@@ -369,25 +369,25 @@ fn builtin_indicators() -> Vec<ThreatIndicator> {
         ThreatType::PromptInjection,
         "ignore previous",
         "high",
-        "Prompt injection — attempts to override prior instructions",
+        "Prompt injection, attempts to override prior instructions",
     );
     add(
         ThreatType::PromptInjection,
         "system prompt",
         "high",
-        "Prompt injection — references system prompt",
+        "Prompt injection, references system prompt",
     );
     add(
         ThreatType::PromptInjection,
         "you are now",
         "medium",
-        "Prompt injection — attempts role reassignment",
+        "Prompt injection, attempts role reassignment",
     );
     add(
         ThreatType::PromptInjection,
         "regex:(?i)DAN\\s+mode",
         "high",
-        "Prompt injection — DAN (Do Anything Now) jailbreak attempt",
+        "Prompt injection, DAN (Do Anything Now) jailbreak attempt",
     );
 
     indicators

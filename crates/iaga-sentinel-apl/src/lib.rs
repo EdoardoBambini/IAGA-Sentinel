@@ -1,6 +1,6 @@
 //! # iaga-sentinel-apl
 //!
-//! Agent Policy Language (APL) — MVP for 1.0 M3.
+//! Agent Policy Language (APL), MVP for 1.0 M3.
 //!
 //! APL is a typed DSL that replaces 0.4.0's YAML + template pipeline
 //! for policy authoring. This crate ships:
@@ -60,7 +60,7 @@ pub fn compile(src: &str) -> Result<Program> {
     Ok(program)
 }
 
-/// 1.2 OSS — parse, validate, and infer types. Companion to
+/// 1.2 OSS, parse, validate, and infer types. Companion to
 /// [`compile`] that additionally runs the Hindley-Milner type
 /// checker (ADR 0014). Returns both the program AST and the
 /// inferred [`TypeEnv`] so hosts can introspect the per-policy

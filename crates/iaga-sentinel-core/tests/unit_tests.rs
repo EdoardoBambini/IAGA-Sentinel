@@ -1031,7 +1031,7 @@ fn test_fingerprint_tool_usage_counted() {
 #[test]
 fn test_fingerprint_detect_anomalies_no_baseline() {
     let engine = BehavioralEngine::new();
-    // No data recorded yet — detect_anomalies on unknown agent returns empty
+    // No data recorded yet, detect_anomalies on unknown agent returns empty
     let anomalies = engine.detect_anomalies("ghost-agent", "tool-x", 50.0);
     assert!(anomalies.is_empty(), "No anomalies for unknown agent");
 }

@@ -4,13 +4,13 @@
 
 | Version | Supported |
 |---------|-----------|
-| 0.1.x   | Yes       |
+| 1.3.x   | Yes       |
 
 ## Reporting a Vulnerability
 
 **Do NOT open a public GitHub issue for security vulnerabilities.**
 
-Please email **iaga.start@gmail.com** with:
+Please email **info@iaga.tech** or **info@edoardobambini.dev** with:
 
 1. A description of the vulnerability
 2. Steps to reproduce
@@ -41,3 +41,22 @@ We follow responsible disclosure. Once a fix is available we will:
 1. Release a patched version
 2. Publish a GitHub security advisory
 3. Credit the reporter (unless they prefer anonymity)
+
+## Signing and release integrity
+
+IAGA Sentinel uses Ed25519 signatures where applicable:
+
+- Every governance verdict can be recorded as an Ed25519-signed receipt, appended to a
+  per-run Merkle chain. Anyone can verify a chain offline with `iaga-verify`, with no
+  database, server, or network access.
+- Plugin manifests can be signed and verified with Ed25519 (opt-in, the
+  `plugin-manifest-signing` feature).
+- Plugin attestation can verify a Sigstore bundle and CycloneDX SBOM structurally and
+  offline (opt-in, the `plugin-attestation` feature). This checks bundle structure and
+  digests, not a full Rekor chain-of-trust.
+
+Release artifacts and git tags are not signed today. If that changes it will be noted here.
+Qualified eIDAS signatures are an Enterprise capability and are out of scope for this open
+build.
+
+For what data the software stores and where it goes, see [`DATA_HANDLING.md`](DATA_HANDLING.md).

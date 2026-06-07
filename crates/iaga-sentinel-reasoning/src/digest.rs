@@ -1,7 +1,7 @@
 //! SHA-256 digest helpers for ONNX model files.
 //!
 //! Digests are hex-encoded and embedded in every receipt that the host
-//! signs while a given model is loaded — that's what makes replay
+//! signs while a given model is loaded, that's what makes replay
 //! reproducible across model versions.
 
 use sha2::{Digest, Sha256};

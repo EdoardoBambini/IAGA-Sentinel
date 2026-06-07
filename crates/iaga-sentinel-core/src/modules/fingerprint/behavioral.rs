@@ -156,12 +156,12 @@ impl BehavioralEngine {
 
         // 4. New action type: if action_type for this tool was never seen and agent has > 10 requests
         // We check tool_name presence since action_type was already recorded by record_action
-        // before detect_anomalies is called — so we check if count == 1 (just added)
+        // before detect_anomalies is called, so we check if count == 1 (just added)
         // Actually, we compare against action_types map. Since record_action is called first,
         // a truly new action_type will have count == 1.
         // We re-derive from the current state: iterate action_types, find any with count == 1
         // and total_requests > 10. But the spec says "action_type never seen before", so we
-        // check the current tool_name in action_types — but we don't receive action_type here.
+        // check the current tool_name in action_types, but we don't receive action_type here.
         // The spec says detect_anomalies takes (agent_id, tool_name, risk_score).
         // We'll check if the tool_name count == 1 (meaning first time this tool was used)
         // and total_requests > 10, as a proxy for "new action pattern".

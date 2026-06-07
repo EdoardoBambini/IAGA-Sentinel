@@ -1,5 +1,5 @@
 # Stage 1: Build
-# IAGA Sentinel 1.0 — workspace build. The runtime binary is `iaga`
+# IAGA Sentinel workspace build. The runtime binary is `iaga`
 # (full name `iaga-sentinel`) from `crates/iaga-sentinel-core`.
 FROM rust:1.94-slim-bookworm AS builder
 

@@ -6,22 +6,26 @@
 <title>IAGA Sentinel Operator Console</title>
 <style>
   :root {
-    --bg: #081018;
-    --panel: #101a24;
-    --panel-2: #152232;
-    --panel-3: #0d151e;
-    --border: #233548;
-    --border-strong: #33506d;
-    --text: #e7eef6;
-    --muted: #8fa4b8;
-    --green: #31d38b;
-    --amber: #ffbf47;
-    --red: #ff6b6b;
-    --cyan: #58c8ff;
-    --violet: #9a8cff;
-    --shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
-    --radius: 16px;
-    --radius-sm: 12px;
+    --bg: #ffffff;
+    --panel: #ffffff;
+    --panel-2: #f4f6f5;
+    --panel-3: #ffffff;
+    --border: #0B0F0E;
+    --border-strong: #0B0F0E;
+    --text: #0B0F0E;
+    --muted: #5b6b66;
+    --green: #0f9d6b;
+    --amber: #9a6b00;
+    --red: #d23b3b;
+    --cyan: #0f9d6b;
+    --violet: #586072;
+    --mint: #5BE0B4;
+    --ink: #0B0F0E;
+    --hair: #e3e6e5;
+    --mint-weak: #e3f7ee;
+    --shadow: none;
+    --radius: 0;
+    --radius-sm: 0;
     --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
     --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
@@ -570,6 +574,50 @@
     .inline-actions { flex-direction: column; }
     .btn { width: 100%; }
   }
+
+  /* White and mint brutalist theme: flat surfaces, hard borders, no shadows. */
+  body { background: var(--bg); }
+  .pill { border-radius: 0; background: var(--panel-2); }
+  .pill::before,
+  .pill.success::before,
+  .pill.warn::before,
+  .pill.error::before { box-shadow: none; }
+  .panel { background: var(--panel); }
+  .btn { border-radius: 0; }
+  .btn:hover { border-color: var(--ink); background: var(--mint-weak); }
+  .btn.primary,
+  .btn.success { background: var(--mint); border-color: var(--ink); color: var(--ink); }
+  .btn.danger { background: #fbe3e3; border-color: var(--ink); color: #8f1f1f; }
+  .field input,
+  .field select { background: var(--panel); }
+  .field input::placeholder { color: var(--muted); }
+  .banner { border-radius: 0; }
+  .banner.info { background: var(--panel-2); border-color: var(--ink); }
+  .banner.success { background: var(--mint-weak); border-color: var(--green); }
+  .banner.warn { background: #fbf1da; border-color: var(--amber); }
+  .banner.error { background: #fbe3e3; border-color: var(--red); }
+  .card { background: var(--panel); }
+  .table-wrap { border-radius: 0; }
+  th, td { border-bottom: 1px solid var(--hair); }
+  th { background: var(--panel-2); }
+  tbody tr:hover { background: var(--mint-weak); }
+  tbody tr.selected { background: var(--mint-weak); }
+  .badge { border-radius: 0; }
+  .badge.allow { background: var(--mint-weak); color: var(--green); border-color: var(--green); }
+  .badge.review { background: #fbf1da; color: var(--amber); border-color: var(--amber); }
+  .badge.block { background: #fbe3e3; color: var(--red); border-color: var(--red); }
+  .badge.pending { background: var(--panel-2); color: var(--violet); border-color: var(--violet); }
+  .badge.neutral { background: var(--panel-2); color: var(--muted); border-color: var(--hair); }
+  .detail,
+  .review-item,
+  .runtime-item,
+  .agent-item,
+  .empty { background: var(--panel); }
+  .list-item { border-radius: 0; background: var(--panel); }
+  .json { border-radius: 0; background: var(--panel-2); color: var(--ink); }
+  .hint { border-radius: 0; background: var(--panel-2); border-color: var(--hair); color: var(--muted); }
+  .spark-bar { border-radius: 0; background: var(--mint); }
+  .kv, .kv-row { border-bottom-color: var(--hair); }
 </style>
 </head>
 <body>
@@ -794,7 +842,7 @@
         <section class="panel">
           <div class="section-head">
             <div>
-              <div class="section-kicker">M2 — Signed Action Receipts</div>
+              <div class="section-kicker">M2: Signed Action Receipts</div>
               <h3>Receipt Chain</h3>
               <p>Ed25519-signed Merkle log per run. Each row is a verifiable chain.</p>
             </div>
@@ -818,7 +866,7 @@
         <section class="panel">
           <div class="section-head">
             <div>
-              <div class="section-kicker">M6 — APL Live Overlay</div>
+              <div class="section-kicker">M6: APL Live Overlay</div>
               <h3>Policy Language</h3>
               <p>Typed DSL evaluator merged stricter-wins with the YAML profile system.</p>
             </div>
@@ -829,7 +877,7 @@
         <section class="panel">
           <div class="section-head">
             <div>
-              <div class="section-kicker">M3.5 — Reasoning Plane</div>
+              <div class="section-kicker">M3.5: Reasoning Plane</div>
               <h3>ML Evidence Engine</h3>
               <p>Probabilistic engine producing evidence; deterministic policy still decides.</p>
             </div>
@@ -840,7 +888,7 @@
         <section class="panel">
           <div class="section-head">
             <div>
-              <div class="section-kicker">M4 — Enforcement Kernel</div>
+              <div class="section-kicker">M4: Enforcement Kernel</div>
               <h3>Kernel Backend</h3>
               <p>Userspace launcher today; eBPF/LSM loader ships in 1.0.1.</p>
             </div>

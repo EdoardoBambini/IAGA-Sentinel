@@ -1,4 +1,4 @@
--- IAGA Sentinel 1.0 — M2 "Signed Action Receipts"
+-- IAGA Sentinel 1.0, M2 "Signed Action Receipts"
 -- Table: receipts (append-only Merkle-linked log per run_id)
 
 CREATE TABLE IF NOT EXISTS receipts (

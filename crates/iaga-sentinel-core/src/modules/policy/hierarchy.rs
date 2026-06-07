@@ -1,4 +1,4 @@
-//! Policy hierarchy — template inheritance via `extends`.
+//! Policy hierarchy, template inheritance via `extends`.
 //!
 //! A workspace policy can `extends: "base-secure"` to inherit tools,
 //! protocols, rules, and thresholds from a base template. The child

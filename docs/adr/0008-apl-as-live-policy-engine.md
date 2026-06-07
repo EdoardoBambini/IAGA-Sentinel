@@ -1,4 +1,4 @@
-# ADR 0008 — APL as Live Policy Engine (M6)
+# ADR 0008, APL as Live Policy Engine (M6)
 
 - **Status**: Accepted
 - **Date**: 2026-04-25
@@ -61,7 +61,7 @@ Regola formale: `final = max(yaml, apl)` con ordine `Allow < Review < Block`.
 Il `policy_hash` nel receipt body (M2) era una costante `SHA-256("iaga-sentinel-policy-v0")` come placeholder per M2/M5. M6 lo riempie con un valore reale:
 
 - Quando APL **non** caricato: `policy_hash = SHA-256("iaga-sentinel-policy-v0")` (invariato vs M5).
-- Quando APL caricato: `policy_hash = SHA-256(apl_program.serialize())` — il digest del bundle compilato.
+- Quando APL caricato: `policy_hash = SHA-256(apl_program.serialize())`, il digest del bundle compilato.
 
 Replay distingue le due modalità: vedere un receipt con il policy_hash costante significa "APL non era attivo per quella request"; un policy_hash diverso significa "APL era attivo, ed era *quello specifico* bundle". Drift detection cross-bundle funziona automaticamente.
 
@@ -116,9 +116,9 @@ Path APL come `action.kind`, `risk.score > 80`, `ml.intent_drift.score > 0.85` l
 
 ### 6. CLI
 
-- `iaga serve [--policy FILE]` — carica APL all'avvio. Errore → exit 2 con messaggio chiaro.
-- `iaga policy lint <file.apl>` — alias semantico di `iaga policy test --no-context`. Solo parse + validate.
-- `iaga policy test <file.apl> [--context ctx.json]` — invariato (M3).
+- `iaga serve [--policy FILE]`, carica APL all'avvio. Errore → exit 2 con messaggio chiaro.
+- `iaga policy lint <file.apl>`, alias semantico di `iaga policy test --no-context`. Solo parse + validate.
+- `iaga policy test <file.apl> [--context ctx.json]`, invariato (M3).
 
 Quando l'APL è caricato, il log all'avvio dice esplicitamente: `APL policy loaded: 3 policies, hash=abc123def...`. Operatore vede subito cosa è attivo.
 
@@ -157,7 +157,7 @@ CHAIN OK ... (policy_hash=8f4a3c...)
 
 ## Riferimenti
 
-- ADR 0004 — APL MVP (M3)
-- ADR 0003 — receipts schema (M2)
-- ADR 0007 — M5 hardening + RC posture
-- `crates/iaga-sentinel-apl/examples/no_pii_egress.apl` — esempio APL di partenza
+- ADR 0004, APL MVP (M3)
+- ADR 0003, receipts schema (M2)
+- ADR 0007, M5 hardening + RC posture
+- `crates/iaga-sentinel-apl/examples/no_pii_egress.apl`, esempio APL di partenza

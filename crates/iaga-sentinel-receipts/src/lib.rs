@@ -20,6 +20,7 @@
 //!   and KMS integration are 1.1 extensions.
 
 pub mod errors;
+pub mod export;
 pub mod merkle;
 pub mod receipt;
 pub mod replay;
@@ -34,6 +35,7 @@ pub mod postgres;
 
 // ── public re-exports ──
 pub use errors::{ReceiptError, Result};
+pub use export::ChainExport;
 pub use merkle::{chain_link, next_parent_hash, verify_chain};
 pub use receipt::{
     AplEvalTrace, ChainStatus, MlInferenceInputs, MlScoreBundle, MlTokenDigest, ModelDigest,

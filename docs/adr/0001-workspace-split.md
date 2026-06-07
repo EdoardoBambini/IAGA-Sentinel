@@ -1,12 +1,12 @@
-# ADR 0001 — Cargo Workspace Split (M1, "Fortezza Foundation")
+# ADR 0001, Cargo Workspace Split (M1, "Fortezza Foundation")
 
 - **Status:** Accepted
 - **Date:** 2026-04-22
-- **Context milestone:** IAGA Sentinel 1.0 — M1
+- **Context milestone:** IAGA Sentinel 1.0, M1
 
 > **Status update 2026-05-08**: il crate `iaga-mesh` citato come futuro M5 in
 > questo ADR non è mai stato realizzato come crate OSS. La governance mesh è
-> stata riallocata in IAGA Sentinel Enterprise — vedi
+> stata riallocata in IAGA Sentinel Enterprise, vedi
 > [ADR 0010](0010-oss-enterprise-boundary.md) per il boundary corrente.
 > I 5 crate OSS effettivamente shippati restano: `iaga-sentinel-core`,
 > `iaga-sentinel-receipts`, `iaga-sentinel-apl`, `iaga-sentinel-reasoning`, `iaga-sentinel-kernel`.
@@ -28,7 +28,7 @@ Convert the repo to a **Cargo workspace** in M1. Move the existing
 single crate from `community/` to `crates/iaga-sentinel-core/` **without
 internal refactoring**. Future milestones add new crates as additional
 `[workspace] members`, each feature-gated, each depending on
-`iaga-sentinel-core` or its successors — never the other way around until
+`iaga-sentinel-core` or its successors, never the other way around until
 explicit deprecation.
 
 The short binary alias `iaga` is introduced alongside `iaga-sentinel`,
@@ -37,20 +37,20 @@ without breaking anyone's scripts.
 
 ## Alternatives considered
 
-1. **Aggressive slice up front** — extract `pipeline/`, `storage/`,
+1. **Aggressive slice up front**, extract `pipeline/`, `storage/`,
    `plugins/` into separate crates immediately. **Rejected**: the
    15-module pipeline and the trait-based `AppState` coupling would
    cause weeks of refactor before any 1.0 feature lands. Risk of
    breaking tests is high and the refactor is unmotivated until APL
    (M3) reshapes the policy engine anyway.
 
-2. **Stay mono-crate, add feature flags** — keep everything in
+2. **Stay mono-crate, add feature flags**, keep everything in
    `iaga-sentinel` and gate new subsystems via features. **Rejected**:
    compile times balloon, feature-flag combinatorics become the CI
    bottleneck, and downstream consumers can't pull in `iaga-sentinel-apl`
    without also pulling `iaga-sentinel-kernel` deps.
 
-3. **Separate repos per subsystem** — `iaga-sentinel-core`,
+3. **Separate repos per subsystem**, `iaga-sentinel-core`,
    `iaga-sentinel-receipts`, etc., in independent repos. **Rejected**:
    coordinated versioning across 6 repos during heavy alpha
    development would dominate our process cost. Revisit post-1.0.

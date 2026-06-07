@@ -1,4 +1,4 @@
-# ADR 0007 — M5 Hardening + 1.0 RC Posture
+# ADR 0007, M5 Hardening + 1.0 RC Posture
 
 - **Status**: Accepted
 - **Date**: 2026-04-25
@@ -24,7 +24,7 @@
 
 ## Contesto
 
-M1–M4 hanno costruito le superfici architetturali di 1.0: workspace + ui (M1), receipt firmati (M2), APL (M3), reasoning plane (M3.5), enforcement kernel scaffold (M4). M5 è il punto in cui tutto quello che è stato scritto come "trait + scaffold + opt-in" viene **wireato end-to-end** e si fissa la posture per il release candidate.
+M1-M4 hanno costruito le superfici architetturali di 1.0: workspace + ui (M1), receipt firmati (M2), APL (M3), reasoning plane (M3.5), enforcement kernel scaffold (M4). M5 è il punto in cui tutto quello che è stato scritto come "trait + scaffold + opt-in" viene **wireato end-to-end** e si fissa la posture per il release candidate.
 
 Questa ADR fissa cosa entra in M5, cosa resta esplicitamente fuori (e perché), e cosa significa "1.0 RC" per IAGA Sentinel.
 
@@ -36,7 +36,7 @@ Prima di M5, `iaga run` lanciava qualsiasi processo con un policy callback `allo
 
 In M5 il `cmd_kernel_run` (`crates/iaga-sentinel-core/src/main.rs`):
 
-1. Costruisce un `AppState` completo (storage, receipts, reasoning, ecc.) — stesso codice path del server HTTP.
+1. Costruisce un `AppState` completo (storage, receipts, reasoning, ecc.), stesso codice path del server HTTP.
 2. Sintetizza un `InspectRequest` dal `ProcessSpec` (program → tool_name, args+cwd → payload, action_type=Shell).
 3. Crea un `PolicyCheck` async che chiama `execute_pipeline(&request, &state)` e mappa `GovernanceDecision` → `KernelDecision` 1:1.
 4. `UserspaceKernel::launch` await il callback prima di spawnare.
@@ -59,7 +59,7 @@ pub type PolicyCheck = Arc<
 
 I callsite esistenti sono stati aggiornati. `UserspaceKernel::allow_all()` continua a esistere e ritornare un Future banale. Test invariati nella loro semantica, riformulati per il Future.
 
-Non è breaking pubblico: `iaga-sentinel-kernel` non ha consumer esterni in 1.0-alpha — il trait è stato introdotto in M4 della stessa staged session.
+Non è breaking pubblico: `iaga-sentinel-kernel` non ha consumer esterni in 1.0-alpha, il trait è stato introdotto in M4 della stessa staged session.
 
 ### 3. Postgres backend per receipts wireato dal binary
 
@@ -82,7 +82,7 @@ Questo NON cambia il comportamento di `iaga serve`, che ha già il flag `--seed-
 ### 5. Cosa resta fuori da M5 (esplicito)
 
 - ❌ **APL come fonte autoritativa di policy**. Il caricamento `--policy file.apl` in `iaga serve` come overlay additivo è M6. Ragione: l'integrazione richiede progettare il merge tra APL evaluation e l'attuale risk scoring, decisione architetturale che merita la propria ADR (0008) e una milestone dedicata.
-- ❌ **Drift replay con re-execute della pipeline**. L'infrastruttura `iaga_sentinel_receipts::replay` esiste da M2 con un evaluator pluggable. M5 non aggiunge un default evaluator che riesegue la pipeline storica perché richiede serializzare l'intero `InspectRequest` nei receipt — schema change non desiderato sotto release candidate.
+- ❌ **Drift replay con re-execute della pipeline**. L'infrastruttura `iaga_sentinel_receipts::replay` esiste da M2 con un evaluator pluggable. M5 non aggiunge un default evaluator che riesegue la pipeline storica perché richiede serializzare l'intero `InspectRequest` nei receipt, schema change non desiderato sotto release candidate.
 - ❌ **Loader eBPF**. M4.1.
 - ❌ **Cross-platform kernel** (macOS Endpoint Security, Windows ETW). 1.1.
 - ❌ **Mesh** (gRPC gossip, federated rate budgets). 1.1.
@@ -94,7 +94,7 @@ Questo NON cambia il comportamento di `iaga serve`, che ha già il flag `--seed-
 Definiamo "release candidate" così:
 
 - **Architettura completa**: kernel + receipts + APL + reasoning + ML opt-in tutti integrati e wireable.
-- **Default features funzionali**: il binary stock con `cargo install` produce `iaga serve`, `iaga inspect`, `iaga run`, `iaga replay`, `iaga policy test`, `iaga reasoning info`, `iaga kernel status` — tutti operativi su un DB sqlite freschissimo, zero config.
+- **Default features funzionali**: il binary stock con `cargo install` produce `iaga serve`, `iaga inspect`, `iaga run`, `iaga replay`, `iaga policy test`, `iaga reasoning info`, `iaga kernel status`, tutti operativi su un DB sqlite freschissimo, zero config.
 - **Test workspace** verde su feature default. Clippy `--all-targets -D warnings` pulito.
 - **Onesto**: ogni surface che è scaffold dichiara di esserlo nel suo CLI status (vedi `iaga kernel status` → "soft enforcement"). Niente marketing che si scontra con la realtà operativa.
 - **Documentato**: ogni milestone ha un ADR, un README/MIGRATION update, e una nota in `MEMORY.md` per la prossima sessione.
@@ -102,14 +102,14 @@ Definiamo "release candidate" così:
 Ciò che NON è 1.0 RC ma diventa 1.0 GA:
 - License switch (eseguito al commit unico).
 - Audit di sicurezza esterno (responsabilità dell'utente prima del go-live).
-- Documentazione pubblica (`docs/site/`) — fuori scope di queste milestone tecniche.
+- Documentazione pubblica (`docs/site/`), fuori scope di queste milestone tecniche.
 
 ## Conseguenze
 
 - **Test workspace**: 225/225 invariato (i 6 test M4 userspace passano con la nuova signature async di PolicyCheck dopo refactor minimale).
 - **Compile time**: invariato.
 - **Binary behavior**: `iaga run` ora produce side effect significativi (audit event + receipt firmato) per ogni esecuzione. Documentato in MIGRATION.md.
-- **Receipt count cresce**: ogni `iaga run` aggiunge un receipt al DB. Nessun cleanup automatico — il DB è append-only by design (replay deve poter ricostruire la storia).
+- **Receipt count cresce**: ogni `iaga run` aggiunge un receipt al DB. Nessun cleanup automatico, il DB è append-only by design (replay deve poter ricostruire la storia).
 - **Postgres support**: chi setta `DATABASE_URL=postgres://...` ora ha receipts firmati su Postgres senza configurazione aggiuntiva, purché compili con `--features postgres`.
 
 ## Esempio operativo end-to-end
@@ -144,9 +144,9 @@ $ DATABASE_URL=postgres://iaga:iaga@localhost/iaga iaga serve
 
 ## Riferimenti
 
-- ADR 0002 — license direction + ml opt-in
-- ADR 0003 — receipts schema + dual-write
-- ADR 0004 — APL MVP
-- ADR 0005 — reasoning plane MVP
-- ADR 0006 — kernel MVP
-- `IAGA_SENTINEL_1.0.md` — design 1.0 completo
+- ADR 0002, license direction + ml opt-in
+- ADR 0003, receipts schema + dual-write
+- ADR 0004, APL MVP
+- ADR 0005, reasoning plane MVP
+- ADR 0006, kernel MVP
+- `IAGA_SENTINEL_1.0.md`, design 1.0 completo

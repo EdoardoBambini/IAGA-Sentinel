@@ -45,6 +45,6 @@ pub struct LaunchOutcome {
     /// Exit code of the child. `None` when the launch was blocked,
     /// held for review, or the child was killed by a signal (Unix).
     pub exit_code: Option<i32>,
-    /// Backend name (`userspace`, `linux-bpf`, ...) — useful for ops.
+    /// Backend name (`userspace`, `linux-bpf`, ...), useful for ops.
     pub backend: &'static str,
 }

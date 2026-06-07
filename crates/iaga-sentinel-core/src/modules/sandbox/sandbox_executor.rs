@@ -1,4 +1,4 @@
-//! LAYER 5 — Deterministic Sandbox Execution
+//! LAYER 5, Deterministic Sandbox Execution
 //!
 //! High-risk tool calls get dry-run analysis before execution.
 //! Shows impact ("would delete 4,382 rows") and waits for approval.
@@ -285,7 +285,7 @@ fn analyze_http(payload: &serde_json::Value) -> (ImpactAnalysis, Vec<NetworkCapt
     if body_size > 10000 {
         severity = "high".into();
         details.push(format!(
-            "Large payload ({} bytes) — potential exfiltration",
+            "Large payload ({} bytes), potential exfiltration",
             body_size
         ));
     }

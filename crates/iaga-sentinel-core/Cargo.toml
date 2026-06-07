@@ -5,18 +5,18 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
-description = "IAGA Sentinel — zero-trust governance kernel for autonomous AI agents (open-source edition)"
+description = "IAGA Sentinel: EU AI Act conformity evidence layer for AI agents (open build, source available)"
 
 [lib]
 name = "iaga_sentinel"
 path = "src/lib.rs"
 
-# Primary binary — name preserved from 0.4.0 for backward compat
+# Primary binary, name preserved from 0.4.0 for backward compat
 [[bin]]
 name = "iaga-sentinel"
 path = "src/main.rs"
 
-# 1.0 short alias — same entry point, official alias going forward
+# 1.0 short alias, same entry point, official alias going forward
 [[bin]]
 name = "iaga"
 path = "src/main.rs"
@@ -27,9 +27,6 @@ demo = []
 sqlite = ["sqlx/sqlite", "iaga-sentinel-receipts?/sqlite"]
 postgres = ["sqlx/postgres", "iaga-sentinel-receipts?/postgres"]
 plugins = ["wasmtime"]
-# M1 scaffolding: enable to embed ui/dist/ into the binary via rust-embed.
-# Requires `ui/dist/` to exist at compile time (run `cd ui && npm run build`).
-ui-embed = ["rust-embed"]
 # M2: Ed25519-signed action receipts + deterministic replay.
 # Backend currently bound to SQLite; postgres backend exposed via
 # iaga-sentinel-receipts/postgres (wired in a follow-up milestone).
@@ -37,9 +34,9 @@ receipts = ["dep:iaga-sentinel-receipts"]
 # M3: Agent Policy Language (APL) parser + evaluator. When enabled,
 # `iaga policy test` can compile and dry-run .apl files.
 apl = ["dep:iaga-sentinel-apl"]
-# OSS 1.2 — forward the apl-wasm feature on iaga-sentinel-apl
+# OSS 1.2, forward the apl-wasm feature on iaga-sentinel-apl
 # (Hindley-Milner type checker + WASM codegen, ADR 0014). Implies
-# `apl`. Default off — the tree-walk evaluator remains canonical.
+# `apl`. Default off, the tree-walk evaluator remains canonical.
 apl-wasm = ["apl", "iaga-sentinel-apl/apl-wasm"]
 # M3.5: Probabilistic Reasoning Plane wiring. `reasoning` adds the
 # trait surface and the always-available NoopEngine. `ml` additionally
@@ -51,11 +48,20 @@ ml = ["reasoning", "iaga-sentinel-reasoning/ml"]
 # the eBPF/LSM scaffold (Linux-only; the actual loader lands in M4.1).
 kernel = ["dep:iaga-sentinel-kernel"]
 linux-bpf = ["kernel", "iaga-sentinel-kernel/linux-bpf"]
-# OSS 1.2 — Sigstore bundle + CycloneDX SBOM offline attestation primitive
-# for plugin supply-chain integrity (ADR 0013). Default off — the trust-on-path
+# OSS 1.2, Sigstore bundle + CycloneDX SBOM offline attestation primitive
+# for plugin supply-chain integrity (ADR 0013). Default off, the trust-on-path
 # model remains the 1.0/1.1 default. Enterprise hosted marketplace + supply-chain
 # SLA + curated threat-intel feed are *not* in OSS; see ENTERPRISE.md.
 plugin-attestation = ["plugins", "dep:base64"]
+# OSS roadmap primitive: emit each signed receipt as an OpenTelemetry span
+# into the in-process telemetry feed (surfaced on /v1/telemetry/spans and
+# /v1/telemetry/export). Default off, no new dependency. Implies `receipts`.
+otel-receipts = ["receipts"]
+# OSS roadmap primitive: Ed25519-signed plugin manifests, verified at
+# verify-time against trusted keys, on top of and orthogonal to the
+# Sigstore/SBOM attestation. Default off. Implies `receipts` (for the
+# signer) and pulls ed25519-dalek for verification.
+plugin-manifest-signing = ["receipts", "dep:ed25519-dalek"]
 
 [dependencies]
 # workspace-inherited (shared with future crates)
@@ -88,12 +94,12 @@ futures-core = "0.3"
 
 # optional features
 wasmtime = { version = "36.0.8", optional = true }
-rust-embed = { version = "8", optional = true, features = ["interpolate-folder-path"] }
 iaga-sentinel-receipts = { path = "../iaga-sentinel-receipts", optional = true }
 iaga-sentinel-apl = { path = "../iaga-sentinel-apl", optional = true }
 iaga-sentinel-reasoning = { path = "../iaga-sentinel-reasoning", optional = true }
 iaga-sentinel-kernel = { path = "../iaga-sentinel-kernel", optional = true }
 base64 = { version = "0.22", optional = true }
+ed25519-dalek = { workspace = true, optional = true }
 
 [dev-dependencies]
 proptest = "1.6"

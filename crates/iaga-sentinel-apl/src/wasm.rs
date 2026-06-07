@@ -1,14 +1,14 @@
-//! OSS 1.2 — APL → WebAssembly codegen scaffolding (ADR 0014).
+//! OSS 1.2, APL → WebAssembly codegen scaffolding (ADR 0014).
 //!
 //! **Scope MVP 1.2**: emit a valid WASM module for the subset of
-//! APL expressions that does not touch host context — literals,
+//! APL expressions that does not touch host context, literals,
 //! boolean / numeric / comparison binary ops, and unary `not`.
 //! The resulting module exports an `eval_policy_<n>(): i32` function
 //! per policy, returning `1` when the `when` clause evaluates to
 //! true (the policy fires) and `0` otherwise.
 //!
-//! Expressions that depend on the runtime context — `Path(...)`,
-//! `Call(name, args)` for any builtin, `Membership` — are
+//! Expressions that depend on the runtime context, `Path(...)`,
+//! `Call(name, args)` for any builtin, `Membership`, are
 //! **explicitly rejected** by `compile_to_wasm`. Those cases need a
 //! host-import ABI (read JSON context from linear memory, call
 //! host functions for string ops) that is out of scope for the
@@ -17,7 +17,7 @@
 //! primitive needed to demonstrate the WASM lowering path.
 //!
 //! Enterprise AOT optimization (cranelift opt-levels, JIT tuning,
-//! WASI side-effect policies) is **not** in OSS — see
+//! WASI side-effect policies) is **not** in OSS, see
 //! ENTERPRISE.md.
 
 use thiserror::Error;
@@ -29,7 +29,7 @@ use wasm_encoder::{
 use crate::ast::{BinOp, Expr, Lit, Program, UnOp};
 
 /// Opaque WASM module compiled from a [`Program`]. Holds the encoded
-/// bytes — host loaders that want to execute it should feed
+/// bytes, host loaders that want to execute it should feed
 /// [`WasmProgram::bytes`] into wasmtime / wasmer / browser
 /// `WebAssembly.instantiate`.
 #[derive(Debug, Clone)]
@@ -135,7 +135,7 @@ fn emit_expr(expr: &Expr, f: &mut Function) -> Result<(), WasmCompileError> {
             f.instruction(&Instruction::I32Const(if *b { 1 } else { 0 }));
         }
         Expr::Lit(Lit::Int(n)) => {
-            // Truncate to i32 — full i64 path is 1.2.x follow-up.
+            // Truncate to i32, full i64 path is 1.2.x follow-up.
             let n32 = *n as i32;
             f.instruction(&Instruction::I32Const(n32));
         }

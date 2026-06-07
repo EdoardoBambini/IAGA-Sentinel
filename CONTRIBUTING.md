@@ -1,8 +1,8 @@
 # Contributing to IAGA Sentinel
 
-Thanks for considering a contribution. IAGA Sentinel is a zero-trust
-governance kernel for autonomous AI agents. We optimize for: deterministic
-behavior, signed audit trails, and honest enforcement posture. Anything
+Thanks for considering a contribution. IAGA Sentinel is the EU AI Act conformity
+evidence layer for AI agents. We optimize for: deterministic
+behavior, signed audit trails, and an honest enforcement posture. Anything
 that strengthens those properties is welcome.
 
 ## Quick start
@@ -39,7 +39,7 @@ locally, add `--features ml` to `cargo build` / `cargo test` for the
 If your change introduces a new capability, alters a public trait, or
 shifts an architectural boundary, add an ADR under
 [`docs/adr/`](docs/adr/) following the numbering and template of the
-existing ones (0001–0014, 0009 is intentionally unused). Keep it
+existing ones (0001-0014, 0009 is intentionally unused). Keep it
 short: context, decision,
 consequences, what's deliberately out of scope.
 
@@ -103,13 +103,13 @@ What this means in practice for contributors:
   [`IAGA_SENTINEL_1.0.md`](IAGA_SENTINEL_1.0.md) §9 and we honour it.
 - If you want to discuss building something Enterprise-only (a
   vertical compliance pack, a SIEM connector, a notified-body
-  workflow), email `enterprise@iaga.start@gmail.com` rather than
+  workflow), email `info@iaga.tech` or `info@edoardobambini.dev` rather than
   opening a PR here.
 
 ## Security
 
 If you find a security issue that should not be reported publicly,
-email `iaga.start@gmail.com` rather than opening a public issue.
+email `info@iaga.tech` or `info@edoardobambini.dev` rather than opening a public issue.
 We'll respond within a reasonable timeframe and coordinate disclosure.
 
 ## Questions

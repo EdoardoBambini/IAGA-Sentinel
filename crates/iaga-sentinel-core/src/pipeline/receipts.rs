@@ -6,7 +6,7 @@
 //!   stored verdict is translated into a signed `Receipt` appended to the
 //!   Merkle chain of the corresponding `run_id` (mapped from `trace_id` /
 //!   `event_id`). A failure in the receipt path must never fail the
-//!   governance decision — errors are logged at warn level and swallowed.
+//!   governance decision, errors are logged at warn level and swallowed.
 //! - The trait is defined here so callers can remain feature-agnostic:
 //!   `state.receipts: Option<Arc<dyn ReceiptLogger>>` is `None` when the
 //!   `receipts` cargo feature is disabled and the concrete impl is absent.
@@ -56,7 +56,7 @@ pub trait ReceiptLogger: Send + Sync {
 /// - the host cannot resolve a signer key path (e.g. no `HOME` on a
 ///   restricted environment), or
 /// - the SQLite/Postgres receipt store fails to open (errors are
-///   logged and swallowed — receipts must never break the pipeline
+///   logged and swallowed, receipts must never break the pipeline
 ///   startup path).
 ///
 /// `policy_hash` is the SHA-256 hex digest of the active policy
@@ -183,7 +183,7 @@ mod signed {
 
             // M3.5: lift ML evidence (model digests + scores) into the
             // receipt body. Empty / None when no reasoning engine is
-            // wired or the engine produced no evidence — receipt stays
+            // wired or the engine produced no evidence, receipt stays
             // bit-identical to M2 in that case.
             let (model_digests, ml_scores) = match evidence {
                 Some(ev)
@@ -209,7 +209,7 @@ mod signed {
 
             // 1.2: optional drift-replay capture, gated by env. When
             // unset (default), all three fields stay `None` and are
-            // elided from signing_bytes — 1.1 byte-equality preserved.
+            // elided from signing_bytes, 1.1 byte-equality preserved.
             let (pipeline_inputs_capture, apl_eval_trace, ml_inference_inputs) =
                 if capture_enabled() {
                     let input_h = Self::input_hash(event);
@@ -266,6 +266,11 @@ mod signed {
                     return;
                 }
             };
+
+            // Additive, opt-in: surface the receipt in the OpenTelemetry feed.
+            #[cfg(feature = "otel-receipts")]
+            crate::modules::telemetry::otel_emitter::emit_receipt_span(&receipt);
+
             if let Err(e) = self.store.append(&receipt).await {
                 warn!(run_id = %run_id, error = %e, "receipt append failed");
             }

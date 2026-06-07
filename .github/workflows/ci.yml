@@ -89,7 +89,7 @@ jobs:
 
       - name: Run iaga-sentinel-receipts tests with `postgres` feature (1.2)
         run: cargo build -p iaga-sentinel-receipts --features postgres
-        # No live postgres in this job — feature compile-check only.
+        # No live postgres in this job, feature compile-check only.
         # Promotion to full --features postgres test execution (with a
         # postgres:16-alpine service container) is on the 1.3 roadmap.
 
@@ -102,15 +102,6 @@ jobs:
       - name: Compile Python SDK
         working-directory: sdks/python
         run: python -m compileall iaga_sentinel
-
-      - name: Build UI (for ui-embed)
-        working-directory: ui
-        run: |
-          npm ci
-          npm run build
-
-      - name: Verify ui-embed feature compiles
-        run: cargo build -p iaga-sentinel-core --features ui-embed
 
   build:
     name: Build
@@ -150,7 +141,7 @@ jobs:
 
   compile-sanity:
     # 1.2: best-effort cross-platform compile check. Does not gate
-    # release (continue-on-error: true) — promotion to a required
+    # release (continue-on-error: true), promotion to a required
     # status is on the 1.3 roadmap when the macOS Endpoint Security
     # backend and Windows ETW backend land in Enterprise / OSS-1.x.
     name: Compile sanity (${{ matrix.os }})

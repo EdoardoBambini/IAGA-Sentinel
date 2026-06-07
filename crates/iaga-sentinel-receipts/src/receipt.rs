@@ -1,4 +1,4 @@
-//! Signed action receipt — the unit of the Merkle append-log.
+//! Signed action receipt, the unit of the Merkle append-log.
 //!
 //! A Receipt is the signed record of a single governance verdict. Receipts
 //! for the same `run_id` form a hash-linked chain via `parent_hash`. The
@@ -65,7 +65,7 @@ pub struct MlScoreBundle(pub serde_json::Value);
 /// When the env is unset, the field is `None` and is elided from
 /// `signing_bytes` via `skip_serializing_if`, so receipts produced by
 /// 1.2.0 with capture off are **byte-identical** to receipts produced
-/// by 1.1.0 — the chain link and signature stay stable.
+/// by 1.1.0, the chain link and signature stay stable.
 ///
 /// Forensic time-travel (event-sourcing + DB-state-per-verdict snapshots)
 /// is intentionally out of scope here and lives in IAGA Sentinel
@@ -112,7 +112,7 @@ pub struct AplEvalTrace {
 /// tokenized input digest per model consulted, so a `--re-execute`
 /// pass can confirm the same bytes drove the inference.
 ///
-/// Stores **digests only**, never raw tokenized input — that would
+/// Stores **digests only**, never raw tokenized input, that would
 /// leak request content into receipts and breaks the
 /// "operator can publish receipts without leaking customer data"
 /// posture.
@@ -134,7 +134,7 @@ pub struct MlTokenDigest {
     pub tokenized_sha256: String,
 }
 
-/// Canonical form of a receipt — everything except the signature itself.
+/// Canonical form of a receipt, everything except the signature itself.
 /// This is what gets signed: stable serialization, no extraneous fields.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReceiptBody {

@@ -1,7 +1,7 @@
 //! Structural validator for APL programs.
 //!
 //! This is **not** a full type checker. For M3 the evaluator is
-//! dynamically typed against a JSON-ish `Value` — runtime errors from
+//! dynamically typed against a JSON-ish `Value`, runtime errors from
 //! type mismatches are normal and produce `AplError::Eval`. What this
 //! validator enforces are *structural* invariants that catch obvious
 //! mistakes before eval time:
@@ -11,7 +11,7 @@
 //! - known builtin calls have the right arity,
 //! - identifier paths have non-empty head segments.
 //!
-//! A full Hindley–Milner style type checker is an M3.1 follow-up and
+//! A full Hindley-Milner style type checker is an M3.1 follow-up and
 //! will share the AST.
 
 use std::collections::HashSet;
@@ -68,7 +68,7 @@ fn validate_expr(e: &Expr) -> Result<()> {
                     )));
                 }
             }
-            // unknown-name calls pass through — user extensions can
+            // unknown-name calls pass through, user extensions can
             // register dynamic builtins at eval time.
             for a in args {
                 validate_expr(a)?;

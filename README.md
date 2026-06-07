@@ -1,18 +1,24 @@
 <h1 align="center">IAGA Sentinel</h1>
 
 <p align="center">
-  <strong>Zero-trust governance kernel for autonomous AI agents.</strong>
+  <strong>The EU AI Act conformity evidence layer for AI agents.</strong>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.2.0-blue" alt="version" />
-  <img src="https://img.shields.io/badge/license-BUSL--1.1-blue" alt="license" />
-  <img src="https://img.shields.io/badge/12%20layers-defense%20in%20depth-green" alt="12 layers" />
-  <img src="https://img.shields.io/badge/Rust-stable-orange" alt="Rust" />
+  Cryptographically signed, replay-verifiable, EU-sovereign proof of every action an agent takes, mapped to AI Act Article 12 and Annex IV.
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/version-1.3.0-0f9d6b?style=flat-square" alt="version" />
+  <img src="https://img.shields.io/badge/license-BUSL--1.1-0f9d6b?style=flat-square" alt="license" />
+  <img src="https://img.shields.io/badge/EU%20AI%20Act-Art.%2012%20and%20Annex%20IV-0B0F0E?style=flat-square" alt="EU AI Act Article 12 and Annex IV" />
+  <img src="https://img.shields.io/badge/tests-265%20passing-0f9d6b?style=flat-square" alt="tests" />
+  <img src="https://img.shields.io/badge/Rust-stable-0B0F0E?style=flat-square" alt="Rust" />
 </p>
 
 <p align="center">
   <a href="#what-iaga-sentinel-is">What IAGA Sentinel is</a> ·
+  <a href="#eu-ai-act-mapping">EU AI Act mapping</a> ·
   <a href="#quickstart">Quickstart</a> ·
   <a href="#features">Features</a> ·
   <a href="#architecture">Architecture</a> ·
@@ -21,53 +27,54 @@
 </p>
 
 <p align="center">
-  <img src="media/hero.gif" alt="IAGA Sentinel — kernel-enforced governance for autonomous agents" width="720" />
+  <img src="media/hero.gif" alt="IAGA Sentinel, signed tamper-evident audit for AI agents" width="720" />
 </p>
 
 ---
 
 ## What IAGA Sentinel is
 
-Three things in one binary, glued by a typed deterministic policy language:
+IAGA Sentinel (repository: IAGA-Sentinel) sits next to your AI agents and answers the one question the agent itself cannot. Agents now touch the shell, the filesystem, databases, third-party APIs, and secrets. When a regulator, an auditor, or your own DPO asks you to prove what an agent did, and to prove the record was not altered after the fact, most teams have nothing to show. IAGA Sentinel produces that proof. Every governance verdict becomes an Ed25519-signed receipt linked into a Merkle append-log, verifiable offline, bit-exact on replay. The record is structured to line up with what the EU AI Act asks for in Article 12, automatic event logging over the system lifetime, and it feeds the Annex IV technical documentation a high-risk system needs by 2 August 2026.
 
-1. **A kernel.** IAGA Sentinel sits below the agent SDK. Process launches go
-   through `iaga run`, which consults the governance pipeline before
-   spawning. The 0.4.0 HTTP sidecar still works for SDK-aware agents;
-   the kernel is the chokepoint for everything else.
-2. **A signed log.** Every governance verdict produces an Ed25519-signed
-   receipt linked to the previous one in a Merkle append-log per run.
-   Replay verifies the chain bit-exact and detects policy drift. The
-   signer is a pluggable trait (`LocalDiskSigner` ships in OSS), and
-   receipts can optionally capture the pipeline inputs that drove each
-   verdict so a run can be re-executed against the current policy.
-3. **A reasoning brain.** Optional ML models (ONNX, opt-in) emit
-   evidence — never verdicts. The deterministic policy decides; ML
-   produces scores the policy can read. Receipts embed the SHA-256 of
-   every model that touched the decision.
+> [!IMPORTANT]
+> Today IAGA Sentinel enforces softly and certifies hard. The signed evidence and the replay are real and verifiable now, from a clean checkout. Authoritative kernel-level enforcement (eBPF/LSM) is not in this open build; it lives on the Enterprise roadmap, and `iaga kernel status` says so by reporting `authoritative: no`. Until that ships, the value here is the proof, not the block. We do not market enforcement we do not provide.
 
-All driven by APL: a typed DSL with deterministic tree-walk evaluation
-and a Hindley-Milner type checker, loadable as a `--policy` overlay on
-top of the YAML profile system, with an optional WASM codegen path.
+> [!TIP]
+> The proof does not depend on us. Anyone can verify a receipt chain offline against its Merkle root, with no call home and no trust in IAGA required. A standalone `iaga-verify` tool, with no database and no IAGA binary, runs exactly that check. The evidence is cryptographic, not testimonial. The open build is BUSL-1.1 that converts to Apache-2.0, so you can run it air-gapped and keep it even if IAGA disappears. For EU teams that is sovereignty by construction: the evidence stays in your hands, with no CLOUD Act exposure.
 
-### What 1.2 adds
+IAGA Sentinel is a layer, not a replacement. It records signed evidence next to the agent stack you already run. Point any SDK at the HTTP sidecar (`POST /v1/inspect`), or run the MCP proxy to sign every tool call between an MCP client and its server. Whatever routes or enforces underneath, the evidence layer goes on top of it. The signed evidence can also flow into your OpenTelemetry stack as spans, so it lands next to the rest of your observability.
 
-The current release is the **primitive evolution release** — four
-additive, opt-in capabilities, zero breaking changes against 1.1
-(full notes in [`IAGA_SENTINEL_1.2.md`](IAGA_SENTINEL_1.2.md)):
+Under the hood it is three things in one binary, and the kernel is the mechanism that generates the evidence, not the headline.
 
-1. **`Signer` trait + `LocalDiskSigner`** — the receipt signer is now a
-   public trait. KMS-backed signers plug in behind it (Enterprise);
-   the filesystem-mount BYOK pattern stays OSS.
-2. **Drift-replay capture** — `iaga replay --re-execute`, gated by
-   `IAGA_SENTINEL_RECEIPT_CAPTURE=1`. Off by default and byte-identical
-   to 1.1 receipts when off.
-3. **Plugin Sigstore + SBOM attestation** — offline bundle + CycloneDX
-   verification via `iaga plugins verify` (feature `plugin-attestation`).
-4. **APL Hindley-Milner type checker + WASM codegen** — `iaga policy
-   check` (always on) and `iaga policy compile` (feature `apl-wasm`).
+1. A kernel. IAGA Sentinel can sit below the agent SDK. Process launches go through `iaga run`, which consults the governance pipeline before spawning. The 0.4.0 HTTP sidecar still works for SDK-aware agents; the kernel is the chokepoint for everything else. A generic policy kernel stops an action. IAGA Sentinel also leaves a signed, regulator-readable record that it did.
+2. A signed log. Every governance verdict produces an Ed25519-signed receipt linked to the previous one in a Merkle append-log per run. Replay verifies the chain bit-exact and detects policy drift. The signer is a pluggable trait (`LocalDiskSigner` ships in the open build), and receipts can optionally capture the pipeline inputs that drove each verdict so a run can be re-executed against the current policy.
+3. A reasoning brain. Optional ML models (ONNX, opt-in) emit evidence, never verdicts. The deterministic policy decides; ML produces scores the policy can read. Receipts embed the SHA-256 of every model that touched the decision.
 
-Everything is feature-flagged off by default: a 1.1 → 1.2 upgrade is
-risk-free, the binary behaves identically until you opt in.
+All of it is driven by APL: a typed DSL with deterministic tree-walk evaluation and a Hindley-Milner type checker, loadable as a `--policy` overlay on top of the YAML profile system, with an optional WASM codegen path.
+
+Also in the open build: a pluggable `Signer` trait with filesystem BYOK, optional drift-replay capture (`iaga replay --re-execute`), offline Sigstore and SBOM plugin attestation (`iaga plugins verify`), the APL Hindley-Milner type checker (`iaga policy check`) with an optional WASM codegen path (`iaga policy compile`), a standalone offline receipt verifier (`iaga-verify`), optional OpenTelemetry receipt export (`otel-receipts`), and Ed25519-signed plugin manifests (`iaga plugins sign-manifest`). Optional capabilities are feature-flagged off by default; the binary behaves identically until you opt in.
+
+---
+
+<p align="center">
+  <img src="media/loop-3.gif" alt="A signed receipt linked into a Merkle chain, verifiable offline" width="640" />
+</p>
+
+## EU AI Act mapping
+
+The open build demonstrates the record-keeping and integrity obligations directly. The dossier-shaped obligations (Annex IV documents, qualified signatures, incident notifications) are Enterprise work and are labelled as such. Nothing in this table is sold as shipping in the open build unless the status says so.
+
+| Obligation | Mechanism in IAGA Sentinel | Status |
+|---|---|---|
+| Article 12, automatic event logging over the system lifetime | Ed25519-signed receipt per verdict, Merkle append-log per run | Ships in the open build, verifiable offline |
+| Integrity of records | `iaga replay <run_id> --verify-only`, bit-exact replay, drift detection | Ships in the open build |
+| Documented risk controls | APL typed policies plus the Hindley-Milner type checker (`iaga policy check`) | Ships in the open build |
+| Article 11 plus Annex IV technical documentation | dossier generation from the receipt chain | Enterprise, roadmap |
+| Records with legal weight (eIDAS) | qualified signatures via a Trust Service Provider | Enterprise, roadmap |
+| Article 72, post-market monitoring | continuous drift monitoring | Enterprise (the open build ships the drift-replay primitive, not the monitoring product) |
+| Article 73, serious incident reporting | AI Office notification generation | Enterprise, roadmap |
+
+The article-by-article mapping across the AI Act, GDPR, and DORA, and what Enterprise turns each obligation into, is in [`ENTERPRISE.md`](ENTERPRISE.md).
 
 ---
 
@@ -103,13 +110,13 @@ iaga policy lint crates/iaga-sentinel-apl/examples/no_pii_egress.apl
 iaga policy test crates/iaga-sentinel-apl/examples/no_pii_egress.apl \
     --context crates/iaga-sentinel-apl/examples/sample_context.json
 
-# 1.2 — Hindley-Milner type-check (always available)
+# 1.2: Hindley-Milner type-check (always available)
 iaga policy check crates/iaga-sentinel-apl/examples/no_pii_egress.apl
 
-# 1.2 — compile APL to a WASM module (requires --features apl-wasm)
+# 1.2: compile APL to a WASM module (requires --features apl-wasm)
 iaga policy compile policy.apl --output policy.wasm
 
-# 1.2 — verify a plugin's Sigstore bundle + SBOM (requires --features plugin-attestation)
+# 1.2: verify a plugin's Sigstore bundle + SBOM (requires --features plugin-attestation)
 iaga plugins verify ./plugins/my-plugin.wasm
 
 # Inspect kernel + reasoning posture
@@ -125,7 +132,7 @@ iaga serve --policy crates/iaga-sentinel-core/examples/policies/strict.apl
 ```bash
 # Generate an API key once
 iaga gen-key --label my-app
-# → Key: iaga_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# -> Key: iaga_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 # Inspect via HTTP. Auth header is `Authorization: Bearer <key>`.
 # Payload uses camelCase: agentId, toolName, actionType.
@@ -147,14 +154,11 @@ curl -X POST http://localhost:7777/v1/inspect \
 
 ```bash
 docker compose up -d
-curl http://localhost:4010/health     # → 200
+curl http://localhost:4010/health     # -> 200
 docker compose down
 ```
 
-The container persists its DB and signer key in a named volume
-(`iaga-sentinel-data`). Receipts signed inside the container can only be
-verified by the same container; to share a signer key across deployments
-mount your own key file or set `IAGA_SENTINEL_SIGNER_KEY_PATH`.
+The container persists its DB and signer key in a named volume (`iaga-sentinel-data`). Receipts signed inside the container can only be verified by the same container. To share a signer key across deployments, mount your own key file or set `IAGA_SENTINEL_SIGNER_KEY_PATH`.
 
 ### Postgres
 
@@ -181,26 +185,32 @@ Cargo features on `iaga-sentinel-core`:
 | `ml`         | ❌      | `tract-onnx` ML backend; opt-in, +~5 MB binary, +~2 min cold compile.  |
 | `kernel`     | ✅      | Enforcement kernel + `iaga run` + `iaga kernel status` (M4).         |
 | `linux-bpf`  | ❌      | Linux eBPF/LSM scaffold + ringbuf API. Real Aya-rs loader lives in IAGA Sentinel Enterprise. |
-| `ui-embed`   | ❌      | Embeds `ui/dist/` into the binary via `rust-embed`.                    |
 | `plugin-attestation` | ❌ | Offline Sigstore bundle + CycloneDX SBOM verify + `iaga plugins verify` (1.2). |
-| `apl-wasm`   | ❌      | APL → WASM codegen MVP + `iaga policy compile` (1.2). The Hindley-Milner type checker (`iaga policy check`) is always on, no feature needed. |
+| `apl-wasm`   | ❌      | APL to WASM codegen MVP + `iaga policy compile` (1.2). The Hindley-Milner type checker (`iaga policy check`) is always on, no feature needed. |
+| `otel-receipts` | ❌ | Emit each signed receipt as an OpenTelemetry span on `/v1/telemetry/spans` and `/v1/telemetry/export`, so any OTel stack ingests the evidence (1.3). No new dependency. |
+| `plugin-manifest-signing` | ❌ | Ed25519-signed plugin manifests verified at load against trusted keys, plus `iaga plugins sign-manifest` and `verify-manifest` (1.3). Orthogonal to `plugin-attestation`. |
 
 `default = ["demo", "sqlite", "receipts", "apl", "reasoning", "kernel"]`.
 
+The standalone verifier `iaga-verify` (crate `iaga-sentinel-verify`) is a separate, dependency-light binary. Export a run with `iaga replay <run_id> --export run.json`, then `iaga-verify run.json --key <hex>` checks the Ed25519 signatures and the Merkle chain offline, with no database and no IAGA binary. It is the artifact you hand an auditor.
+
 ---
+
+<p align="center">
+  <img src="media/loop-2.gif" alt="An APL policy evaluating an agent action to allow, review, or block" width="640" />
+</p>
 
 ## Architecture
 
-12 layers of defense in depth, organized into 7 architectural pillars
-described in [`IAGA_SENTINEL_1.0.md`](IAGA_SENTINEL_1.0.md):
+12 layers of defense in depth, organized into 7 architectural pillars described in [`IAGA_SENTINEL_1.0.md`](IAGA_SENTINEL_1.0.md):
 
-1. **Enforcement Kernel** — `crates/iaga-sentinel-kernel/` (M4 scaffold + `UserspaceKernel` cross-platform soft enforcement; real eBPF/LSM loader + macOS ES + Windows ETW/WFP backends in IAGA Sentinel Enterprise).
-2. **Signed Receipts** — `crates/iaga-sentinel-receipts/` (M2).
-3. **Agent Policy Language** — `crates/iaga-sentinel-apl/` (M3 tree-walk + M6 live overlay + 1.2 Hindley-Milner type checker; 1.2 WASM codegen MVP behind `apl-wasm` feature, full coverage in 1.3).
-4. **Attested Plugins** — supply-chain integrity. 1.2 offline Sigstore + SBOM CycloneDX primitive behind `plugin-attestation` feature; private hosted marketplace + supply-chain SLA + signed threat-intel feed in Enterprise.
-5. **Governance Mesh** — single-cluster baseline + tier-2 multi-region active-active live in Enterprise.
-6. **Visual Plane** — `ui/` embedded via `ui-embed` feature.
-7. **Probabilistic Reasoning** — `crates/iaga-sentinel-reasoning/` (M3.5 scaffold + `tract` backend + BYO ONNX; curated ML library in Enterprise).
+1. Enforcement Kernel: `crates/iaga-sentinel-kernel/` (M4 scaffold plus `UserspaceKernel` cross-platform soft enforcement; real eBPF/LSM loader plus macOS ES plus Windows ETW/WFP backends in IAGA Sentinel Enterprise).
+2. Signed Receipts: `crates/iaga-sentinel-receipts/` (M2).
+3. Agent Policy Language: `crates/iaga-sentinel-apl/` (M3 tree-walk plus M6 live overlay plus 1.2 Hindley-Milner type checker; 1.2 WASM codegen MVP behind the `apl-wasm` feature, full coverage in 1.3).
+4. Attested Plugins: supply-chain integrity. 1.2 ships the offline Sigstore plus SBOM CycloneDX primitive behind the `plugin-attestation` feature; private hosted marketplace plus supply-chain SLA plus signed threat-intel feed in Enterprise.
+5. Governance Mesh: single-cluster baseline plus tier-2 multi-region active-active in Enterprise.
+6. Visual Plane: the operator dashboard served at `/` (`crates/iaga-sentinel-core/src/dashboard/`).
+7. Probabilistic Reasoning: `crates/iaga-sentinel-reasoning/` (M3.5 scaffold plus `tract` backend plus BYO ONNX; curated ML library in Enterprise).
 
 Workspace layout:
 
@@ -212,11 +222,10 @@ iaga-sentinel/
 │   ├── iaga-sentinel-apl/           # APL parser + evaluator
 │   ├── iaga-sentinel-reasoning/     # ML evidence (tract-onnx behind `ml`)
 │   └── iaga-sentinel-kernel/        # cross-platform launcher + eBPF scaffold
-├── docs/adr/                # 13 ADRs (0001–0014, no 0009)
-├── ui/                      # frontend (embedded via ui-embed feature)
+├── docs/adr/                # 13 ADRs (0001 to 0014, no 0009)
 ├── media/                   # hero assets
-├── IAGA_SENTINEL_1.0.md       # design document (+ 1.1, 1.2 release notes)
-├── MIGRATION.md             # 0.4.0 → 1.0 → 1.1 → 1.2 per-milestone notes
+├── IAGA_SENTINEL_1.0.md     # design document (plus 1.1, 1.2 release notes)
+├── MIGRATION.md             # 0.4.0 to 1.0 to 1.1 to 1.2 per-milestone notes
 └── CHANGELOG.md             # release notes
 ```
 
@@ -224,238 +233,116 @@ iaga-sentinel/
 
 ## Documentation
 
-- **Design**:
+- Design:
   [`IAGA_SENTINEL_1.0.md`](IAGA_SENTINEL_1.0.md),
   [`IAGA_SENTINEL_1.1.md`](IAGA_SENTINEL_1.1.md),
-  [`IAGA_SENTINEL_1.2.md`](IAGA_SENTINEL_1.2.md)
-- **Migration from 0.4.0**: [`MIGRATION.md`](MIGRATION.md)
-- **Release notes**: [`CHANGELOG.md`](CHANGELOG.md)
-- **Architectural decisions**:
-  - [ADR 0001 — Workspace split](docs/adr/0001-workspace-split.md)
-  - [ADR 0002 — Open-source license + scope decisions](docs/adr/0002-open-source-license-and-scope.md)
-  - [ADR 0003 — Signed receipts design](docs/adr/0003-signed-receipts-design.md)
-  - [ADR 0004 — APL MVP](docs/adr/0004-apl-mvp.md)
-  - [ADR 0005 — Reasoning plane MVP](docs/adr/0005-reasoning-plane-mvp.md)
-  - [ADR 0006 — Kernel MVP](docs/adr/0006-kernel-mvp.md)
-  - [ADR 0007 — M5 hardening + RC posture](docs/adr/0007-m5-hardening-rc.md)
-  - [ADR 0008 — APL as live policy engine](docs/adr/0008-apl-as-live-policy-engine.md)
-  - [ADR 0010 — OSS↔Enterprise boundary clarification](docs/adr/0010-oss-enterprise-boundary.md)
-  - [ADR 0011 — `Signer` trait + `LocalDiskSigner` (OSS 1.2)](docs/adr/0011-signer-trait-and-local-disk.md)
-  - [ADR 0012 — Drift replay additive (OSS 1.2)](docs/adr/0012-drift-replay-additive.md)
-  - [ADR 0013 — Plugin Sigstore + SBOM attestation (OSS 1.2)](docs/adr/0013-plugin-attestation.md)
-  - [ADR 0014 — APL HM type checker + WASM codegen scaffolding (OSS 1.2)](docs/adr/0014-apl-wasm-and-types.md)
-- **Contributing**: [`CONTRIBUTING.md`](CONTRIBUTING.md)
+  [`IAGA_SENTINEL_1.2.md`](IAGA_SENTINEL_1.2.md),
+  [`IAGA_SENTINEL_1.3.md`](IAGA_SENTINEL_1.3.md)
+- Migration from 0.4.0: [`MIGRATION.md`](MIGRATION.md)
+- Release notes: [`CHANGELOG.md`](CHANGELOG.md)
+- Architectural decisions:
+  - [ADR 0001: Workspace split](docs/adr/0001-workspace-split.md)
+  - [ADR 0002: License and scope decisions](docs/adr/0002-open-source-license-and-scope.md)
+  - [ADR 0003: Signed receipts design](docs/adr/0003-signed-receipts-design.md)
+  - [ADR 0004: APL MVP](docs/adr/0004-apl-mvp.md)
+  - [ADR 0005: Reasoning plane MVP](docs/adr/0005-reasoning-plane-mvp.md)
+  - [ADR 0006: Kernel MVP](docs/adr/0006-kernel-mvp.md)
+  - [ADR 0007: M5 hardening + RC posture](docs/adr/0007-m5-hardening-rc.md)
+  - [ADR 0008: APL as live policy engine](docs/adr/0008-apl-as-live-policy-engine.md)
+  - [ADR 0010: OSS to Enterprise boundary clarification](docs/adr/0010-oss-enterprise-boundary.md)
+  - [ADR 0011: `Signer` trait + `LocalDiskSigner` (1.2)](docs/adr/0011-signer-trait-and-local-disk.md)
+  - [ADR 0012: Drift replay additive (1.2)](docs/adr/0012-drift-replay-additive.md)
+  - [ADR 0013: Plugin Sigstore + SBOM attestation (1.2)](docs/adr/0013-plugin-attestation.md)
+  - [ADR 0014: APL HM type checker + WASM codegen scaffolding (1.2)](docs/adr/0014-apl-wasm-and-types.md)
+  - [ADR 0015: Standalone receipt verifier + run export (1.3)](docs/adr/0015-standalone-receipt-verifier.md)
+  - [ADR 0016: OpenTelemetry receipt export (1.3)](docs/adr/0016-otel-receipt-export.md)
+  - [ADR 0017: Ed25519 signed plugin manifests (1.3)](docs/adr/0017-signed-plugin-manifests.md)
+- Security and vulnerability reporting: [`SECURITY.md`](SECURITY.md)
+- Data handling and privacy: [`DATA_HANDLING.md`](DATA_HANDLING.md)
+- Contributing: [`CONTRIBUTING.md`](CONTRIBUTING.md)
 
 ---
 
 ## Status
 
-**1.0 GA shipped.** All six 1.0 milestones complete, 234/234 default
-tests passing, clippy `--all-targets -D warnings` clean. **1.1.0
-released as a consolidation minor** (binary swap, zero runtime change,
-boundary clarification only). **1.2.0 ships the four reinstated
-primitives** — see [`IAGA_SENTINEL_1.2.md`](IAGA_SENTINEL_1.2.md).
+The open build is shipped and tested: 265/265 default tests pass, clippy `--all-targets -D warnings` clean. The current release is 1.3.0; per-release notes are in [`IAGA_SENTINEL_1.3.md`](IAGA_SENTINEL_1.3.md) and [`CHANGELOG.md`](CHANGELOG.md).
 
-What's intentionally honest about the posture:
+What is intentionally honest about the posture:
 
-- `iaga kernel status` reports `authoritative: no (soft enforcement)`
-  on `UserspaceKernel`. The real Aya-rs eBPF/LSM loader (Linux,
-  authoritative kernel enforcement) lives in IAGA Sentinel Enterprise.
-  We don't market enforcement we don't yet provide in the OSS build.
-- `iaga reasoning info` reports `engine: noop` unless models are
-  configured. The reasoning framework + `TractEngine` + BYO ONNX are
-  in OSS; the curated ML model library (intent-drift /
-  prompt-injection / anomaly-seq pre-trained, signed, threat-intel
-  fed) lives in Enterprise.
-- APL today is tree-walking, fully deterministic, and replay-safe.
-  **1.2 adds the Hindley-Milner type checker** (always available via
-  `iaga policy check`) and a **WASM codegen scaffolding MVP** (gated
-  on the `apl-wasm` Cargo feature) for literal + boolean / numeric /
-  comparison expressions. The tree-walk evaluator remains canonical
-  for the full APL surface; full WASM coverage with host imports for
-  Path / Call / Membership is 1.3 work.
-- macOS Endpoint Security + Windows ETW/WFP kernel backends,
-  governance mesh, native KMS SDK signers (AWS KMS / Azure Key Vault
-  / HashiCorp Vault / PKCS#11), GPU ML — all in IAGA Sentinel
-  Enterprise. The boundary is documented in
-  [`docs/adr/0010-oss-enterprise-boundary.md`](docs/adr/0010-oss-enterprise-boundary.md).
-
-**1.2.0 (shipped)** lands the four primitives ADR 0010 §3
-reinstated to the OSS roadmap:
-
-1. `Signer` trait + `LocalDiskSigner` refactor (ADR 0011).
-2. Drift replay additive + `iaga replay --re-execute` (ADR 0012).
-3. Plugin Sigstore + SBOM CycloneDX offline attestation (ADR 0013,
-   feature `plugin-attestation`).
-4. APL Hindley-Milner type checker + WASM codegen MVP (ADR 0014,
-   feature `apl-wasm`).
-
-All four are additive — no breaking changes against 1.1. Features
-are opt-in; default behaviour matches 1.1 byte-for-byte. The 1.x
-line continues to ship additively.
-
-**1.3 candidates** (no schedule): `iaga policy migrate` (YAML → APL),
-full WASM coverage + parity proptest, postgres CI matrix, dependency
-hardening pass. Larger Enterprise-side capabilities remain in
-[IAGA Sentinel Enterprise](ENTERPRISE.md).
-
----
+- `iaga kernel status` reports `authoritative: no (soft enforcement)` on `UserspaceKernel`. Authoritative kernel-level enforcement (the Aya-rs eBPF/LSM loader on Linux) is not in the open build; it lives on the Enterprise side. We do not market enforcement we do not yet provide.
+- `iaga reasoning info` reports `engine: noop` unless models are configured. The reasoning framework, the `TractEngine`, and BYO ONNX are in the open build. The curated ML model library (intent-drift, prompt-injection, anomaly-seq, pre-trained and signed) lives in Enterprise.
+- APL is tree-walking, fully deterministic, and replay-safe. The Hindley-Milner type checker is always available via `iaga policy check`. The WASM codegen path (`apl-wasm` feature) covers literal and boolean, numeric, comparison expressions; the tree-walk evaluator remains canonical for the full APL surface. Full WASM coverage with host imports for Path, Call, and Membership is not in the open build today.
+- macOS Endpoint Security and Windows ETW/WFP kernel backends, the governance mesh, native KMS SDK signers (AWS KMS, Azure Key Vault, HashiCorp Vault, PKCS#11), and GPU ML live on the Enterprise side. The boundary is documented in [`docs/adr/0010-oss-enterprise-boundary.md`](docs/adr/0010-oss-enterprise-boundary.md).
 
 ---
 
 ## Community vs Enterprise
 
-> **IAGA Sentinel Enterprise: from governance kernel to audit dossier in 14 days.**
+> **IAGA Sentinel Enterprise: from signed evidence to audit dossier in 14 days.**
 
-The governance kernel is the same in both editions. Enterprise adds
-modules that live in a separate commercial repository. The table below
-lists only what is **verifiable today** — what you can clone, build,
-inspect, or call against a running instance. The OSS↔Enterprise
-boundary (20 Enterprise categories + 4 primitives reinstated to OSS
-1.2 roadmap) is documented in
-[`docs/adr/0010-oss-enterprise-boundary.md`](docs/adr/0010-oss-enterprise-boundary.md).
+The open-build core is the same in both editions. Enterprise adds modules that live in a separate commercial repository. The lists below separate what is verifiable today, what you can clone, build, inspect, or call against a running instance, from what is an Enterprise commitment. The boundary (20 Enterprise categories plus 4 primitives reinstated to the open 1.2 roadmap) is documented in [`docs/adr/0010-oss-enterprise-boundary.md`](docs/adr/0010-oss-enterprise-boundary.md).
 
-### What ships in the open-source build today (this repository)
+### What ships in the open build today (this repository)
 
 Verifiable by `git clone && cargo test --workspace && docker compose up -d`:
 
-- **12-layer governance pipeline** — single binary, single endpoint
-  (`POST /v1/inspect`), 259/259 default tests passing.
-- **Signed action receipts** — Ed25519 + Merkle append-log per run,
-  verifiable offline with `iaga replay <run_id> --verify-only`.
-- **Agent Policy Language (APL)** — typed DSL with deterministic
-  tree-walk evaluator, instruction budget, short-circuit evaluation.
-  Try with `iaga policy lint <file.apl>`.
-- **APL live overlay** — load a bundle as `iaga serve --policy
-  <file.apl>`. Stricter-wins merge with the YAML profile system.
-- **Reasoning plane scaffold** — `iaga reasoning info`. Bring your
-  own ONNX models via `--features ml` (`tract` backend, no native
-  deps).
-- **Cross-platform UserspaceKernel** — `iaga run -- <cmd>` spawns
-  governed child processes on Linux, macOS, Windows.
-- **HTTP API with Bearer auth** — `iaga gen-key` then call
-  `POST /v1/inspect` with `Authorization: Bearer <key>`.
-- **SQLite and Postgres backends** — switch by setting
-  `DATABASE_URL=postgres://...` and building with `--features
-  postgres`. Receipts go to the matching backend automatically.
-- **BYOK-ready signer** — `IAGA_SENTINEL_SIGNER_KEY_PATH` lets you point at
-  any 32-byte Ed25519 key file, including one served by your KMS
-  (AWS KMS, Azure Key Vault, HashiCorp Vault, on-prem HSM via the
-  filesystem-mount pattern).
-- **Docker deployment** — `docker compose up -d`, `/health` returns
-  200 within ~10 seconds on the first attempt.
-- **WASM plugin loading** — `iaga plugins list` and `iaga plugins
-  validate <file.wasm>`.
+- 12-layer governance pipeline, single binary, single endpoint (`POST /v1/inspect`), 265/265 default tests passing.
+- Signed action receipts, Ed25519 plus Merkle append-log per run, verifiable offline with `iaga replay <run_id> --verify-only`.
+- Agent Policy Language (APL), a typed DSL with deterministic tree-walk evaluator, instruction budget, short-circuit evaluation. Try `iaga policy lint <file.apl>`.
+- APL live overlay, load a bundle as `iaga serve --policy <file.apl>`. Stricter-wins merge with the YAML profile system.
+- Reasoning plane scaffold, `iaga reasoning info`. Bring your own ONNX models via `--features ml` (`tract` backend, no native deps).
+- Cross-platform `UserspaceKernel`, `iaga run -- <cmd>` spawns governed child processes on Linux, macOS, Windows.
+- HTTP API with Bearer auth, `iaga gen-key` then call `POST /v1/inspect` with `Authorization: Bearer <key>`.
+- SQLite and Postgres backends, switch by setting `DATABASE_URL=postgres://...` and building with `--features postgres`. Receipts go to the matching backend automatically.
+- BYOK-ready signer, `IAGA_SENTINEL_SIGNER_KEY_PATH` points at any 32-byte Ed25519 key file, including one served by your KMS (AWS KMS, Azure Key Vault, HashiCorp Vault, on-prem HSM via the filesystem-mount pattern).
+- Docker deployment, `docker compose up -d`, `/health` returns 200 within about 10 seconds on the first attempt.
+- WASM plugin loading, `iaga plugins list` and `iaga plugins validate <file.wasm>`.
 
-Run the smoke yourself, every claim above is reproducible from a
-clean checkout.
+Run the smoke yourself. Every claim above is reproducible from a clean checkout.
 
 ### What IAGA Sentinel Enterprise adds (separate commercial repository)
 
-Verifiable on request with a sandbox instance — these are concrete
-modules, not promises. Each lives in a separate commercial repo and
-is not feasible to reimplement quickly from the OSS surface alone:
+These modules live in a separate commercial repository. We scope and demonstrate them under NDA. From this repository they are roadmap, not something you can verify by cloning, so treat them as Enterprise commitments rather than open-build features:
 
-- **EU AI Act + GDPR + DORA compliance evidence engine.** Generates
-  Annex IV dossiers, RoPA, DPIA, post-market monitoring reports,
-  EU AI Office incident notifications. PDF + JSON-LD output, signed
-  with qualified e-signatures (eIDAS). Tied to the OSS receipt
-  schema so dossiers cite the chain that produced them.
-- **DPO Dashboard.** Web app for human-in-the-loop review queues,
-  escalation, SLA timers, audit-trailed approvals signed Ed25519 for
-  non-repudiation.
-- **Multi-tenant isolation paths.** Schema-per-tenant DB layer,
-  per-tenant resource quotas, cross-tenant audit isolation,
-  tenant lifecycle management.
-- **Enterprise SSO.** SAML 2.0 + OIDC + SCIM provisioning,
-  fine-grained RBAC with role inheritance, MFA enforcement,
-  IP allowlist per tenant.
-- **eIDAS qualified signature pipeline.** ETSI EN 319 132
-  (XAdES / PAdES / CAdES), Long-Term Validation profile, connectors
-  to specific EU Trust Service Providers. Receipts gain legal
-  weight in EU jurisdictions.
-- **Native SIEM connectors.** Splunk, Datadog, Elastic, Sentinel,
-  Chronicle. Field mappings done; not "send us a webhook".
-- **Air-gapped distribution.** Offline update channel with signed
-  bundle delivery, custom installer, air-gap registry, bundle
-  verification chain.
-- **Founder-led support.** SLA 99.95%, 24/7 oncall handled by the
-  same team that wrote the kernel. No tier-1 ticket triage.
-- **Iaga Cloud managed deployment** — when you do not want to run
-  the box yourself.
+- EU AI Act plus GDPR plus DORA compliance evidence engine. Generates Annex IV dossiers, RoPA, DPIA, post-market monitoring reports, EU AI Office incident notifications. PDF plus JSON-LD output, signed with qualified e-signatures (eIDAS). Tied to the open-build receipt schema so dossiers cite the chain that produced them.
+- DPO Dashboard. Web app for human-in-the-loop review queues, escalation, SLA timers, audit-trailed approvals signed Ed25519 for non-repudiation.
+- Multi-tenant isolation paths. Schema-per-tenant DB layer, per-tenant resource quotas, cross-tenant audit isolation, tenant lifecycle management.
+- Enterprise SSO. SAML 2.0 plus OIDC plus SCIM provisioning, fine-grained RBAC with role inheritance, MFA enforcement, IP allowlist per tenant.
+- eIDAS qualified signature pipeline. ETSI EN 319 132 (XAdES, PAdES, CAdES), Long-Term Validation profile, connectors to specific EU Trust Service Providers. Receipts gain legal weight in EU jurisdictions.
+- Native SIEM connectors. Splunk, Datadog, Elastic, Sentinel, Chronicle. Field mappings done, not "send us a webhook".
+- Air-gapped distribution. Offline update channel with signed bundle delivery, custom installer, air-gap registry, bundle verification chain.
+- Founder-led support. SLA 99.95%, 24/7 oncall handled by the same team that wrote the kernel. No tier-1 ticket triage.
+- Iaga Cloud managed deployment, for when you do not want to run the box yourself.
 
-The compliance pieces require a compliance officer + EU regulatory
-lawyer kept current as the regulator publishes new guidelines. That
-work is what you are paying for, on top of the code itself.
+The compliance pieces require a compliance officer and an EU regulatory lawyer kept current as the regulator publishes new guidelines. That ongoing work is what you pay for, on top of the code itself.
 
 ### Open-core promise
 
-The conceptual governance kernel — receipt schema, replay algorithm,
-APL evaluator (with WASM codegen + Hindley-Milner type checker in OSS
-1.2), reasoning framework with BYO ONNX, `UserspaceKernel`
-cross-platform soft enforcement, `BpfKernel` Linux scaffold with
-honest "soft enforcement" posture, BYOK signer pattern + `Signer`
-trait + `LocalDiskSigner` (OSS 1.2), Sigstore + SBOM plugin
-attestation primitive (OSS 1.2), drift replay additivo (OSS 1.2)
-— is the open-source build. It is licensed under **BUSL-1.1** with
-**Change License: Apache-2.0** baked into the licence itself: four
-years after publication every release converts automatically and
-irrevocably to Apache-2.0. No manual switch, no walk-back possible.
+The conceptual governance kernel is the open build: the receipt schema, the replay algorithm, the APL evaluator (with WASM codegen and the Hindley-Milner type checker in 1.2), the reasoning framework with BYO ONNX, the `UserspaceKernel` cross-platform soft enforcement, the `BpfKernel` Linux scaffold with its honest soft-enforcement posture, the BYOK signer pattern with the `Signer` trait and `LocalDiskSigner` (1.2), the Sigstore plus SBOM plugin attestation primitive (1.2), and drift replay (1.2). It is source available under **BUSL-1.1** with **Change License Apache-2.0** baked into the license itself: four years after publication every release converts automatically and irrevocably to Apache-2.0. No manual switch, no walk-back possible.
 
-The implementations that require specialist engineering at scale —
-real Aya-rs eBPF/LSM loader on Linux, macOS Endpoint Security +
-Windows ETW/WFP backends, governance mesh (single-cluster + tier-2),
-four native KMS SDK backends, curated ML model library — live in
-IAGA Sentinel Enterprise. None of them shipped in OSS 1.0 GA, so
-moving them to Enterprise does not violate the **never retroactively
-remove from OSS** covenant.
+The implementations that require specialist engineering at scale live in IAGA Sentinel Enterprise: the real Aya-rs eBPF/LSM loader on Linux, the macOS Endpoint Security and Windows ETW/WFP backends, the governance mesh (single-cluster plus tier-2), the four native KMS SDK backends, and the curated ML model library. None of them shipped in 1.0 GA, so moving them to Enterprise does not violate the never-retroactively-remove-from-the-open-build covenant.
 
-The full boundary is documented in
-[`docs/adr/0010-oss-enterprise-boundary.md`](docs/adr/0010-oss-enterprise-boundary.md)
-and reinforced in [`IAGA_SENTINEL_1.0.md`](IAGA_SENTINEL_1.0.md) §9 so
-future founders cannot rewrite it.
+The full boundary is documented in [`docs/adr/0010-oss-enterprise-boundary.md`](docs/adr/0010-oss-enterprise-boundary.md) and reinforced in [`IAGA_SENTINEL_1.0.md`](IAGA_SENTINEL_1.0.md) §9 so future maintainers cannot rewrite it.
 
 ### Why Enterprise exists
 
-For teams in regulated environments (banks, insurers, healthcare,
-public sector, critical infrastructure), the question is not *"can
-we be compliant"* — OSS answers that. The question is *"can we
-**prove** it to the auditor / notified body / DPO / regulator
-within two weeks instead of six months"*. Enterprise turns the OSS
-mechanisms into the dossiers, dashboards, and signed evidence packs
-that the EU AI Act, GDPR, and DORA ask for in their acceptance
-language, and gives you a phone number to the people who wrote the
-governance kernel when something goes wrong.
+For teams in regulated environments (banks, insurers, healthcare, public sector, critical infrastructure), the question is not whether you can be compliant; the open build answers that. The question is whether you can prove it to the auditor, the notified body, the DPO, or the regulator within two weeks instead of six months. Enterprise turns the open-build mechanisms into the dossiers, dashboards, and signed evidence packs that the EU AI Act, GDPR, and DORA ask for in their acceptance language, and gives you a phone number to the people who wrote the governance kernel when something goes wrong.
 
-See [`ENTERPRISE.md`](ENTERPRISE.md) for the full Enterprise pitch
-and the EU AI Act / GDPR / DORA article-by-article mapping. Contact:
-`enterprise@iaga.start@gmail.com`.
+See [`ENTERPRISE.md`](ENTERPRISE.md) for the full Enterprise pitch and the EU AI Act, GDPR, and DORA article-by-article mapping. Contact: `info@iaga.tech` or `info@edoardobambini.dev`.
 
 ---
 
 ## License
 
-The open-source build of IAGA Sentinel is licensed under
-[**Business Source License 1.1**](LICENSE) with **Change License:
-Apache-2.0** and a **Change Date** of four years from publication.
-What that means in plain English:
+The open build of IAGA Sentinel is source available under [**Business Source License 1.1**](LICENSE) with **Change License Apache-2.0** and a **Change Date** of four years from publication. What that means in plain English:
 
-- You can run, copy, modify, and redistribute IAGA Sentinel freely for
-  internal use, research, evaluation, and any non-production use.
-- You can run IAGA Sentinel in production *as long as your use does not
-  consist of offering IAGA Sentinel itself to third parties as a hosted
-  or managed service that exposes a substantial set of its features*
-  (see the Additional Use Grant in [`LICENSE`](LICENSE)). Building
-  your own product *on top of* IAGA Sentinel for your customers is
-  fine.
-- Four years after each release is published, that specific release
-  converts automatically and irrevocably to **Apache-2.0**. The
-  conversion is written into the licence itself, so it is not
-  something we can walk back later.
+- You can run, copy, modify, and redistribute IAGA Sentinel freely for internal use, research, evaluation, and any non-production use.
+- You can run IAGA Sentinel in production as long as your use does not consist of offering IAGA Sentinel itself to third parties as a hosted or managed service that exposes a substantial set of its features (see the Additional Use Grant in [`LICENSE`](LICENSE)). Building your own product on top of IAGA Sentinel for your customers is fine.
+- Four years after each release is published, that specific release converts automatically and irrevocably to **Apache-2.0**. The conversion is written into the license itself, so it is not something we can walk back later.
 
-IAGA Sentinel Enterprise is sold under a separate commercial agreement.
-The two share the same kernel; Enterprise adds modules that live in a
-separate repository and are not covered by this licence.
+Source available is not the same as OSI open source. The BUSL term is deliberate: it stops a third party from reselling IAGA Sentinel as a hosted service, while guaranteeing that every release becomes true open source on its Change Date.
+
+IAGA Sentinel Enterprise is sold under a separate commercial agreement. The two share the same kernel; Enterprise adds modules that live in a separate repository and are not covered by this license.
 
 Repository: <https://github.com/EdoardoBambini/IAGA-Sentinel>
-Contact: `iaga.start@gmail.com`
+Contact: `info@iaga.tech` or `info@edoardobambini.dev`

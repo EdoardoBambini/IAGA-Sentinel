@@ -5,7 +5,7 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
-description = "IAGA Sentinel — Probabilistic Reasoning Plane (ML evidence producer; pure Rust ONNX backend, opt-in)"
+description = "IAGA Sentinel, Probabilistic Reasoning Plane (ML evidence producer; pure Rust ONNX backend, opt-in)"
 
 [lib]
 name = "iaga_sentinel_reasoning"

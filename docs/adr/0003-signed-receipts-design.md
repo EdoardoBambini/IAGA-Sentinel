@@ -1,4 +1,4 @@
-# ADR 0003 — Signed Action Receipts (M2)
+# ADR 0003, Signed Action Receipts (M2)
 
 - **Status**: Accepted
 - **Date**: 2026-04-23
@@ -63,7 +63,7 @@ pub struct Receipt { body: ReceiptBody, signature: String /* hex 64B */ }
 Scelte chiave:
 
 - `signer_key_id` è dentro il body firmato: impossibile rebindare il receipt a un'altra chiave senza invalidare la firma.
-- `plugin_digests` / `model_digests` presenti *sempre* nello schema, anche quando `ml` è off (vuoti): così il replay non cambia forma quando si attiva/disattiva la feature — i byte firmati differiscono, ma il parser resta lo stesso.
+- `plugin_digests` / `model_digests` presenti *sempre* nello schema, anche quando `ml` è off (vuoti): così il replay non cambia forma quando si attiva/disattiva la feature, i byte firmati differiscono, ma il parser resta lo stesso.
 - `run_id` per M2 è l'`event_id` del singolo verdetto. Multi-step runs aggregati per `trace_id` arrivano in M3 quando APL esporrà session identity formalmente.
 
 ### 4. Backend: SQLite + Postgres, stessi schemi logici
@@ -105,7 +105,7 @@ if let Some(rl) = state.receipts.as_ref() {
 
 `AppState.receipts: Option<Arc<dyn ReceiptLogger>>` è sempre presente nel tipo (feature-agnostic) ma `None` quando la feature `receipts` è off. Questo azzera il numero di cfg-gate sparsi nel pipeline code.
 
-**Error policy**: qualsiasi errore sul path receipts è loggato a `warn!` e ignorato — una rottura del signer, del disco o del DB non può mai fail la governance decision. La pipeline 0.4.0 resta la single source of truth operativa finché la migrazione a receipts-only verrà fatta esplicitamente in M5.
+**Error policy**: qualsiasi errore sul path receipts è loggato a `warn!` e ignorato, una rottura del signer, del disco o del DB non può mai fail la governance decision. La pipeline 0.4.0 resta la single source of truth operativa finché la migrazione a receipts-only verrà fatta esplicitamente in M5.
 
 ### 7. CLI `iaga replay`
 
@@ -142,26 +142,26 @@ crates/iaga-sentinel-receipts/
 │   ├── sqlite/0001_receipts.sql
 │   └── postgres/0001_receipts.sql
 └── src/
-    ├── lib.rs         — public surface
-    ├── receipt.rs     — Receipt / ReceiptBody / Verdict / canonical bytes
-    ├── signer.rs      — Ed25519 ReceiptSigner + load_or_create
-    ├── merkle.rs      — chain_link + verify_chain
-    ├── store.rs       — ReceiptStore trait
-    ├── sqlite.rs      — feature `sqlite`
-    ├── postgres.rs    — feature `postgres`
-    ├── replay.rs      — verify_only + drift replay(evaluator)
+    ├── lib.rs        , public surface
+    ├── receipt.rs    , Receipt / ReceiptBody / Verdict / canonical bytes
+    ├── signer.rs     , Ed25519 ReceiptSigner + load_or_create
+    ├── merkle.rs     , chain_link + verify_chain
+    ├── store.rs      , ReceiptStore trait
+    ├── sqlite.rs     , feature `sqlite`
+    ├── postgres.rs   , feature `postgres`
+    ├── replay.rs     , verify_only + drift replay(evaluator)
     └── errors.rs
 
 crates/iaga-sentinel-core/src/pipeline/receipts.rs
-    — ReceiptLogger trait (feature-agnostic) + SignedReceiptLogger impl (feature `receipts`)
-    — try_build_receipt_logger(db_url) helper used from main.rs
+   , ReceiptLogger trait (feature-agnostic) + SignedReceiptLogger impl (feature `receipts`)
+   , try_build_receipt_logger(db_url) helper used from main.rs
 
 crates/iaga-sentinel-core/src/main.rs
-    — Commands::Replay sub-cmd (feature-gated) + cmd_replay()
+   , Commands::Replay sub-cmd (feature-gated) + cmd_replay()
 ```
 
 ## Riferimenti
 
-- `docs/adr/0002-open-source-license-and-scope.md` — scelte trasversali 1.0
-- `docs/adr/0001-workspace-split.md` — setup M1 workspace
-- `IAGA_SENTINEL_1.0.md` — design 1.0 completo
+- `docs/adr/0002-open-source-license-and-scope.md`, scelte trasversali 1.0
+- `docs/adr/0001-workspace-split.md`, setup M1 workspace
+- `IAGA_SENTINEL_1.0.md`, design 1.0 completo

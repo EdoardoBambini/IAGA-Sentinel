@@ -1,18 +1,18 @@
-# ADR 0012 — Drift Replay Additive (OSS 1.2)
+# ADR 0012, Drift Replay Additive (OSS 1.2)
 
 - **Status**: Accepted
 - **Date**: 2026-05-28
 - **Deciders**: Edoardo Bambini
-- **Milestone**: 1.2 — primitive evolution release
+- **Milestone**: 1.2, primitive evolution release
 - **Relates to**: ADR 0003 (signed receipts design), ADR 0010 (OSS↔Enterprise boundary §3, §2.13)
 
 ## Contesto
 
 1.0 ha shippato `replay.rs` con due primitive:
 
-- `verify_only(store, run_id)` — verifica firme + parent_hash links lungo
+- `verify_only(store, run_id)`, verifica firme + parent_hash links lungo
   la catena Merkle.
-- `replay(store, run_id, evaluator)` — accetta una closure che ri-valuta
+- `replay(store, run_id, evaluator)`, accetta una closure che ri-valuta
   ogni receipt e segnala divergenze.
 
 Il CLI `iaga replay --verify-only` espone `verify_only`. La forma
@@ -141,10 +141,10 @@ export dei receipt. Default off è la scelta safe.
 ### Negative
 
 - **Re-execute MVP non è pieno drift detection**. Per ora è
-  inspectabile-only — chi vuole drift real deve aspettare 1.3 o
+  inspectabile-only, chi vuole drift real deve aspettare 1.3 o
   comprare Enterprise.
 - **Receipt size cresce sensibilmente con capture on**. Un
-  `request_json` typical può aggiungere 1–10 KB per receipt. I
+  `request_json` typical può aggiungere 1-10 KB per receipt. I
   backup / postgres column size devono accomodare.
 - **Documentazione PII obbligatoria**. Forgetta il warning e un
   cliente leakerà PII. MIGRATION.md + ENTERPRISE.md devono
@@ -159,13 +159,13 @@ export dei receipt. Default off è la scelta safe.
 
 ## Riferimenti
 
-- ADR 0003 — Signed Receipts Design.
-- ADR 0007 — M5 Hardening + RC Posture (M2 ship "data primitives" only).
-- ADR 0010 — OSS↔Enterprise Boundary, §3 (4 primitive 1.2),
+- ADR 0003, Signed Receipts Design.
+- ADR 0007, M5 Hardening + RC Posture (M2 ship "data primitives" only).
+- ADR 0010, OSS↔Enterprise Boundary, §3 (4 primitive 1.2),
   §2.13 (forensic time-travel Enterprise).
-- `crates/iaga-sentinel-receipts/src/receipt.rs` — `PipelineInputsCapture`,
+- `crates/iaga-sentinel-receipts/src/receipt.rs`, `PipelineInputsCapture`,
   `AplEvalTrace`, `MlInferenceInputs`, `MlTokenDigest`.
-- `crates/iaga-sentinel-receipts/tests/drift_capture.rs` —
+- `crates/iaga-sentinel-receipts/tests/drift_capture.rs` -
   signing-determinism + roundtrip tests.
-- `crates/iaga-sentinel-core/src/pipeline/receipts.rs` — capture trigger.
-- `crates/iaga-sentinel-core/src/main.rs` — `--re-execute` CLI surface.
+- `crates/iaga-sentinel-core/src/pipeline/receipts.rs`, capture trigger.
+- `crates/iaga-sentinel-core/src/main.rs`, `--re-execute` CLI surface.

@@ -143,7 +143,7 @@ impl PluginRegistry {
 
     /// Annotate a freshly-loaded plugin with offline attestation data
     /// when sibling `<wasm>.sigstore.json` / `<wasm>.cdx.json` are
-    /// present. Silent on all attestation errors — failure to verify
+    /// present. Silent on all attestation errors, failure to verify
     /// degrades to "no attestation present", never blocks load.
     pub fn evaluate(&self, request: &PluginInspectRequest) -> PluginEvaluation {
         let state = self.state.read().unwrap_or_else(|e| e.into_inner());

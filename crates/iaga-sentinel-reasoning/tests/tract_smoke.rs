@@ -1,9 +1,9 @@
-//! TractEngine smoke tests — gated on the `ml` feature.
+//! TractEngine smoke tests, gated on the `ml` feature.
 //!
 //! These cover the wiring (load failure surfacing, digest stability,
 //! env spec parsing, empty-engine behavior). End-to-end inference
-//! against a real ONNX file is a tract-onnx concern — covered upstream
-//! in their own test suite — and re-tested integration-side in
+//! against a real ONNX file is a tract-onnx concern, covered upstream
+//! in their own test suite, and re-tested integration-side in
 //! `iaga-sentinel-core` once a real model is provided in M3.5.1.
 
 #![cfg(feature = "ml")]

@@ -15,7 +15,7 @@ decides; this crate just feeds it scores.
 `tract-onnx` is pure Rust. No system libraries to install, no linker
 dance, builds clean on Linux / macOS / Windows. GPU acceleration and
 the `ort` (ONNX Runtime native) backend ship in IAGA Sentinel
-Enterprise as part of the curated ML model library — see
+Enterprise as part of the curated ML model library, see
 [`docs/adr/0010-oss-enterprise-boundary.md`](../../docs/adr/0010-oss-enterprise-boundary.md)
 (categories #10 + #19).
 

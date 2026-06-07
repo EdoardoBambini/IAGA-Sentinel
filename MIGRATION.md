@@ -42,7 +42,7 @@ change. All 0.4.0 behavior is preserved; tests pass unchanged.
   `ui/dist/` into the binary via `rust-embed`. Requires a prior
   `cd ui && npm run build`. Route wiring (`/ui`) lands in a later milestone.
 - Workspace-level `Cargo.toml` at the repo root with shared dependency
-  versions — future crates (`iaga-sentinel-receipts`, `iaga-sentinel-apl`,
+  versions, future crates (`iaga-sentinel-receipts`, `iaga-sentinel-apl`,
   `iaga-sentinel-reasoning`, `iaga-sentinel-kernel`, `iaga-mesh`) will land here without
   further repo reshuffles.
 
@@ -84,7 +84,7 @@ create the workspace and move the single crate in, but **do not** slice
 
 ---
 
-## 1.0.0-alpha.1 M2 — "Signed Action Receipts" (staged, not committed)
+## 1.0.0-alpha.1 M2, "Signed Action Receipts" (staged, not committed)
 
 **Scope:** additive. No runtime API change for 0.4.0 consumers. No policy
 format change. `audit_events` is untouched; a new `receipts` table is
@@ -95,15 +95,15 @@ still pass.
 ### What's new
 
 - New crate `crates/iaga-sentinel-receipts/` providing:
-  - `Receipt` / `ReceiptBody` — canonical, Ed25519-signed record of a
+  - `Receipt` / `ReceiptBody`, canonical, Ed25519-signed record of a
     governance verdict.
   - `ReceiptStore` trait with SQLite and Postgres backends.
-  - `ReceiptSigner` — single-key Ed25519 signer loaded from
+  - `ReceiptSigner`, single-key Ed25519 signer loaded from
     `<HOME>/.iaga-sentinel/keys/receipt_signer.ed25519` (generated on first run,
     `chmod 0600` on Unix). Override path via env `IAGA_SENTINEL_SIGNER_KEY_PATH`.
   - Hash-linked append-only chain (one chain per `run_id`) with
     end-to-end `verify_chain` that rejects any tampering.
-  - `replay(store, run_id, evaluator)` — drift-detection primitive; the
+  - `replay(store, run_id, evaluator)`, drift-detection primitive; the
     full "re-run pipeline in sandbox" replay lands in M5.
 
 - New optional field on `AppState`:
@@ -132,7 +132,7 @@ still pass.
 ### Environment / ops notes
 
 - **Signer key path**: `$HOME/.iaga-sentinel/keys/receipt_signer.ed25519`. Back
-  this up — losing the private key means new runs start a new chain and
+  this up, losing the private key means new runs start a new chain and
   old chains can still be *verified* (public key derived from
   `signer_key_id`) but not *extended* with matching signatures.
 - **DB backend**: the automatic wiring currently enables receipts only
@@ -153,7 +153,7 @@ still pass.
 
 ---
 
-## 1.0.0-alpha.1 M3 — "Agent Policy Language" (staged, not committed)
+## 1.0.0-alpha.1 M3, "Agent Policy Language" (staged, not committed)
 
 **Scope:** additive. No change to 0.4.0 YAML policy pipeline. New crate
 `iaga-sentinel-apl` provides an independent parser + deterministic evaluator for
@@ -169,7 +169,7 @@ to M5; M3 ships the language, the types and a dry-run CLI.
   - tree-walk evaluator with instruction budget (`EvalBudget`, default 10_000 steps),
   - public `compile(src)` and `evaluate_program(program, ctx, budget)` entry points.
 
-- Supported APL surface (MVP — see [`docs/adr/0004-apl-mvp.md`](docs/adr/0004-apl-mvp.md)):
+- Supported APL surface (MVP, see [`docs/adr/0004-apl-mvp.md`](docs/adr/0004-apl-mvp.md)):
   ```apl
   policy "name" {
     when <expr>
@@ -216,7 +216,7 @@ to M5; M3 ships the language, the types and a dry-run CLI.
 ### What's *not* in M3 (intentionally)
 
 - WASM codegen (→ M3.1). The tree-walk evaluator is already deterministic.
-- Full Hindley–Milner type checker (→ M3.1). The M3 validator is structural.
+- Full Hindley-Milner type checker (→ M3.1). The M3 validator is structural.
 - APL policies wired into `execute_pipeline` as the live policy engine
   (→ M5). For now the YAML loader remains the authoritative policy
   source; APL runs via the CLI dry-run only.
@@ -225,14 +225,14 @@ to M5; M3 ships the language, the types and a dry-run CLI.
 
 ### What stayed
 
-- YAML policy loader unchanged. No `iaga policy migrate` yet — it lands
+- YAML policy loader unchanged. No `iaga policy migrate` yet, it lands
   in M5 when the live swap happens.
 - `audit_events`, `receipts`, `AuditStore`, `ReceiptStore` unchanged.
 - SDK surface unchanged.
 
 ---
 
-## 1.0.0-alpha.1 M3.5 — "Probabilistic Reasoning Plane" (staged, not committed)
+## 1.0.0-alpha.1 M3.5, "Probabilistic Reasoning Plane" (staged, not committed)
 
 **Scope:** additive. Pipeline behavior unchanged when no reasoning
 engine is wired or the `ml` feature is off. New crate `iaga-sentinel-reasoning`
@@ -246,11 +246,11 @@ provides the ML evidence surface; `iaga-sentinel-core` wires it through to
   - `ReasoningEngine` trait with two impls: `NoopEngine` (always
     present) and `TractEngine` (feature `ml`, pure-Rust ONNX via
     `tract-onnx`).
-  - `EvalInput` / `MlEvidence` / `ModelDigest` types — matched in
+  - `EvalInput` / `MlEvidence` / `ModelDigest` types, matched in
     shape to `iaga_sentinel_receipts::{ModelDigest, MlScoreBundle}` so the
     glue layer is a one-liner.
   - SHA-256 digest computation for every loaded model file.
-  - MVP hash-bag-of-byte-ngrams tokenizer (`[1, 64]` float32) — see
+  - MVP hash-bag-of-byte-ngrams tokenizer (`[1, 64]` float32), see
     [ADR 0005](docs/adr/0005-reasoning-plane-mvp.md) for the
     deliberate scope decision.
   - Env-driven model spec: `IAGA_SENTINEL_REASONING_MODELS=name1:path1,name2:path2`.
@@ -269,7 +269,7 @@ provides the ML evidence surface; `iaga-sentinel-core` wires it through to
     `TractEngine` so `IAGA_SENTINEL_REASONING_MODELS` actually loads.
 
 - New optional field on `AppState`:
-  `pub reasoning: Option<Arc<dyn ReasoningHandle>>` — same
+  `pub reasoning: Option<Arc<dyn ReasoningHandle>>`, same
   feature-agnostic pattern as `receipts`.
 
 - New CLI subcommand (feature-gated on `reasoning`, not `ml`):
@@ -332,7 +332,7 @@ sites in `execute_pipeline.rs` were updated; the fast-path block sends
 
 ---
 
-## 1.0.0-alpha.1 M4 — "Enforcement Kernel" (staged, not committed)
+## 1.0.0-alpha.1 M4, "Enforcement Kernel" (staged, not committed)
 
 **Scope:** additive. New crate `iaga-sentinel-kernel` provides a cross-platform
 `EnforcementKernel` trait, a working `UserspaceKernel` for every OS,
@@ -347,16 +347,16 @@ is purely additive.
 ### What's new
 
 - New crate `crates/iaga-sentinel-kernel/` providing:
-  - `EnforcementKernel` trait — `launch(spec) -> LaunchOutcome`,
+  - `EnforcementKernel` trait, `launch(spec) -> LaunchOutcome`,
     `backend_name()`, `is_authoritative()`.
-  - `UserspaceKernel` — cross-platform launcher with policy pre-check,
+  - `UserspaceKernel`, cross-platform launcher with policy pre-check,
     scoped environment (allowlist of inherited vars + explicit
     overrides), optional cwd, sync wait + exit code capture.
     Declares `is_authoritative() == false` (soft enforcement).
-  - `BpfKernel` — Linux + `linux-bpf` feature. Today returns `Block`
+  - `BpfKernel`, Linux + `linux-bpf` feature. Today returns `Block`
     with reason "linux-bpf scaffold; loader pending M4.1". Same trait
     surface as `UserspaceKernel` so M4.1 swap is config, not refactor.
-  - `ProcessSpec`, `KernelDecision`, `LaunchOutcome` — narrow types
+  - `ProcessSpec`, `KernelDecision`, `LaunchOutcome`, narrow types
     that travel cleanly across the userspace/eBPF datapath boundary.
 
 - New `iaga-sentinel-core` features:
@@ -373,7 +373,7 @@ is purely additive.
   iaga run [--agent-id AGENT] [--cwd DIR] -- <program> [args...]
   ```
   `iaga run` spawns a child under the userspace kernel. The policy
-  callback is `allow_all` for M4 — wiring `execute_pipeline` as the
+  callback is `allow_all` for M4, wiring `execute_pipeline` as the
   policy source is M5 (when APL becomes the authoritative engine).
 
 ### Honest posture
@@ -393,9 +393,9 @@ truth.
 
 ---
 
-## 1.0.0-alpha.1 M5 — "Hardening + 1.0 RC" (staged, not committed)
+## 1.0.0-alpha.1 M5, "Hardening + 1.0 RC" (staged, not committed)
 
-**Scope:** wiring pass. The scaffolds from M2–M4 are now connected
+**Scope:** wiring pass. The scaffolds from M2-M4 are now connected
 end-to-end. `iaga run` traverses the governance pipeline; every
 launch produces a signed receipt; Postgres is a first-class receipt
 backend; `--features postgres` works without extra config.
@@ -417,7 +417,7 @@ backend; `--features postgres` works without extra config.
   - `sqlite:` → `SqliteReceiptStore`
   - `postgres://` / `postgresql://` → `PgReceiptStore`
   Build with `--features postgres` and set
-  `DATABASE_URL=postgres://...` — receipts go to Postgres
+  `DATABASE_URL=postgres://...`, receipts go to Postgres
   automatically, no extra flags.
 
 - **Cargo feature composition for storage backends.** `iaga-sentinel-core`'s
@@ -487,7 +487,7 @@ has no external consumers in 1.0-alpha.
 
 ---
 
-## 1.0.0-alpha.1 GA pre-flight — E2E hardening (staged, not committed)
+## 1.0.0-alpha.1 GA pre-flight, E2E hardening (staged, not committed)
 
 End-to-end smoke testing of the 1.0 GA candidate (server, CLI, HTTP API,
 APL overlay, Docker compose) surfaced four issues that have been fixed
@@ -537,7 +537,7 @@ quickstart now spells out:
 
 ---
 
-## 1.0.0-alpha.1 M6 — "APL as Live Policy Engine" (staged, not committed)
+## 1.0.0-alpha.1 M6, "APL as Live Policy Engine" (staged, not committed)
 
 **Scope:** additive. The YAML profile + workspace policy system from
 0.4.0 stays authoritative. APL is loaded as an *overlay* via
@@ -581,7 +581,7 @@ YAML risk decision: APL can tighten the verdict, never relax it.
 
 JSON shape unchanged. Only the *content* of `policy_hash` changes
 when APL is loaded. Receipts produced before M6 (or in runs without
-`--policy`) remain bit-identical to M5 — replay legacy intact.
+`--policy`) remain bit-identical to M5, replay legacy intact.
 
 ### What's *not* in M6 (deferred)
 
@@ -614,7 +614,7 @@ when APL is loaded. Receipts produced before M6 (or in runs without
 ## 1.0 → 1.1.0
 
 **Scope:** consolidation + complete project rebrand **Agent Armor →
-IAGA Sentinel**. Governance behaviour is unchanged — the 12-layer
+IAGA Sentinel**. Governance behaviour is unchanged, the 12-layer
 pipeline, verdict logic, receipt format (Ed25519 + Merkle), and the
 HTTP API contract (endpoints, camelCase JSON, `Authorization:
 Bearer`) are identical to 1.0.0. **Only names changed.** Those
@@ -624,7 +624,7 @@ so upgrade deliberately using the table below.
 > Why a minor (1.1.0) and not a major: runtime/API behaviour and the
 > on-disk formats are compatible with 1.0.0; the break is limited to
 > identifiers (binary, env vars, paths, crate/type names). This is a
-> documented one-time exception — the 1.x line otherwise keeps the
+> documented one-time exception, the 1.x line otherwise keeps the
 > no-breaking-change guarantee.
 
 ### Rename map (breaking)
@@ -655,8 +655,8 @@ so upgrade deliberately using the table below.
    (or set `IAGA_SENTINEL_SIGNER_KEY_PATH`) to keep signing the same
    receipt chain. Otherwise 1.1 generates a fresh key and starts a new
    chain; old chains still *verify* but can't be *extended*.
-4. **Database:** point at the existing DB explicitly —
-   `--db sqlite:agent_armor.db` (or `DATABASE_URL=…`) — or rename the
+4. **Database:** point at the existing DB explicitly -
+   `--db sqlite:agent_armor.db` (or `DATABASE_URL=…`), or rename the
    file to `iaga_sentinel.db`. The schema is identical.
 5. **Webhook consumers:** update header checks to `X-Iaga-Sentinel-*`.
 6. **MCP clients:** call `iaga.inspect` / `iaga.response_scan`.
@@ -666,7 +666,7 @@ so upgrade deliberately using the table below.
 ### What did NOT change
 
 - HTTP API: endpoint paths, request/response JSON (camelCase),
-  `Authorization: Bearer <key>`. Existing API keys still validate —
+  `Authorization: Bearer <key>`. Existing API keys still validate -
   only the prefix of *newly generated* keys changed.
 - Receipt format (Ed25519 + Merkle hash-chain) and `replay` verify.
 - APL syntax, `.apl` files, policy YAML format.
@@ -685,7 +685,7 @@ every callsite (CLI, HTTP, library API) compiles unchanged.
 ### Signer trait + LocalDiskSigner (ADR 0011)
 
 `iaga_sentinel_receipts::ReceiptSigner` is now a `type alias` for
-`LocalDiskSigner` — every existing import keeps working. The new
+`LocalDiskSigner`, every existing import keeps working. The new
 trait `Signer: Send + Sync` (async, object-safe) is what the
 pipeline holds as `Arc<dyn Signer>`. SDK consumers wanting to
 implement custom signers (e.g. for offline KMS testing) should
@@ -700,7 +700,7 @@ Three new optional fields on `ReceiptBody`:
 `pipeline_inputs_capture`, `apl_eval_trace`, `ml_inference_inputs`.
 Populated **only** when the host opts in via env
 `IAGA_SENTINEL_RECEIPT_CAPTURE=1` (default off). When off, the
-serialization is byte-identical to 1.1 — chain hashes and signatures
+serialization is byte-identical to 1.1, chain hashes and signatures
 stay stable, mixed 1.1/1.2 stores verify cleanly.
 
 **PII warning**: when capture is enabled, `pipeline_inputs_capture.request_json`
@@ -723,7 +723,7 @@ and `<plugin>.cdx.json` files at load time and populates
 `PluginManifest.attestation` / `.sbom` / `.attestation_offline_verified`.
 
 **Scope honesty**: this is **offline structural verification only**
-— bundle well-formedness + payload digest match. Rekor inclusion
+- bundle well-formedness + payload digest match. Rekor inclusion
 proof and Fulcio root CA chain validation are **not** performed
 in OSS 1.2. For full chain-of-trust, run `cosign verify` out of
 band, or upgrade to IAGA Sentinel Enterprise (hosted marketplace
@@ -742,7 +742,7 @@ reports type errors.
 
 New feature `apl-wasm` (default off) adds the WASM codegen primitive.
 The tree-walk evaluator remains the canonical executor for the full
-APL surface — `evaluate_program()` is unchanged. The WASM MVP only
+APL surface, `evaluate_program()` is unchanged. The WASM MVP only
 handles literal + boolean / numeric / comparison operations; Path
 / Call / Membership are rejected with clear errors pointing the
 caller back to the tree-walk path. Full WASM coverage + parity
@@ -759,7 +759,7 @@ All four primitives are opt-in. Default behaviour matches 1.1 exactly:
 |---|---|---|---|
 | `plugin-attestation` | `iaga-sentinel-core` | off | `base64` |
 | `apl-wasm` | `iaga-sentinel-apl` (forwarded from core) | off | `wasm-encoder` |
-| Env `IAGA_SENTINEL_RECEIPT_CAPTURE=1` | — (host env) | unset | — |
+| Env `IAGA_SENTINEL_RECEIPT_CAPTURE=1` |, (host env) | unset |, |
 
 ### What did **not** change
 
@@ -773,7 +773,7 @@ All four primitives are opt-in. Default behaviour matches 1.1 exactly:
 - Database schema for `iaga-sentinel-receipts` SQLite / Postgres
   backends.
 - Naming (everything is still `iaga-sentinel` / `iaga` / IAGA
-  Sentinel — see [`feedback_rebrand_iaga_sentinel`] in 1.1).
+  Sentinel, see [`feedback_rebrand_iaga_sentinel`] in 1.1).
 
 ---
 
@@ -788,5 +788,5 @@ Larger capabilities (real eBPF/LSM loader, cross-platform kernel
 backends, governance mesh, KMS-backed signers, curated ML library,
 EU AI Act / GDPR / DORA compliance pack, confidential-computing
 receipts, forensic time-travel replay) are part of the IAGA
-Sentinel Enterprise edition — see
+Sentinel Enterprise edition, see
 [`ENTERPRISE.md`](ENTERPRISE.md).

@@ -82,7 +82,7 @@ pub async fn execute_pipeline(
         .or(workspace_policy.tenant_id.clone());
 
     // ═══════════════════════════════════════════════════════════════
-    // RATE LIMIT CHECK — runs before all security layers
+    // RATE LIMIT CHECK, runs before all security layers
     // ═══════════════════════════════════════════════════════════════
     let rate_result = state
         .rate_limiter
@@ -188,13 +188,13 @@ pub async fn execute_pipeline(
     let payload_str = serde_json::to_string(&payload_json).unwrap_or_default();
 
     // ═══════════════════════════════════════════════════════════════
-    // LAYER 7 — Prompt Injection Firewall (runs FIRST, fastest gate)
+    // LAYER 7, Prompt Injection Firewall (runs FIRST, fastest gate)
     // ═══════════════════════════════════════════════════════════════
     let firewall_result = prompt_firewall::scan_prompt(&payload_str);
     let firewall_json = serde_json::to_value(&firewall_result).ok();
 
     // ═══════════════════════════════════════════════════════════════
-    // THREAT INTELLIGENCE — check payload against known IOCs
+    // THREAT INTELLIGENCE, check payload against known IOCs
     // ═══════════════════════════════════════════════════════════════
     let threat_matches = state.threat_feed.check_threats(&payload_str);
     let threat_intel_json = if threat_matches.is_empty() {
@@ -208,7 +208,7 @@ pub async fn execute_pipeline(
     };
 
     // ═══════════════════════════════════════════════════════════════
-    // LAYER 1 — Session Graph Analysis
+    // LAYER 1, Session Graph Analysis
     // ═══════════════════════════════════════════════════════════════
     let session_id = input
         .metadata
@@ -229,7 +229,7 @@ pub async fn execute_pipeline(
     );
     let session_json = serde_json::to_value(&session_result).ok();
 
-    // v0.4.0 — persist session graph to durable storage (write-behind)
+    // v0.4.0, persist session graph to durable storage (write-behind)
     if let Some(session) = session_dag::get_session(session_id) {
         let session_store = state.session_store.clone();
         let session_owned = session;
@@ -241,7 +241,7 @@ pub async fn execute_pipeline(
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // LAYER 2 — Taint Tracking
+    // LAYER 2, Taint Tracking
     // ═══════════════════════════════════════════════════════════════
     let taint_result = taint_tracker::analyze_taint(
         action_type_s,
@@ -252,7 +252,7 @@ pub async fn execute_pipeline(
     taint_tracker::update_session_taint(session_id, &taint_result.accumulated_labels);
     let taint_json = serde_json::to_value(&taint_result).ok();
 
-    // v0.4.0 — persist taint labels to durable storage (write-behind)
+    // v0.4.0, persist taint labels to durable storage (write-behind)
     {
         let taint_store = state.taint_store.clone();
         let sid = session_id.to_string();
@@ -265,7 +265,7 @@ pub async fn execute_pipeline(
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // LAYER 3 — Crypto NHI (ensure agent identity exists)
+    // LAYER 3, Crypto NHI (ensure agent identity exists)
     // ═══════════════════════════════════════════════════════════════
     if crypto_identity::get_identity(&input.agent_id).is_none() {
         let identity = crypto_identity::register_identity(
@@ -273,7 +273,7 @@ pub async fn execute_pipeline(
             Some(workspace_id),
             profile.approved_tools.clone(),
         );
-        // v0.4.0 — persist new NHI identity to durable storage
+        // v0.4.0, persist new NHI identity to durable storage
         let secret_hex = crypto_identity::get_secret_key_hex(&input.agent_id).unwrap_or_default();
         let nhi_store = state.nhi_store.clone();
         let identity_owned = identity;
@@ -286,7 +286,7 @@ pub async fn execute_pipeline(
     let agent_trust = crypto_identity::get_agent_trust(&input.agent_id);
 
     // ═══════════════════════════════════════════════════════════════
-    // LAYER 4 — Adaptive Risk Scoring (5-signal ensemble)
+    // LAYER 4, Adaptive Risk Scoring (5-signal ensemble)
     // ═══════════════════════════════════════════════════════════════
     let now_ms = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -322,7 +322,7 @@ pub async fn execute_pipeline(
     );
 
     // ═══════════════════════════════════════════════════════════════
-    // Behavioral Fingerprinting — record action & detect anomalies
+    // Behavioral Fingerprinting, record action & detect anomalies
     // ═══════════════════════════════════════════════════════════════
     state.behavioral_engine.record_action(
         &input.agent_id,
@@ -336,7 +336,7 @@ pub async fn execute_pipeline(
         adaptive_result.total_score as f64,
     );
 
-    // v0.4.0 — persist behavioral fingerprint to durable storage (write-behind)
+    // v0.4.0, persist behavioral fingerprint to durable storage (write-behind)
     if let Some(fp) = state.behavioral_engine.get_fingerprint(&input.agent_id) {
         let fp_store = state.fingerprint_store.clone();
         tokio::spawn(async move {
@@ -347,7 +347,7 @@ pub async fn execute_pipeline(
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // LAYER 5 — Sandbox Execution (dry-run for high-risk)
+    // LAYER 5, Sandbox Execution (dry-run for high-risk)
     // ═══════════════════════════════════════════════════════════════
     let sandbox_json =
         if sandbox_executor::should_sandbox(action_type_s, adaptive_result.total_score) {
@@ -363,7 +363,7 @@ pub async fn execute_pipeline(
         };
 
     // ═══════════════════════════════════════════════════════════════
-    // LAYER 6 — Formal Policy Verification
+    // LAYER 6, Formal Policy Verification
     // ═══════════════════════════════════════════════════════════════
     let verification = formal_verify::verify_policy(&workspace_policy);
     let verification_json = serde_json::to_value(&verification).ok();
@@ -685,7 +685,7 @@ pub async fn execute_pipeline(
     };
 
     // ═══════════════════════════════════════════════════════════════
-    // LAYER 8 — Telemetry
+    // LAYER 8, Telemetry
     // ═══════════════════════════════════════════════════════════════
     let duration_ms = pipeline_start.elapsed().as_millis() as u64;
     // After M6: use the merged `decision` (YAML + APL stricter-wins) so
@@ -726,7 +726,7 @@ pub async fn execute_pipeline(
     let new_trust =
         crypto_identity::update_trust_from_decision(&input.agent_id, &decision_str, risk.score);
 
-    // v0.4.0 — persist updated trust score to durable storage (write-behind)
+    // v0.4.0, persist updated trust score to durable storage (write-behind)
     if let Some(trust) = new_trust {
         let nhi_store = state.nhi_store.clone();
         let aid = input.agent_id.clone();

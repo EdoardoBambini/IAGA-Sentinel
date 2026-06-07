@@ -1,6 +1,6 @@
 # Architecture
 
-> **Historical document — describes the v0.4.0 community runtime.**
+> **Historical document, describes the v0.4.0 community runtime.**
 > The current 1.x architecture is documented in
 > [`README.md`](../README.md) (Architecture section), the design
 > rationale in [`IAGA_SENTINEL_1.0.md`](../IAGA_SENTINEL_1.0.md), and the
@@ -8,7 +8,7 @@
 > [`adr/0010-oss-enterprise-boundary.md`](adr/0010-oss-enterprise-boundary.md).
 > Path references in this file (`community/...`) reflect pre-1.0
 > layout; current paths are `crates/iaga-sentinel-core/...`. The 8-layer
-> pipeline described here was hardened to **12 layers** in 1.0 (M2–M5
+> pipeline described here was hardened to **12 layers** in 1.0 (M2-M5
 > + M3.5 + M4 added supply chain attestation, blast radius, behavioral
 > baseline, counterparty trust).
 

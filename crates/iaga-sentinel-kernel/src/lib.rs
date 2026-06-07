@@ -1,15 +1,15 @@
 //! # iaga-sentinel-kernel
 //!
-//! Enforcement kernel for IAGA Sentinel — Pillar 1 of the design.
+//! Enforcement kernel for IAGA Sentinel, Pillar 1 of the design.
 //!
 //! Two backends:
 //!
-//! - [`UserspaceKernel`] — always available on every platform. Spawns
+//! - [`UserspaceKernel`], always available on every platform. Spawns
 //!   governed child processes with a scoped environment and a policy
 //!   pre-check. "Soft" enforcement: a determined process can still
 //!   escape the scoping, so this backend declares
 //!   `is_authoritative() == false`.
-//! - `BpfKernel` (feature `linux-bpf`, Linux only) — scaffold today.
+//! - `BpfKernel` (feature `linux-bpf`, Linux only), scaffold today.
 //!   Same trait surface; the actual eBPF/LSM loader is not part of
 //!   this OSS line.
 //!

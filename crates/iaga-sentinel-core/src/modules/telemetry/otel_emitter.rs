@@ -1,7 +1,7 @@
-//! LAYER 8 — OpenTelemetry-Compatible Telemetry
+//! LAYER 8, OpenTelemetry-Compatible Telemetry
 //!
 //! Emits OTEL-compatible spans & metrics in OTLP JSON format.
-//! Zero external OTEL dependency — pure Rust structs matching the spec.
+//! Zero external OTEL dependency, pure Rust structs matching the spec.
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -335,6 +335,47 @@ pub fn emit_pipeline_metrics(decision: &str, risk_score: u32, duration_ms: u64, 
     );
 }
 
+// ── Receipt Telemetry ──
+
+/// Emit a signed governance receipt as an OpenTelemetry span into the
+/// in-process telemetry feed, so it surfaces on `/v1/telemetry/spans` and
+/// `/v1/telemetry/export` and any OTel backend that scrapes them. Additive
+/// and feature-gated (`otel-receipts`). It does not push to a remote OTLP
+/// collector; that is a later step.
+#[cfg(feature = "otel-receipts")]
+pub fn emit_receipt_span(receipt: &iaga_sentinel_receipts::Receipt) -> OtelSpan {
+    use iaga_sentinel_receipts::Verdict;
+    let b = &receipt.body;
+    let verdict = match b.verdict {
+        Verdict::Allow => "allow",
+        Verdict::Review => "review",
+        Verdict::Block => "block",
+    };
+    let status = match b.verdict {
+        Verdict::Block => ("ERROR", "receipt: blocked"),
+        _ => ("OK", "receipt recorded"),
+    };
+    let sig_prefix: String = receipt.signature.chars().take(16).collect();
+    SpanBuilder::new("iaga_sentinel.receipt")
+        .with_kind("INTERNAL")
+        .attr("service.name", serde_json::json!("iaga-sentinel"))
+        .attr(
+            "service.version",
+            serde_json::json!(env!("CARGO_PKG_VERSION")),
+        )
+        .attr("receipt.runId", serde_json::json!(b.run_id))
+        .attr("receipt.seq", serde_json::json!(b.seq))
+        .attr("receipt.verdict", serde_json::json!(verdict))
+        .attr("receipt.inputHash", serde_json::json!(b.input_hash))
+        .attr("receipt.policyHash", serde_json::json!(b.policy_hash))
+        .attr("receipt.riskScore", serde_json::json!(b.risk_score))
+        .attr("receipt.signerKeyId", serde_json::json!(b.signer_key_id))
+        .attr("receipt.parentHash", serde_json::json!(b.parent_hash))
+        .attr("receipt.timestamp", serde_json::json!(b.timestamp))
+        .attr("receipt.signaturePrefix", serde_json::json!(sig_prefix))
+        .finish(status.0, status.1)
+}
+
 // ── Export ──
 
 pub fn export_otlp_json(limit: usize) -> Vec<TelemetryRecord> {
@@ -378,4 +419,62 @@ pub fn get_recent_metrics(limit: usize) -> Vec<OtelMetric> {
 pub fn clear_telemetry() {
     SPANS.lock().unwrap_or_else(|e| e.into_inner()).clear();
     METRICS.lock().unwrap_or_else(|e| e.into_inner()).clear();
+}
+
+#[cfg(all(test, feature = "otel-receipts"))]
+mod receipt_span_tests {
+    use super::*;
+    use iaga_sentinel_receipts::{ReceiptBody, ReceiptSigner, Verdict};
+
+    #[test]
+    fn receipt_span_carries_receipt_attributes() {
+        let signer = ReceiptSigner::generate();
+        let body = ReceiptBody {
+            run_id: "otel-test-run-xyz".into(),
+            seq: 0,
+            parent_hash: None,
+            input_hash: "a".repeat(64),
+            policy_hash: "b".repeat(64),
+            plugin_digests: vec![],
+            model_digests: vec![],
+            ml_scores: None,
+            verdict: Verdict::Block,
+            reasons: vec!["nope".into()],
+            risk_score: 88,
+            timestamp: "2026-06-06T00:00:00Z".into(),
+            signer_key_id: signer.key_id().into(),
+            pipeline_inputs_capture: None,
+            apl_eval_trace: None,
+            ml_inference_inputs: None,
+        };
+        let receipt = signer.sign(body).expect("sign ok");
+        emit_receipt_span(&receipt);
+
+        // Global span buffer is shared across tests, so locate ours by run id.
+        let spans = get_recent_spans(500);
+        let span = spans
+            .iter()
+            .find(|s| {
+                s.name == "iaga_sentinel.receipt"
+                    && s.attributes.get("receipt.runId")
+                        == Some(&serde_json::json!("otel-test-run-xyz"))
+            })
+            .expect("receipt span present");
+        assert_eq!(
+            span.attributes.get("receipt.verdict"),
+            Some(&serde_json::json!("block"))
+        );
+        assert_eq!(
+            span.attributes.get("receipt.seq"),
+            Some(&serde_json::json!(0))
+        );
+        assert_eq!(
+            span.attributes.get("receipt.riskScore"),
+            Some(&serde_json::json!(88))
+        );
+        assert_eq!(
+            span.attributes.get("receipt.signerKeyId"),
+            Some(&serde_json::json!(signer.key_id()))
+        );
+    }
 }

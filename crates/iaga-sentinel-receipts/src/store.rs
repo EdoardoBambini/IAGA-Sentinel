@@ -1,7 +1,7 @@
 //! Persistence trait for receipts.
 //!
 //! Backends live in `sqlite.rs` (feature `sqlite`) and `postgres.rs`
-//! (feature `postgres`). The trait is intentionally thin — a receipt is
+//! (feature `postgres`). The trait is intentionally thin, a receipt is
 //! append-only once signed, so the API surface is small.
 
 use async_trait::async_trait;

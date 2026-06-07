@@ -30,7 +30,7 @@ pub async fn auth_middleware(
         if is_open_mode_enabled() {
             return Ok(next.run(request).await);
         }
-        tracing::warn!("no API keys configured and IAGA_SENTINEL_OPEN_MODE is not enabled — rejecting request. Run `iaga gen-key` to create your first key.");
+        tracing::warn!("no API keys configured and IAGA_SENTINEL_OPEN_MODE is not enabled, rejecting request. Run `iaga gen-key` to create your first key.");
         return Err(StatusCode::UNAUTHORIZED);
     }
 

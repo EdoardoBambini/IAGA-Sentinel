@@ -1,4 +1,4 @@
-# ADR 0002 — Chiusura decisioni aperte 1.0 (licenza, ML, kernel, mesh)
+# ADR 0002, Chiusura decisioni aperte 1.0 (licenza, ML, kernel, mesh)
 
 - **Status**: Accepted
 - **Date**: 2026-04-23
@@ -20,20 +20,20 @@
 
 `IAGA_SENTINEL_1.0.md` §7 lasciava aperte quattro scelte che cambiano la forma di 1.0:
 
-1. **Kernel scope** — Linux-only o cross-platform full?
-2. **Mesh timing** — dentro 1.0 (M5) o posticipata a 1.1?
-3. **Licenza core** — BUSL-1.1 o Apache-2.0?
-4. **ML plane** — obbligatorio o feature-flag opzionale?
+1. **Kernel scope**, Linux-only o cross-platform full?
+2. **Mesh timing**, dentro 1.0 (M5) o posticipata a 1.1?
+3. **Licenza core**, BUSL-1.1 o Apache-2.0?
+4. **ML plane**, obbligatorio o feature-flag opzionale?
 
 Questa ADR chiude le quattro. Filosofia guida: **"open source assurdo e inevitabile"** → adozione default, zero frizione legale, ship veloce di un nucleo eccellente, monetizzazione su strato enterprise/managed separato.
 
-## Decisione 1 — Licenza core: **BUSL-1.1 con Change License: Apache-2.0 baked-in**
+## Decisione 1, Licenza core: **BUSL-1.1 con Change License: Apache-2.0 baked-in**
 
 ### Posizione finale
 
 Il core (`iaga-sentinel-core`, `iaga-sentinel-receipts`, `iaga-sentinel-apl`, `iaga-sentinel-reasoning`, `iaga-sentinel-kernel`) ships su **BUSL-1.1** con **Change License: Apache-2.0** scritta nella licenza stessa e **Change Date: quattro anni dopo la pubblicazione** di ogni release.
 
-Tradotto: ogni versione del codice converte automaticamente e irrevocabilmente ad Apache-2.0 quattro anni dopo la sua pubblicazione. La transizione è scritta nel file `LICENSE` (riga 16) — non serve un commit di switch al Change Date, non serve azione legale, non serve approvazione di nessuno. È legalmente vincolante dal momento del primo push.
+Tradotto: ogni versione del codice converte automaticamente e irrevocabilmente ad Apache-2.0 quattro anni dopo la sua pubblicazione. La transizione è scritta nel file `LICENSE` (riga 16), non serve un commit di switch al Change Date, non serve azione legale, non serve approvazione di nessuno. È legalmente vincolante dal momento del primo push.
 
 ### Perché questa è la scelta migliore vs Apache-2.0 secco
 
@@ -54,7 +54,7 @@ Tradotto: ogni versione del codice converte automaticamente e irrevocabilmente a
 - `iaga-enterprise` (repo privato, non in questo workspace): multi-tenant managed, compliance packs, SLA 24/7, SSO/SAML, audit export packaged, support commerciale. Licenza: commerciale separata, indipendente dal core.
 - `iaga-mesh` (quando arriverà in 1.1): stesso pattern del core (BUSL-1.1 con Change License: Apache-2.0).
 
-## Decisione 2 — ML plane: **feature-flag `ml` opzionale**, default off
+## Decisione 2, ML plane: **feature-flag `ml` opzionale**, default off
 
 ### Posizione finale
 
@@ -62,7 +62,7 @@ Il Probabilistic Reasoning Plane (pilastro 7) è un **crate separato** (`iaga-se
 
 ### Perché
 
-- ONNX runtime aggiunge ~40–60 MB al binary e dipendenze native (opzionalmente GPU). L'80% dei deployment giorno-1 non userà ML.
+- ONNX runtime aggiunge ~40-60 MB al binary e dipendenze native (opzionalmente GPU). L'80% dei deployment giorno-1 non userà ML.
 - Coerente con la regola d'oro del design: **"ML produce evidenze, policy deterministica decide"**. Senza feature `ml`, i riferimenti `ml.*` in APL risolvono a *unknown* e vengono gestiti come evidenza mancante (policy APL deve prevedere il ramo `missing`).
 - Binary core leggero = adozione più rapida, CI più veloci, meno superficie di attacco per chi non vuole ML.
 - I receipt contengono sempre `model_digests: []` e `ml_scores: None` se feature off, preservando replay bit-exact.
@@ -72,7 +72,7 @@ Il Probabilistic Reasoning Plane (pilastro 7) è un **crate separato** (`iaga-se
 - `iaga-sentinel-reasoning` si costruisce con `cargo build -p iaga-sentinel-reasoning --features ml` (nessun default).
 - `iaga-sentinel-core` non dipende da `iaga-sentinel-reasoning`; lo carica dinamicamente solo se il config abilita il plane e la feature è compilata.
 
-## Decisione 3 — Kernel scope: **Linux-only a 1.0**, fallback userspace su macOS/Windows
+## Decisione 3, Kernel scope: **Linux-only a 1.0**, fallback userspace su macOS/Windows
 
 ### Posizione finale
 
@@ -82,17 +82,17 @@ Il Probabilistic Reasoning Plane (pilastro 7) è un **crate separato** (`iaga-se
 
 - eBPF LSM + Landlock sono production-ready su kernel ≥ 5.13, ampiamente deployati.
 - **macOS Endpoint Security** richiede kernel extension firmata Apple Developer Program ($99/anno + review Apple di giorni), più entitlement `com.apple.developer.endpoint-security.client` (whitelist Apple).
-- **Windows ETW + WFP** richiede driver firmati con Extended Validation certificate ($300–500/anno), più eventuale attestazione WHQL per distribuzione consumer.
+- **Windows ETW + WFP** richiede driver firmati con Extended Validation certificate ($300-500/anno), più eventuale attestazione WHQL per distribuzione consumer.
 - Stack tripla = 8+ mesi reali, non 4. Meglio 1.0 eccellente su Linux che 1.0 mezza-rotta su tre OS.
 - README e docs saranno espliciti: "Linux = production, macOS/Windows = preview userspace". Cross-platform kernel vero → **1.1** (milestone M6 spostata).
 
 ### Conseguenze
 
-- L'SDK 0.4.0 HTTP sidecar resta il meccanismo di fallback userspace — non deprecato, solo declassato.
+- L'SDK 0.4.0 HTTP sidecar resta il meccanismo di fallback userspace, non deprecato, solo declassato.
 - `iaga-sentinel-kernel` è un crate con `#[cfg(target_os = "linux")]` gate; fuori da Linux il crate non si compila (o espone stub `unimplemented!`).
 - Documentazione kernel chiaramente separa "enforcement vero" da "preview userspace".
 
-## Decisione 4 — Mesh: **tagliata a 1.1**
+## Decisione 4, Mesh: **tagliata a 1.1**
 
 ### Posizione finale
 
@@ -100,7 +100,7 @@ Il pilastro 5 (Governance Mesh) **esce da 1.0**. Il crate `iaga-mesh` (gRPC goss
 
 ### Perché
 
-- Mesh da sola costa 2–3 mesi (protocollo gossip, mTLS, federazione stato, test di consistenza CRDT). Ritarda il ship di 1.0 per una feature che è killer solo per utenti multi-agent-at-scale.
+- Mesh da sola costa 2-3 mesi (protocollo gossip, mTLS, federazione stato, test di consistenza CRDT). Ritarda il ship di 1.0 per una feature che è killer solo per utenti multi-agent-at-scale.
 - Single-node IAGA Sentinel 1.0 con kernel Linux + receipts + APL + plugin attestati + UI embedded + ML opzionale **è già un prodotto di una categoria che non esiste**.
 - Lo schema `Receipt.parent_hash` è già pensato per federazione futura: nessun breaking change quando mesh arriverà.
 
@@ -117,12 +117,12 @@ Il pilastro 5 (Governance Mesh) **esce da 1.0**. Il crate `iaga-mesh` (gRPC goss
 
 ## Conseguenze trasversali
 
-- `IAGA_SENTINEL_1.0.md` §7 va aggiornato: stato "Risolte — vedi ADR 0002".
+- `IAGA_SENTINEL_1.0.md` §7 va aggiornato: stato "Risolte, vedi ADR 0002".
 - Ogni futura milestone assume queste quattro decisioni come baseline.
 - Il messaging pubblico di IAGA Sentinel ("12-layer defense-in-depth", "replay bit-exact", "kernel-enforced governance") regge su queste scelte. Documentarle ora evita di ridiscuterle ad ogni review.
 
 ## Riferimenti
 
-- `IAGA_SENTINEL_1.0.md` — design 1.0 completo
-- `docs/adr/0001-workspace-split.md` — split workspace M1
-- `docs/adr/0003-signed-receipts-design.md` — design M2 (receipts)
+- `IAGA_SENTINEL_1.0.md`, design 1.0 completo
+- `docs/adr/0001-workspace-split.md`, split workspace M1
+- `docs/adr/0003-signed-receipts-design.md`, design M2 (receipts)

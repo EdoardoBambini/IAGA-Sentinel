@@ -1,4 +1,4 @@
-//! LAYER 4 — Adaptive Risk Scoring Engine
+//! LAYER 4, Adaptive Risk Scoring Engine
 //!
 //! 5-signal ensemble: STATIC + CONTEXT + BEHAVIORAL + TEMPORAL + REPUTATION
 //! Weights calibrate via online learning from user feedback. All local.
@@ -347,7 +347,7 @@ pub fn calculate_adaptive_risk(input: &AdaptiveScoreInput) -> AdaptiveRiskResult
     let total: f64 = signals.iter().map(|s| s.score as f64 * s.weight).sum();
     let total_score = (total.round() as u32).min(100);
 
-    // Unified thresholds — must match tool_risk::THRESHOLD_BLOCK / THRESHOLD_REVIEW
+    // Unified thresholds, must match tool_risk::THRESHOLD_BLOCK / THRESHOLD_REVIEW
     let mut decision = if total_score >= 70 {
         "block"
     } else if total_score >= 35 {

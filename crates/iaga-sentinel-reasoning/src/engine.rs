@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use crate::evidence::{EvalInput, MlEvidence, ModelDigest};
 
 /// Probabilistic reasoning surface. Implementations evaluate inputs
-/// through one or more ONNX models and return *evidence* — never
+/// through one or more ONNX models and return *evidence*, never
 /// verdicts. Verdicts are the deterministic policy layer's job.
 ///
 /// Two invariants every implementation must respect:

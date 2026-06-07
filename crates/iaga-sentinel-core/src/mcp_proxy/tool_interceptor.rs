@@ -10,11 +10,11 @@ use super::protocol::McpToolCallParams;
 
 /// Result of governance check on an MCP tool call.
 pub enum InterceptResult {
-    /// Tool call is allowed — forward to downstream server.
+    /// Tool call is allowed, forward to downstream server.
     Allow,
-    /// Tool call needs human review — return pending status.
+    /// Tool call needs human review, return pending status.
     Review { review_id: String, risk_score: u32 },
-    /// Tool call is blocked — return error to client.
+    /// Tool call is blocked, return error to client.
     Block {
         reasons: Vec<String>,
         risk_score: u32,

@@ -1,4 +1,4 @@
-// IAGA Sentinel 1.0 — example "strict" APL overlay.
+// IAGA Sentinel 1.0, example "strict" APL overlay.
 // Load with:
 //   iaga serve --policy crates/iaga-sentinel-core/examples/policies/strict.apl
 //

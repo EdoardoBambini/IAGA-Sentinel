@@ -1,4 +1,4 @@
-//! WASM Plugin Host — loads `.wasm` modules via wasmtime, calls exported functions.
+//! WASM Plugin Host, loads `.wasm` modules via wasmtime, calls exported functions.
 //!
 //! Each plugin must export:
 //!   - `name() -> ptr, len`   (returns plugin name)

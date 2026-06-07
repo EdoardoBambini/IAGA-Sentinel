@@ -1,4 +1,4 @@
-//! NoopEngine smoke tests — always available, no `ml` feature needed.
+//! NoopEngine smoke tests, always available, no `ml` feature needed.
 
 use iaga_sentinel_reasoning::{EvalInput, NoopEngine, ReasoningEngine};
 

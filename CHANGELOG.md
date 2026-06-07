@@ -15,44 +15,65 @@ Enterprise pitch and the EU AI Act + GDPR + DORA compliance pack mapping.
 
 ---
 
-## [1.2.0] — Unreleased
+## [1.3.0], 2026-06-07
+
+The conformity-evidence release: three additive, opt-in primitives that strengthen the trusted-evidence substrate, plus a repositioning of the public narrative around the EU AI Act conformity evidence layer. All changes are additive, no breaking changes against 1.2.0. Default behaviour and receipt bytes are unchanged with the new features off.
+
+### Added
+
+- ADR 0015: standalone receipt verifier. A new slim crate `iaga-sentinel-verify` (binary `iaga-verify`, no database, no async runtime, about 3 MB) verifies a signed receipt chain offline by reusing `verify_chain`. New CLI flag `iaga replay <run_id> --export <file.json>` writes a run as `{ run_id, signer_verifying_key, receipts }` for the verifier to consume. The expected public key is pinned with `--key`; the embedded key is a self-asserted fallback with a loud warning.
+- ADR 0016: OpenTelemetry receipt export, behind the default-off `otel-receipts` feature, no new dependency. Each signed receipt also surfaces as an OTel span `iaga_sentinel.receipt` (run id, seq, verdict, input and policy hashes, risk score, signer key id) in the existing telemetry feed, visible via `GET /v1/telemetry/spans` and `/v1/telemetry/export`.
+- ADR 0017: Ed25519-signed plugin manifests, behind the default-off `plugin-manifest-signing` feature, orthogonal to `plugin-attestation`. A plugin ships `<plugin>.manifest.json` plus a detached `.sig`; verification checks the plugin SHA-256 and the signature against a trusted-key list. New CLI `iaga plugins sign-manifest` and `iaga plugins verify-manifest --trusted-keys`.
+- Data-handling and security documentation: `DATA_HANDLING.md` covering what a receipt contains, the default hashes-only PII posture, where data lives, the absence of call-home, and offline verification; plus a signing section in `SECURITY.md`. Both are linked from the README.
+
+### Changed
+
+- Public narrative repositioned from "zero-trust governance kernel" to the EU AI Act conformity evidence layer for AI agents. README, ENTERPRISE.md, the operator dashboard, contacts, and the project docs are reconciled to that frame and to the honest posture: soft enforcement today, authoritative eBPF/LSM on the Enterprise roadmap. The operator dashboard at `/` is restyled to a minimal theme.
+
+### Removed
+
+- The unwired `ui/` React visualization (the deferred Visual Plane scaffold), the `ui-embed` Cargo feature, and the optional `rust-embed` dependency are removed. The operator dashboard served at `/` is unaffected; it was never part of the `ui-embed` path. This drops the dead TypeScript and React surface and keeps the repository Rust-first.
+
+---
+
+## [1.2.0], 2026-05-28
 
 The **primitive evolution release**: ships the 4 primitives that
 ADR 0010 §3 reinstated to the OSS 1.2 roadmap. All changes are
 **additive**; no breaking changes against 1.1.0. The
 `IAGA Sentinel Enterprise` boundary (ADR 0010 §2, 20 categories)
-is reaffirmed — see [`ENTERPRISE.md`](ENTERPRISE.md).
+is reaffirmed, see [`ENTERPRISE.md`](ENTERPRISE.md).
 
 ### Added
 
-- [`docs/adr/0011-signer-trait-and-local-disk.md`](docs/adr/0011-signer-trait-and-local-disk.md) —
+- [`docs/adr/0011-signer-trait-and-local-disk.md`](docs/adr/0011-signer-trait-and-local-disk.md) -
   `Signer` trait (async, object-safe) + `LocalDiskSigner` reference impl.
-  `ReceiptSigner` becomes a type alias so every 1.0 / 1.1 callsite —
-  production and test — compiles unchanged. `SignedReceiptLogger` now
+  `ReceiptSigner` becomes a type alias so every 1.0 / 1.1 callsite -
+  production and test, compiles unchanged. `SignedReceiptLogger` now
   holds `Arc<dyn Signer>`, giving Enterprise builds a clean injection
   point for KMS-backed signers without ricompiling the OSS core.
-- [`docs/adr/0012-drift-replay-additive.md`](docs/adr/0012-drift-replay-additive.md) —
+- [`docs/adr/0012-drift-replay-additive.md`](docs/adr/0012-drift-replay-additive.md) -
   three new optional fields on `ReceiptBody` (`pipeline_inputs_capture`,
   `apl_eval_trace`, `ml_inference_inputs`), opt-in via host env
   `IAGA_SENTINEL_RECEIPT_CAPTURE=1`. New CLI flag
   `iaga replay --re-execute` surfaces per-receipt capture availability.
   Receipts produced with capture disabled are **byte-identical** to
-  1.1 — chain hashes and signatures stay stable.
-- [`docs/adr/0013-plugin-attestation.md`](docs/adr/0013-plugin-attestation.md) —
+  1.1, chain hashes and signatures stay stable.
+- [`docs/adr/0013-plugin-attestation.md`](docs/adr/0013-plugin-attestation.md) -
   new Cargo feature `plugin-attestation` (default off) gates offline
   Sigstore bundle + CycloneDX 1.5 SBOM verification. Looks for sibling
   `<plugin>.sigstore.json` and `<plugin>.cdx.json` next to each WASM
   plugin; validates bundle well-formedness and confirms the payload
   digest matches the plugin bytes. New CLI subcmd
   `iaga plugin verify <path>`.
-- [`docs/adr/0014-apl-wasm-and-types.md`](docs/adr/0014-apl-wasm-and-types.md) —
+- [`docs/adr/0014-apl-wasm-and-types.md`](docs/adr/0014-apl-wasm-and-types.md) -
   Hindley-Milner type checker (Algorithm W) over the existing APL AST,
   always-available via `compile_with_types(src)` and the CLI
   `iaga policy check <file.apl>`. New Cargo feature `apl-wasm`
   (default off) adds a WASM codegen scaffolding for literal +
   boolean / numeric / comparison operations; `iaga policy compile`
   emits the module. The tree-walk evaluator remains canonical for the
-  full APL surface — Path / Call / Membership are rejected by the WASM
+  full APL surface, Path / Call / Membership are rejected by the WASM
   MVP with clear errors.
 - New CLI subcmds (additive): `iaga replay --re-execute`,
   `iaga plugin verify <path>`, `iaga policy check <file.apl>`,
@@ -70,12 +91,12 @@ is reaffirmed — see [`ENTERPRISE.md`](ENTERPRISE.md).
 - `PluginDigest` (in the receipt body) gains optional `attested`
   and `attestation_issuer`. Elided when `None`.
 - `SignedReceiptLogger` now accepts `Arc<dyn Signer>` rather than
-  the concrete struct. `ReceiptSigner` preserved as a type alias —
+  the concrete struct. `ReceiptSigner` preserved as a type alias -
   zero breaking change for existing callers.
 
 ### Deferred (still OSS-eligible, no schedule)
 
-- `iaga policy migrate` (YAML → APL converter) — debt closure for
+- `iaga policy migrate` (YAML → APL converter), debt closure for
   ADR 0008, not a primitive evolution. Lands in 1.2.x or 1.3.
 - Address the 3 RUSTSEC ignores in CI (`RUSTSEC-2023-0071`,
   `-2025-0057`, `-2024-0436`) via dependency hardening pass.
@@ -85,7 +106,7 @@ is reaffirmed — see [`ENTERPRISE.md`](ENTERPRISE.md).
 - Postgres + macOS / Windows full CI matrix (1.2 adds compile
   sanity best-effort; promotion to required CI status is 1.3).
 
-### Still Enterprise (boundary reaffirmed — see [`ENTERPRISE.md`](ENTERPRISE.md))
+### Still Enterprise (boundary reaffirmed, see [`ENTERPRISE.md`](ENTERPRISE.md))
 
 The OSS 1.2 primitive scope is intentionally narrow. The full
 chain-of-trust / production-grade implementations remain in
@@ -111,12 +132,12 @@ IAGA Sentinel Enterprise per ADR 0010 §2 (20 categories), including:
 
 ---
 
-## [1.1.0] — 2026-05-23
+## [1.1.0], 2026-05-23
 
 A consolidation + rebrand release. 1.1.0 keeps 1.0.0's runtime
 behaviour and API contract, but **renames the project Agent Armor →
 IAGA Sentinel** across binary, crates, env vars, paths, and
-identifiers (breaking for CLI / ops / crate consumers — see
+identifiers (breaking for CLI / ops / crate consumers, see
 [`MIGRATION.md`](MIGRATION.md)), and pins **how the OSS line is
 positioned** relative to the IAGA Sentinel Enterprise commercial
 product.
@@ -127,7 +148,7 @@ receipts, APL DSL with live overlay, probabilistic reasoning
 framework, audit pipeline. That is the OSS contract preserved by
 the **never retroactively remove** covenant in `ENTERPRISE.md`.
 
-1.1 holds that line — no new runtime capabilities — and clarifies
+1.1 holds that line, no new runtime capabilities, and clarifies
 the OSS↔Enterprise boundary in the public docs so that users and
 would-be contributors know what to expect from the open-source
 line going forward.
@@ -156,7 +177,7 @@ Capabilities originally listed under "Deferred to 1.0.x" or
   AWS KMS / Azure Key Vault / HashiCorp Vault / PKCS#11 (was 1.1).
   These require specialist engineering at scale and ship with
   contractual support, managed lifecycle, and threat-intel feed.
-  None shipped in 1.0 GA — the **never retroactively remove**
+  None shipped in 1.0 GA, the **never retroactively remove**
   covenant is preserved.
 
 The Enterprise edition is where the EU AI Act + GDPR + DORA
@@ -178,7 +199,7 @@ the full pitch and EU AI Act article-by-article mapping.
 - New [`IAGA_SENTINEL_1.1.md`](IAGA_SENTINEL_1.1.md) committed as the
   canonical 1.1 design note.
 
-### Renamed (breaking — see [`MIGRATION.md`](MIGRATION.md))
+### Renamed (breaking, see [`MIGRATION.md`](MIGRATION.md))
 
 - Complete rebrand **Agent Armor → IAGA Sentinel**: primary binary
   `agent-armor` → `iaga-sentinel` (short alias `armor` → `iaga`);
@@ -187,7 +208,7 @@ the full pitch and EU AI Act article-by-article mapping.
   `AGENT_ARMOR_*` and `ARMOR_*` → `IAGA_SENTINEL_*` (clean break, no
   fallback); signer key dir `~/.armor/` → `~/.iaga-sentinel/`; default
   DB `agent_armor.db` → `iaga_sentinel.db`; API-key prefix `aa_` →
-  `iaga_` (newly generated keys only — existing keys still validate);
+  `iaga_` (newly generated keys only, existing keys still validate);
   webhook headers `X-Armor-*` → `X-Iaga-Sentinel-*`; MCP tools
   `agentarmor.*` → `iaga.*`; public types `Armor*` → `Sentinel*`. The GitHub repository is now
   `EdoardoBambini/IAGA-Sentinel`.
@@ -204,7 +225,7 @@ the full pitch and EU AI Act article-by-article mapping.
   Merkle), on-disk schema, APL/policy formats, feature flags, and
   the HTTP API contract (endpoints, camelCase JSON, Bearer auth) are
   identical to 1.0.0; existing API keys still validate. **Only
-  identifiers were renamed (see Renamed above) — behaviour did not
+  identifiers were renamed (see Renamed above), behaviour did not
   change.**
 - The covenant in `ENTERPRISE.md`: *Enterprise will never
   retroactively remove features from OSS. If something works in
@@ -218,7 +239,7 @@ years after publication.
 
 ---
 
-## [1.0.0] — Unreleased ("Fortezza")
+## [1.0.0], 2026-04-26 ("Fortezza")
 
 Architectural leap from 0.4.0. The 0.4.0 sidecar HTTP gate becomes a
 distributed, attested, replayable, probabilistically aware kernel for
@@ -245,36 +266,36 @@ deterministic policy decides on.
 - **Workspace split** into 5 crates under `crates/`: `iaga-sentinel-core`,
   `iaga-sentinel-receipts`, `iaga-sentinel-apl`, `iaga-sentinel-reasoning`, `iaga-sentinel-kernel`.
   Single workspace `Cargo.toml` at the root.
-- **M2 — Signed Action Receipts.** Ed25519-signed records of every
+- **M2, Signed Action Receipts.** Ed25519-signed records of every
   governance verdict, hash-chained per `run_id` (Merkle append-log).
   SQLite and Postgres backends. New CLI: `iaga replay --list`,
   `iaga replay <run_id>`, `iaga replay <run_id> --verify-only`.
   Signer key auto-generated at `~/.iaga-sentinel/keys/receipt_signer.ed25519`
   on first run, override via `IAGA_SENTINEL_SIGNER_KEY_PATH`.
-- **M3 — Agent Policy Language (APL).** Typed DSL with deterministic
+- **M3, Agent Policy Language (APL).** Typed DSL with deterministic
   tree-walk evaluator, instruction budget, short-circuit boolean
   evaluation, hash-linked replay safety. New crate `iaga-sentinel-apl`. CLI:
   `iaga policy test <file.apl>` and `iaga policy lint <file.apl>`.
   WASM codegen for APL is tracked for 1.0.3.
-- **M3.5 — Probabilistic Reasoning Plane.** New crate `iaga-sentinel-reasoning`
+- **M3.5, Probabilistic Reasoning Plane.** New crate `iaga-sentinel-reasoning`
   with always-available `NoopEngine` plus `TractEngine` (pure-Rust
   ONNX via `tract-onnx`) behind opt-in `ml` feature. Model SHA-256
   digests embedded in every receipt. CLI: `iaga reasoning info`.
   Pre-trained models ship in 1.0.2. *(See [1.1.0] entry for
   re-scoping: curated ONNX library lives in IAGA Sentinel Enterprise.)*
-- **M4 — Enforcement Kernel scaffold.** New crate `iaga-sentinel-kernel` with
+- **M4, Enforcement Kernel scaffold.** New crate `iaga-sentinel-kernel` with
   cross-platform `UserspaceKernel` (soft enforcement, every OS) and
   Linux `BpfKernel` scaffold under `linux-bpf` feature. New CLI:
   `iaga run [--agent-id ...] [--cwd ...] -- <cmd>` and
   `iaga kernel status`. The real eBPF/LSM loader lands in 1.0.1.
   *(See [1.1.0] entry: real Aya-rs loader re-scoped to IAGA Sentinel
   Enterprise; the OSS scaffold + honest posture continue in 1.x.)*
-- **M5 — `iaga run` traverses the full governance pipeline.** Every
+- **M5, `iaga run` traverses the full governance pipeline.** Every
   governed launch produces a signed receipt. Postgres receipt backend
   is wired automatically based on the `DATABASE_URL` scheme.
   Cargo feature composition: `iaga-sentinel-core/sqlite|postgres` transitively
   enables the matching `iaga-sentinel-receipts` feature.
-- **M6 — APL as live policy engine.** `iaga serve --policy <file.apl>`
+- **M6, APL as live policy engine.** `iaga serve --policy <file.apl>`
   loads an overlay merged stricter-wins with the YAML profile system.
   Receipts embed the SHA-256 of the active APL bundle in
   `policy_hash`. New CLI `iaga policy lint`.
@@ -295,7 +316,7 @@ deterministic policy decides on.
   [ADR 0002](docs/adr/0002-open-source-license-and-scope.md) for the
   rationale and [`LICENSE`](LICENSE) for the legal text.
 - **Defense-in-depth model**: 8 layers → 12 layers. The original 8 are
-  hardened in M2–M5; M3.5 + M4 add supply chain attestation /
+  hardened in M2-M5; M3.5 + M4 add supply chain attestation /
   blast radius enforcement / behavioral baseline / counterparty trust
   scaffolding.
 - **All paths** `community/` → `crates/iaga-sentinel-core/`. Detailed renames
@@ -307,7 +328,7 @@ deterministic policy decides on.
 
 > The lists below preserved verbatim from the 1.0 GA changelog for
 > historical fidelity. The **2026-05-08 OSS↔Enterprise boundary
-> clarification** re-scopes these capabilities — see the [1.1.0]
+> clarification** re-scopes these capabilities, see the [1.1.0]
 > entry above and [`docs/adr/0010-oss-enterprise-boundary.md`](docs/adr/0010-oss-enterprise-boundary.md).
 > None of the items below shipped in 1.0 GA, so the **never
 > retroactively remove** covenant is preserved.
@@ -323,7 +344,7 @@ deterministic policy decides on.
   alongside model files. **Re-scoped → Enterprise** (curated ML
   model library with threat-intel feed + GPU acceleration).
 - ~~**1.0.3**~~: WASM codegen for APL via `wasm-encoder`; full
-  Hindley–Milner type checker. **Reinstated → OSS 1.2 roadmap.**
+  Hindley-Milner type checker. **Reinstated → OSS 1.2 roadmap.**
 
 #### Originally deferred to 1.1
 
@@ -362,7 +383,7 @@ deterministic policy decides on.
 
 ---
 
-## [0.4.0] — 2026-XX-XX ("Azzurra")
+## [0.4.0], 2026-04-19 ("Azzurra")
 
 The community runtime that proved the thesis. 8-layer defense in depth
 behind a single `/v1/inspect` HTTP gate. Policy as YAML + templates.

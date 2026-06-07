@@ -1,4 +1,4 @@
-# IAGA Sentinel 1.0 — "Fortezza"
+# IAGA Sentinel 1.0, "Fortezza"
 
 > Design document per il salto da 0.4.0 a 1.0.
 > Da *sidecar di governance HTTP* a **kernel distribuito, attestato, replayable e probabilisticamente consapevole per agenti autonomi.**
@@ -24,7 +24,7 @@ Regola d'oro che tiene in piedi l'intero design:
 
 ## 2. I 7 pilastri
 
-### Pilastro 1 — Enforcement Kernel
+### Pilastro 1, Enforcement Kernel
 
 Il vero salto: IAGA Sentinel smette di essere opt-in.
 
@@ -37,14 +37,14 @@ Il vero salto: IAGA Sentinel smette di essere opt-in.
 
 **Breaking change:** il confine di trust si sposta. Gli SDK Python/TS restano ma perdono privilegio: *consigliano*, non *decidono*.
 
-### Pilastro 2 — Signed Action Receipts + Replay Deterministico
+### Pilastro 2, Signed Action Receipts + Replay Deterministico
 
 - Ogni decisione (`allow|review|block`) produce un **receipt Ed25519-firmato** con: input hash, policy hash, plugin digests, ML model digests + scores, verdict, timestamp, parent receipt.
 - Formato: DAG di receipt → **Merkle log append-only**. Una tabella `receipts` sostituisce `audit_events`.
 - `iaga replay <run_id>` rigioca l'intera traccia in sandbox e verifica byte-per-byte che le decisioni odierne coincidano con quelle storiche → detection di *policy drift*.
 - Export standard: **in-toto attestation** + **SLSA provenance v1** per ogni azione.
 
-### Pilastro 3 — Agent Policy Language (APL)
+### Pilastro 3, Agent Policy Language (APL)
 
 DSL tipizzato, compilato a bytecode deterministico. Sostituisce YAML + template.
 
@@ -67,7 +67,7 @@ policy "halt_on_hijack_suspicion" {
 - Compila a WASM → stesso engine dei plugin → esecuzione deterministica, budget di istruzioni.
 - Backward compat: il loader YAML resta ma stampa deprecation warning; i template diventano "preludio APL".
 
-### Pilastro 4 — Attested Plugins + Supply Chain
+### Pilastro 4, Attested Plugins + Supply Chain
 
 Ogni `.wasm` plugin richiede:
 
@@ -80,14 +80,14 @@ Più:
 - registry plugin locale (`~/.iaga-sentinel/plugins/`) con verifica on-load,
 - `iaga plugin publish` firma e pusha, `iaga plugin verify` offline.
 
-### Pilastro 5 — Governance Mesh (multi-agente)
+### Pilastro 5, Governance Mesh (multi-agente)
 
 - Ogni nodo IAGA Sentinel espone un gossip endpoint gRPC (mTLS).
 - Fatti propagati: policy revisions, receipt heads, plugin digests, revoche, anomalie comportamentali.
-- **Rate budget globali**: un worker pool di 50 agenti condivide un budget "100 chiamate HTTP/min a github.com" — oggi è per-process, in 1.0 è federato.
+- **Rate budget globali**: un worker pool di 50 agenti condivide un budget "100 chiamate HTTP/min a github.com", oggi è per-process, in 1.0 è federato.
 - Modalità **hub** (singolo server) e **p2p** (CRDT su receipt log).
 
-### Pilastro 6 — Visual come first-class citizen
+### Pilastro 6, Visual come first-class citizen
 
 La cartella `visual/` (oggi untracked) diventa il frontend ufficiale di IAGA Sentinel:
 
@@ -96,7 +96,7 @@ La cartella `visual/` (oggi untracked) diventa il frontend ufficiale di IAGA Sen
 - vista "neural" attuale = dashboard operativa, non demo marketing,
 - `iaga-sentinel-video/` (Remotion) resta fuori dal binario → pipeline assets per docs/sito.
 
-### Pilastro 7 — Probabilistic Reasoning Plane
+### Pilastro 7, Probabilistic Reasoning Plane
 
 Tre classificatori locali (piccoli, CPU-friendly, no cloud) affiancano la pipeline deterministica:
 
@@ -114,11 +114,11 @@ Ogni modello emette `{score: 0..1, features: [...], model_digest: sha256}` → f
 
 ---
 
-## 3. Da 8 a 12 layer — onesto, non marketing
+## 3. Da 8 a 12 layer, onesto, non marketing
 
 Il brand "8-layer" della 0.x diventa **"12-layer defense-in-depth"** nella 1.0. I nuovi layer non sono riempimento: coprono gap reali.
 
-### Layer rafforzati (1–8)
+### Layer rafforzati (1-8)
 
 | # | Layer | Cosa cambia in 1.0 |
 |---|---|---|
@@ -131,7 +131,7 @@ Il brand "8-layer" della 0.x diventa **"12-layer defense-in-depth"** nella 1.0. 
 | 7 | Identity / auth | + workload attestation (SPIFFE/SPIRE opzionale) |
 | 8 | Audit | → **Receipt Merkle log firmato** |
 
-### Layer nuovi (9–12)
+### Layer nuovi (9-12)
 
 | # | Layer | Cosa fa | Perché manca oggi |
 |---|---|---|---|
@@ -178,7 +178,7 @@ iaga-sentinel/
 > SDKs Python e TypeScript esistono; `sdks/go` non è stato realizzato in
 > OSS 1.0 GA.
 
-**Pulizia:** `enterprise/` resta fuori dal repo pubblico (scope confermato community-only). I `*.db` in root vanno in `.gitignore` — sono artefatti di test, erroneamente committati in 0.4.0.
+**Pulizia:** `enterprise/` resta fuori dal repo pubblico (scope confermato community-only). I `*.db` in root vanno in `.gitignore`, sono artefatti di test, erroneamente committati in 0.4.0.
 
 ---
 
@@ -194,9 +194,9 @@ iaga-sentinel/
 | **M5** | *Attestation + Mesh* | Sigstore, SBOM, gRPC gossip | 3 nodi condividono un rate budget in demo |
 | **M6** | *Kernel cross-platform + 1.0 GA* | macOS ES + Windows WFP, docs book, migration guide | RC → 1.0 tag |
 
-Timeline realistica da solo: **4–6 mesi** se il kernel resta Linux-only a 1.0 e macOS/Windows slittano a 1.1.
+Timeline realistica da solo: **4-6 mesi** se il kernel resta Linux-only a 1.0 e macOS/Windows slittano a 1.1.
 
-> **Status update 2026-05-08**: M1–M6 sono stati shippati nel 1.0 GA come previsto.
+> **Status update 2026-05-08**: M1-M6 sono stati shippati nel 1.0 GA come previsto.
 > Il real Aya-rs eBPF loader Linux (originalmente "M4.1") + macOS Endpoint Security
 > + Windows ETW/WFP backends (originalmente "1.1 OSS") sono stati riallocati in
 > IAGA Sentinel Enterprise per [ADR 0010](docs/adr/0010-oss-enterprise-boundary.md)
@@ -217,17 +217,17 @@ Timeline realistica da solo: **4–6 mesi** se il kernel resta Linux-only a 1.0 
 
 ---
 
-## 7. Decisioni aperte — **Risolte (2026-04-23)**
+## 7. Decisioni aperte, **Risolte (2026-04-23)**
 
 Le quattro scelte che bloccavano la forma di 1.0 sono chiuse. Dettagli completi in
 [`docs/adr/0002-open-source-license-and-scope.md`](docs/adr/0002-open-source-license-and-scope.md).
 
-1. **Kernel scope** → **`UserspaceKernel` cross-platform soft enforcement** sempre presente in OSS + **`BpfKernel` scaffold Linux** (feature `linux-bpf`) honest-reported. Il real Aya-rs eBPF/LSM loader Linux + macOS Endpoint Security + Windows ETW/WFP backends sono stati riallocati in IAGA Sentinel Enterprise — vedi §9 e [ADR 0010](docs/adr/0010-oss-enterprise-boundary.md) categorie #16 + #17.
-2. **Mesh timing** → 1.0 ships single-node. Lo schema receipt è già compatibile con federazione. La governance mesh (single-cluster + tier-2 multi-region) vive in IAGA Sentinel Enterprise — vedi §9 e [ADR 0010](docs/adr/0010-oss-enterprise-boundary.md).
+1. **Kernel scope** → **`UserspaceKernel` cross-platform soft enforcement** sempre presente in OSS + **`BpfKernel` scaffold Linux** (feature `linux-bpf`) honest-reported. Il real Aya-rs eBPF/LSM loader Linux + macOS Endpoint Security + Windows ETW/WFP backends sono stati riallocati in IAGA Sentinel Enterprise, vedi §9 e [ADR 0010](docs/adr/0010-oss-enterprise-boundary.md) categorie #16 + #17.
+2. **Mesh timing** → 1.0 ships single-node. Lo schema receipt è già compatibile con federazione. La governance mesh (single-cluster + tier-2 multi-region) vive in IAGA Sentinel Enterprise, vedi §9 e [ADR 0010](docs/adr/0010-oss-enterprise-boundary.md).
 3. **Licenza core** → **BUSL-1.1 con Change License: Apache-2.0 baked-in**. La licenza converte automaticamente ad Apache-2.0 quattro anni dopo la pubblicazione di ogni release. Nessuno switch manuale serve, e nessun futuro maintainer può rinegoziare la transizione: è scritta nella licenza stessa. `iaga-enterprise` resta sotto licenza commerciale separata.
 4. **ML plane** → **feature-flag `ml` opzionale**, default off. `iaga-sentinel-reasoning` (M3.5) è crate separato; senza `ml` i riferimenti APL `ml.*` risolvono a evidenza mancante.
 
-Roadmap finale: M1 ✅ · M2 ✅ · M3 ✅ · M3.5 ✅ · M4 ✅ · M5 ✅ · M6 ✅ · 1.0 GA shippata ✅. La 1.1 è una consolidation release (binary swap, no runtime change) che canonifica il boundary OSS↔Enterprise — vedi [`IAGA_SENTINEL_1.1.md`](IAGA_SENTINEL_1.1.md) e [ADR 0010](docs/adr/0010-oss-enterprise-boundary.md).
+Roadmap finale: M1 ✅ · M2 ✅ · M3 ✅ · M3.5 ✅ · M4 ✅ · M5 ✅ · M6 ✅ · 1.0 GA shippata ✅. La 1.1 è una consolidation release (binary swap, no runtime change) che canonifica il boundary OSS↔Enterprise, vedi [`IAGA_SENTINEL_1.1.md`](IAGA_SENTINEL_1.1.md) e [ADR 0010](docs/adr/0010-oss-enterprise-boundary.md).
 
 ---
 
@@ -235,15 +235,15 @@ Roadmap finale: M1 ✅ · M2 ✅ · M3 ✅ · M3.5 ✅ · M4 ✅ · M5 ✅ · M6
 
 | Pilastro | Crate | Stato | Note |
 |---|---|---|---|
-| 1 — Enforcement Kernel | `iaga-sentinel-kernel` | ✅ scaffold + UserspaceKernel | Real eBPF/LSM loader Linux + macOS Endpoint Security + Windows ETW/WFP → Enterprise |
-| 2 — Signed Receipts | `iaga-sentinel-receipts` | ✅ completo | Ed25519 + Merkle log, SQLite + Postgres backends |
-| 3 — Agent Policy Language | `iaga-sentinel-apl` | ✅ completo | Tree-walk evaluator + APL live overlay (M6); WASM codegen + Hindley-Milner type checker → OSS 1.2 |
-| 4 — Attested Plugins | (in `iaga-sentinel-core/plugins/`) | infra 0.4.0 | Sigstore + SBOM CycloneDX attestation primitive → OSS 1.2; private hosted marketplace + supply-chain SLA → Enterprise |
-| 5 — Governance Mesh | (`iaga-mesh` privato) | rinviato | Single-cluster baseline + tier-2 multi-region → Enterprise |
-| 6 — Visual Plane | `ui/` + `iaga-sentinel-core` `ui-embed` feature | scaffold | Frontend reale work-in-progress separato |
-| 7 — Probabilistic Reasoning | `iaga-sentinel-reasoning` | ✅ scaffold + tract backend | BYO ONNX in OSS; curated ML library (intent-drift / prompt-injection / anomaly-seq) + HF tokenizers + GPU + threat-intel feed → Enterprise |
+| 1, Enforcement Kernel | `iaga-sentinel-kernel` | ✅ scaffold + UserspaceKernel | Real eBPF/LSM loader Linux + macOS Endpoint Security + Windows ETW/WFP → Enterprise |
+| 2, Signed Receipts | `iaga-sentinel-receipts` | ✅ completo | Ed25519 + Merkle log, SQLite + Postgres backends |
+| 3, Agent Policy Language | `iaga-sentinel-apl` | ✅ completo | Tree-walk evaluator + APL live overlay (M6); WASM codegen + Hindley-Milner type checker → OSS 1.2 |
+| 4, Attested Plugins | (in `iaga-sentinel-core/plugins/`) | infra 0.4.0 | Sigstore + SBOM CycloneDX attestation primitive → OSS 1.2; private hosted marketplace + supply-chain SLA → Enterprise |
+| 5, Governance Mesh | (`iaga-mesh` privato) | rinviato | Single-cluster baseline + tier-2 multi-region → Enterprise |
+| 6, Visual Plane | `ui/` + `iaga-sentinel-core` `ui-embed` feature | scaffold | Frontend reale work-in-progress separato |
+| 7, Probabilistic Reasoning | `iaga-sentinel-reasoning` | ✅ scaffold + tract backend | BYO ONNX in OSS; curated ML library (intent-drift / prompt-injection / anomaly-seq) + HF tokenizers + GPU + threat-intel feed → Enterprise |
 
-**12 layer** = 8 originali (hardened in M2–M5) + 9 supply chain attestation (Sigstore + SBOM primitive in OSS 1.2; hosted marketplace in Enterprise) + 10 blast radius (UserspaceKernel soft enforcement in OSS; real eBPF/LSM loader autoritativo in Enterprise) + 11 behavioral baseline (presente da 0.4.0, esposto via APL `ml.*` paths) + 12 counterparty trust (scaffold via signer key_id nei receipt; full mesh wiring in Enterprise).
+**12 layer** = 8 originali (hardened in M2-M5) + 9 supply chain attestation (Sigstore + SBOM primitive in OSS 1.2; hosted marketplace in Enterprise) + 10 blast radius (UserspaceKernel soft enforcement in OSS; real eBPF/LSM loader autoritativo in Enterprise) + 11 behavioral baseline (presente da 0.4.0, esposto via APL `ml.*` paths) + 12 counterparty trust (scaffold via signer key_id nei receipt; full mesh wiring in Enterprise).
 
 ---
 
@@ -256,7 +256,7 @@ Roadmap finale: M1 ✅ · M2 ✅ · M3 ✅ · M3.5 ✅ · M4 ✅ · M5 ✅ · M6
 > implementazioni heavy-engineering (real eBPF loader Linux, backend
 > macOS/Windows del kernel, mesh, native SDK dei 4 KMS, modelli
 > curated) vivono in Enterprise. Niente che 1.0 GA ha shippato
-> viene tolto — le capabilities migrate erano deferred, non release.
+> viene tolto, le capabilities migrate erano deferred, non release.
 > Quattro primitive deferred sono state reinstaurate in OSS roadmap
 > 1.2: APL WASM codegen + HM, Plugin Sigstore + SBOM, drift replay
 > additivo, Signer trait + `LocalDiskSigner` refactor.
@@ -282,8 +282,8 @@ IAGA Sentinel 1.0 esiste in due edizioni che condividono **lo stesso governance 
 - **BYOK signer pattern**: `IAGA_SENTINEL_SIGNER_KEY_PATH` punta a qualsiasi
   Ed25519 32-byte key file, incluso uno emesso dal tuo KMS via
   filesystem-mount. `Signer` trait pubblico + `LocalDiskSigner`
-  refactor pianificati per OSS 1.2 (i 4 native KMS SDK backends —
-  AWS KMS / Azure Key Vault / HashiCorp Vault / PKCS#11 HSM —
+  refactor pianificati per OSS 1.2 (i 4 native KMS SDK backends -
+  AWS KMS / Azure Key Vault / HashiCorp Vault / PKCS#11 HSM -
   vivono in Enterprise).
 - **Plugin WASM** caricabili con `iaga plugins ...`.
   Attestation Sigstore + SBOM CycloneDX pianificata per OSS 1.2.
@@ -307,7 +307,7 @@ migrate da deferred-OSS al boundary 2026-05-08).
 - **Cockpit operativo**: web dashboard real-time, alerting, runbook automation, SIEM native connectors (Splunk / Datadog / Elastic / Sentinel / Chronicle), Slack/Teams hooks.
 - **Identity & multi-tenancy**: SSO SAML 2.0 + OIDC + SCIM, RBAC fine-grained, MFA enforcement, IP allowlist, multi-tenant isolato (schema-per-tenant), eIDAS identità qualificate.
 - **Cryptographic ops managed**: managed key lifecycle (auto-rotation, audit-trailed approvals UI), eIDAS qualified e-signatures (XAdES/PAdES/CAdES + LTV + EU TSP), 4 native KMS SDK backends (AWS KMS / Azure Key Vault / HashiCorp Vault / PKCS#11 HSM), field-level encryption, KMS contractual support.
-- **Real eBPF/LSM loader Linux** (Aya-rs + LSM hooks `bprm_check_security` / `file_open` / `socket_connect` / `socket_sendmsg` + Landlock fallback + cgroup jailing) — il loader autoritativo che fa flippare `BpfKernel.is_authoritative()` a `true`.
+- **Real eBPF/LSM loader Linux** (Aya-rs + LSM hooks `bprm_check_security` / `file_open` / `socket_connect` / `socket_sendmsg` + Landlock fallback + cgroup jailing), il loader autoritativo che fa flippare `BpfKernel.is_authoritative()` a `true`.
 - **Cross-platform kernel backend**: macOS Endpoint Security (signed/notarized turnkey) + Windows ETW + WFP (EV cert managed).
 - **Governance mesh** (single-cluster baseline + tier-2 multi-region active-active + federated rate budget cross-cluster + mTLS KMS-backed cross-cluster).
 - **Curated ML model library**: modelli ONNX pre-trained (intent-drift, prompt-injection, anomaly-seq) versionati e firmati, HuggingFace tokenizer integration + calibration framework, GPU acceleration, threat intel feed AI-specifico real-time. Benchmark managed.

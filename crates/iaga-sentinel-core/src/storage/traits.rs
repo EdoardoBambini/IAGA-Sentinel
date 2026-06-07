@@ -83,7 +83,7 @@ pub trait TenantStore: Send + Sync {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// v0.4.0 — Durable State Storage Traits
+// v0.4.0, Durable State Storage Traits
 // ═══════════════════════════════════════════════════════════════
 
 /// Persistent storage for NHI (Non-Human Identity) layer.

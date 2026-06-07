@@ -1,4 +1,4 @@
-//! OSS 1.2 — offline Sigstore bundle + CycloneDX SBOM attestation
+//! OSS 1.2, offline Sigstore bundle + CycloneDX SBOM attestation
 //! primitive for plugin supply-chain integrity.
 //!
 //! Scope (ADR 0013, ADR 0010 §3):
@@ -60,7 +60,7 @@ pub struct PluginAttestation {
 impl PluginAttestation {
     /// Convenience: `true` iff a bundle exists, it parses cleanly, AND
     /// its payload digest matches the plugin bytes. This is the
-    /// strongest claim OSS 1.2 makes — does **not** include
+    /// strongest claim OSS 1.2 makes, does **not** include
     /// chain-of-trust verification.
     pub fn offline_verified(&self) -> bool {
         self.bundle_path.is_some() && self.bundle_well_formed && self.payload_digest_match
@@ -109,7 +109,7 @@ impl From<std::io::Error> for AttestationError {
 /// plugin. Both are optional; missing or malformed bundles degrade
 /// gracefully (the corresponding fields stay `None` / `false`).
 ///
-/// Only `PluginIo` is a real error — meaning the plugin file itself
+/// Only `PluginIo` is a real error, meaning the plugin file itself
 /// could not be read. Bundle / SBOM parse failures are *not* errors:
 /// the function returns a `PluginAttestation` with the relevant fields
 /// flagged "absent / malformed".

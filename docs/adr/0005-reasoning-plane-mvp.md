@@ -1,4 +1,4 @@
-# ADR 0005 — Probabilistic Reasoning Plane MVP (M3.5)
+# ADR 0005, Probabilistic Reasoning Plane MVP (M3.5)
 
 - **Status**: Accepted
 - **Date**: 2026-04-25
@@ -20,7 +20,7 @@
 
 ## Contesto
 
-Pilastro 7 di 1.0 introduce un piano di ragionamento probabilistico: modelli ONNX che producono **evidenze** (score, anomaly indicators) consumate dalla policy deterministica APL e firmate nei receipt M2. La regola d'oro del design impone che **ML non decida mai** — produce solo evidenze; il verdetto resta deterministico.
+Pilastro 7 di 1.0 introduce un piano di ragionamento probabilistico: modelli ONNX che producono **evidenze** (score, anomaly indicators) consumate dalla policy deterministica APL e firmate nei receipt M2. La regola d'oro del design impone che **ML non decida mai**, produce solo evidenze; il verdetto resta deterministico.
 
 ADR 0002 ha già fissato due punti:
 1. Feature `ml` **opt-in, default off** per non gonfiare il binary core.
@@ -91,7 +91,7 @@ ml = ["reasoning", "iaga-sentinel-reasoning/ml"]
 - `reasoning` (default **on**): abilita la dep + il `NoopEngine` pluggabile + il subcommand CLI `iaga reasoning info`. Zero costo a runtime se nessun engine reale è configurato.
 - `ml` (default **off**): aggiunge `tract-onnx` + `TractEngine` e attiva il caricamento da `IAGA_SENTINEL_REASONING_MODELS`.
 
-`AppState.reasoning: Option<Arc<dyn ReasoningHandle>>` è sempre presente nel tipo (feature-agnostic) — esattamente come `receipts`. Il trait `ReasoningHandle` è dichiarato in `pipeline::reasoning`, non re-esporta `iaga_sentinel_reasoning::ReasoningEngine` direttamente, così `iaga-sentinel-core` può compilare anche con `--no-default-features` senza pull-down del crate reasoning.
+`AppState.reasoning: Option<Arc<dyn ReasoningHandle>>` è sempre presente nel tipo (feature-agnostic), esattamente come `receipts`. Il trait `ReasoningHandle` è dichiarato in `pipeline::reasoning`, non re-esporta `iaga_sentinel_reasoning::ReasoningEngine` direttamente, così `iaga-sentinel-core` può compilare anche con `--no-default-features` senza pull-down del crate reasoning.
 
 ### 6. Pipeline hook in `execute_pipeline`
 
@@ -116,7 +116,7 @@ Mostra:
 - per ogni modello: nome + SHA-256 digest,
 - hint contestuale (rebuild con `--features ml`, oppure setta `IAGA_SENTINEL_REASONING_MODELS`).
 
-Non c'è `iaga reasoning eval <input>` per il MVP — era tentazione, ma usare il NoopEngine via CLI non aggiunge valore e i test integration coprono già il path eval.
+Non c'è `iaga reasoning eval <input>` per il MVP, era tentazione, ma usare il NoopEngine via CLI non aggiunge valore e i test integration coprono già il path eval.
 
 ## Conseguenze
 
@@ -163,7 +163,7 @@ iaga replay <run_id>
 
 ## Riferimenti
 
-- `docs/adr/0002-open-source-license-and-scope.md` — `ml` opt-in
-- `docs/adr/0003-signed-receipts-design.md` — schema receipt + `model_digests` / `ml_scores`
-- `docs/adr/0004-apl-mvp.md` — APL evaluator (M5 consumer di `ml.*`)
-- `IAGA_SENTINEL_1.0.md` §pilastro 7 — design completo del Reasoning Plane
+- `docs/adr/0002-open-source-license-and-scope.md`, `ml` opt-in
+- `docs/adr/0003-signed-receipts-design.md`, schema receipt + `model_digests` / `ml_scores`
+- `docs/adr/0004-apl-mvp.md`, APL evaluator (M5 consumer di `ml.*`)
+- `IAGA_SENTINEL_1.0.md` §pilastro 7, design completo del Reasoning Plane

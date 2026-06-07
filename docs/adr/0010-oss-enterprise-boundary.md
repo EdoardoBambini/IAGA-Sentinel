@@ -1,4 +1,4 @@
-# ADR 0010 — OSS↔Enterprise Boundary Clarification
+# ADR 0010, OSS↔Enterprise Boundary Clarification
 
 - **Status**: Accepted
 - **Date**: 2026-05-08
@@ -14,7 +14,7 @@ Il 1.0 GA ha shippato il governance kernel concettuale completo (workspace 5 cra
 - **Deferred to 1.0.x patch releases**: real eBPF/LSM loader (1.0.1), ONNX models pre-trained (1.0.2), APL WASM codegen (1.0.3).
 - **Deferred to 1.1**: governance mesh, macOS Endpoint Security + Windows ETW kernel backends, KMS/HSM signer backends, GPU ML, drift replay, stateful cross-run anomaly, HuggingFace tokenizers, `iaga policy migrate`.
 
-`IAGA_SENTINEL_1.0.md` §9 (versione originaria) descriveva queste capabilities come parte del kernel OSS-forever. `ENTERPRISE.md` (versione originaria) ribadiva: *"Enterprise will never gate the governance kernel. eBPF loader, [...] governance mesh — these stay in the open-source kernel."*
+`IAGA_SENTINEL_1.0.md` §9 (versione originaria) descriveva queste capabilities come parte del kernel OSS-forever. `ENTERPRISE.md` (versione originaria) ribadiva: *"Enterprise will never gate the governance kernel. eBPF loader, [...] governance mesh, these stay in the open-source kernel."*
 
 Procedendo con la pianificazione 1.1 emergono due fatti:
 
@@ -37,29 +37,29 @@ Il principio di test: **se la capability richiede una squadra dedicata o un budg
 
 #### Le 15 originali (`IAGA_SENTINEL_1.0.md` §9 versione originaria)
 
-1. **eIDAS qualified signature pipeline** — ETSI EN 319 132 (XAdES / PAdES / CAdES), Long-Term Validation, EU TSP connectors (Aruba / InfoCert / Namirial / etc.).
-2. **Managed key lifecycle automation** — auto-rotation, audit-trailed approvals UI, KMS contractual support.
-3. **Governance mesh tier-2** — multi-region active-active, cross-cluster federated rate budget, mTLS KMS-backed cross-cluster.
-4. **Multi-tenant isolation** — schema-per-tenant DB, resource quotas, audit isolation per tenant.
-5. **Enterprise SSO** — SAML 2.0 + OIDC + SCIM, RBAC fine-grained, MFA, IP allowlist.
-6. **Native SIEM connectors** — Splunk / Datadog / Elastic / Microsoft Sentinel / Google Chronicle, field-mapped.
-7. **Air-gapped offline distribution** — signed bundle delivery, offline update channel, custom installer.
-8. **Compliance pack EU AI Act + GDPR + DORA** — Annex IV dossier generator, DPO dashboard, RoPA + DPIA tooling, post-market monitoring, EU AI Office incident workflow, DORA Art. 28-44 ICT third-party risk, ISO/IEC 42001 QMS console.
-9. **DPO Dashboard** — review queue, escalation, SLA timer, Ed25519-signed audit-trailed approvals.
-10. **Curated ML model library** — pre-trained signed (intent-drift / prompt-injection / anomaly-seq) + GPU + threat-intel feed real-time + benchmark managed.
-11. **Curated eBPF/LSM AI-specific program library** — rootkit detection, model-weight DNS exfiltration, prompt-injection via shared memory.
-12. **Confidential-computing receipts** — SGX / SEV-SNP / Nitro Enclave, signer key inside TEE, hardware attestation in receipt body.
-13. **Forensic replay con time-travel** — event sourcing + temporal queries DB-state-per-verdict, threat-feed snapshot per moment.
-14. **Founder-led support contractual** — SLA 99.95%, oncall 24/7, founder direct line for Growth+, response 1h critical, security pre-disclosure, LTS 5 anni.
-15. **Conformity assessment notified-body workflow** — TÜV / Dekra / Bureau Veritas integration.
+1. **eIDAS qualified signature pipeline**, ETSI EN 319 132 (XAdES / PAdES / CAdES), Long-Term Validation, EU TSP connectors (Aruba / InfoCert / Namirial / etc.).
+2. **Managed key lifecycle automation**, auto-rotation, audit-trailed approvals UI, KMS contractual support.
+3. **Governance mesh tier-2**, multi-region active-active, cross-cluster federated rate budget, mTLS KMS-backed cross-cluster.
+4. **Multi-tenant isolation**, schema-per-tenant DB, resource quotas, audit isolation per tenant.
+5. **Enterprise SSO**, SAML 2.0 + OIDC + SCIM, RBAC fine-grained, MFA, IP allowlist.
+6. **Native SIEM connectors**, Splunk / Datadog / Elastic / Microsoft Sentinel / Google Chronicle, field-mapped.
+7. **Air-gapped offline distribution**, signed bundle delivery, offline update channel, custom installer.
+8. **Compliance pack EU AI Act + GDPR + DORA**, Annex IV dossier generator, DPO dashboard, RoPA + DPIA tooling, post-market monitoring, EU AI Office incident workflow, DORA Art. 28-44 ICT third-party risk, ISO/IEC 42001 QMS console.
+9. **DPO Dashboard**, review queue, escalation, SLA timer, Ed25519-signed audit-trailed approvals.
+10. **Curated ML model library**, pre-trained signed (intent-drift / prompt-injection / anomaly-seq) + GPU + threat-intel feed real-time + benchmark managed.
+11. **Curated eBPF/LSM AI-specific program library**, rootkit detection, model-weight DNS exfiltration, prompt-injection via shared memory.
+12. **Confidential-computing receipts**, SGX / SEV-SNP / Nitro Enclave, signer key inside TEE, hardware attestation in receipt body.
+13. **Forensic replay con time-travel**, event sourcing + temporal queries DB-state-per-verdict, threat-feed snapshot per moment.
+14. **Founder-led support contractual**, SLA 99.95%, oncall 24/7, founder direct line for Growth+, response 1h critical, security pre-disclosure, LTS 5 anni.
+15. **Conformity assessment notified-body workflow**, TÜV / Dekra / Bureau Veritas integration.
 
 #### Le 5 migrate da deferred-OSS
 
-16. **Real eBPF/LSM loader Linux** — Aya-rs + LSM hooks `bprm_check_security` / `file_open` / `socket_connect` / `socket_sendmsg` + Landlock fallback + cgroup jailing. (era 1.0.1 OSS)
-17. **Cross-platform kernel backend** — macOS Endpoint Security (signed/notarized turnkey) + Windows ETW + WFP (EV cert managed). (era 1.1 OSS)
-18. **Governance mesh single-cluster baseline** — gRPC gossip mTLS + CRDT receipt log + intra-cluster federated rate budget. (era 1.1 OSS, complementare a #3 tier-2)
+16. **Real eBPF/LSM loader Linux**, Aya-rs + LSM hooks `bprm_check_security` / `file_open` / `socket_connect` / `socket_sendmsg` + Landlock fallback + cgroup jailing. (era 1.0.1 OSS)
+17. **Cross-platform kernel backend**, macOS Endpoint Security (signed/notarized turnkey) + Windows ETW + WFP (EV cert managed). (era 1.1 OSS)
+18. **Governance mesh single-cluster baseline**, gRPC gossip mTLS + CRDT receipt log + intra-cluster federated rate budget. (era 1.1 OSS, complementare a #3 tier-2)
 19. **Curated ONNX reference models + HuggingFace tokenizer integration + calibration framework**. (era 1.0.2 + 1.1 OSS)
-20. **BYOK Signer 4 native KMS SDK backends** — AWS KMS / Azure Key Vault / HashiCorp Vault / PKCS#11 HSM. (era 1.1 OSS, native SDK; il pattern BYOK filesystem-mount resta OSS)
+20. **BYOK Signer 4 native KMS SDK backends**, AWS KMS / Azure Key Vault / HashiCorp Vault / PKCS#11 HSM. (era 1.1 OSS, native SDK; il pattern BYOK filesystem-mount resta OSS)
 
 ### 3. **4 primitive reinstaurate in OSS roadmap 1.2**
 

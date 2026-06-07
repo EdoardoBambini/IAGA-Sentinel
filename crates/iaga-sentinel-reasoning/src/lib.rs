@@ -1,14 +1,14 @@
 //! # iaga-sentinel-reasoning
 //!
-//! Probabilistic Reasoning Plane for IAGA Sentinel 1.0 — pillar 7 of the
+//! Probabilistic Reasoning Plane for IAGA Sentinel 1.0, pillar 7 of the
 //! 1.0 design. ML produces **evidence**, never verdicts. The deterministic
 //! policy layer decides; this crate just feeds it scores.
 //!
 //! Two backends:
 //!
-//! - [`NoopEngine`] — always present, returns empty evidence. Lets the
+//! - [`NoopEngine`], always present, returns empty evidence. Lets the
 //!   host write feature-agnostic glue code.
-//! - `TractEngine` (feature `ml`) — pure-Rust ONNX inference via `tract`.
+//! - `TractEngine` (feature `ml`), pure-Rust ONNX inference via `tract`.
 //!   Loads models from disk, computes SHA-256 digests for every file,
 //!   and emits a single scalar `score` per model. Zero native deps.
 //!

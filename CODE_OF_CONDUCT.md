@@ -29,7 +29,7 @@ Examples of unacceptable behavior:
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the community leaders at **iaga.start@gmail.com**.
+reported to the community leaders at **info@iaga.tech** or **info@edoardobambini.dev**.
 
 All complaints will be reviewed and investigated promptly and fairly.
 

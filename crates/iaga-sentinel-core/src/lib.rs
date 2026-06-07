@@ -12,11 +12,6 @@ pub mod plugins;
 pub mod server;
 pub mod storage;
 
-// 1.0 M1 scaffolding: embedded UI bundle (ui/dist/). Enabled via `ui-embed` feature.
-// Route wiring on /ui is deferred to a later milestone.
-#[cfg(feature = "ui-embed")]
-pub mod ui_embed;
-
 #[cfg(feature = "demo")]
 pub mod demo;
 

@@ -1,4 +1,4 @@
-//! LAYER 1 — Session Graph Analysis
+//! LAYER 1, Session Graph Analysis
 //!
 //! Models every agent session as a DAG (Directed Acyclic Graph).
 //! Nodes = tool calls. Edges = data flow.
@@ -403,7 +403,7 @@ pub fn add_tool_call_to_session(
             };
         }
 
-        // Still within cooldown window — remain blocked
+        // Still within cooldown window, remain blocked
         if elapsed < BLOCK_COOLDOWN_MS {
             return SessionAnalysisResult {
                 node_id: String::new(),
@@ -423,7 +423,7 @@ pub fn add_tool_call_to_session(
             };
         }
 
-        // Cooldown expired — transition to elevated-scrutiny state.
+        // Cooldown expired, transition to elevated-scrutiny state.
         // Reset blocked flag but keep elevated anomaly via block_count.
         session.blocked = false;
         session.block_reason = None;

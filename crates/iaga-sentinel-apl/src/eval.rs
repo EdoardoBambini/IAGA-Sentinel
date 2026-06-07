@@ -8,7 +8,7 @@
 //!
 //! An instruction budget (`EvalBudget`) caps the number of AST nodes
 //! visited, so pathological programs cannot wedge the host. 1.0 defaults
-//! to 10_000 steps per policy firing — generous for any realistic rule.
+//! to 10_000 steps per policy firing, generous for any realistic rule.
 
 use std::fmt;
 
@@ -63,7 +63,7 @@ impl fmt::Display for Value {
     }
 }
 
-/// Evaluation context — a JSON document the policy reads through paths
+/// Evaluation context, a JSON document the policy reads through paths
 /// like `action.url.host` and `workspace.allowlist`.
 #[derive(Debug, Clone)]
 pub struct Context {

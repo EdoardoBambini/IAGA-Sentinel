@@ -1,4 +1,4 @@
-# ADR 0006 — Enforcement Kernel MVP (M4)
+# ADR 0006, Enforcement Kernel MVP (M4)
 
 - **Status**: Accepted
 - **Date**: 2026-04-25
@@ -27,7 +27,7 @@ Pilastro 1 di 1.0 è "Enforcement Kernel": il punto in cui IAGA Sentinel smette 
 - **Windows**: ETW + WFP + minifilter opzionale.
 
 ADR 0002 ha già fissato due punti:
-1. **Linux-only** a 1.0 — eBPF LSM ships per primo. macOS/Windows preview userspace fino a 1.1.
+1. **Linux-only** a 1.0, eBPF LSM ships per primo. macOS/Windows preview userspace fino a 1.1.
 2. macOS Endpoint Security e Windows ETW richiedono firma/EV cert e codice piattaforma-specifico significativo; non sono nel critical path 1.0.
 
 Il problema concreto di M4: il vero loader eBPF richiede `bpf-linker` + LLVM 18+ sulla macchina di build, e un kernel ≥ 5.13 a runtime. Nessuno dei due è assunto dalla CI 1.0-alpha. Questa ADR fissa lo scope MVP M4 considerando questo vincolo.
@@ -49,8 +49,8 @@ pub trait EnforcementKernel: Send + Sync {
 
 Implementazioni:
 
-- **`UserspaceKernel`** — sempre disponibile, ogni piattaforma. Soft enforcement.
-- **`BpfKernel`** — `cfg(all(feature = "linux-bpf", target_os = "linux"))`. Scaffold oggi, loader vero in M4.1.
+- **`UserspaceKernel`**, sempre disponibile, ogni piattaforma. Soft enforcement.
+- **`BpfKernel`**, `cfg(all(feature = "linux-bpf", target_os = "linux"))`. Scaffold oggi, loader vero in M4.1.
 
 ### 2. UserspaceKernel: scope deliberato
 
@@ -155,7 +155,7 @@ linux-bpf: scaffold compiled (loader pending M4.1)
 
 ## Riferimenti
 
-- `docs/adr/0002-open-source-license-and-scope.md` — kernel Linux-only at 1.0
-- `docs/adr/0003-signed-receipts-design.md` — receipt body shape (M5 wiring point)
-- `docs/adr/0005-reasoning-plane-mvp.md` — same scaffold-then-implement pattern
-- `IAGA_SENTINEL_1.0.md` §pilastro 1 — design completo del kernel
+- `docs/adr/0002-open-source-license-and-scope.md`, kernel Linux-only at 1.0
+- `docs/adr/0003-signed-receipts-design.md`, receipt body shape (M5 wiring point)
+- `docs/adr/0005-reasoning-plane-mvp.md`, same scaffold-then-implement pattern
+- `IAGA_SENTINEL_1.0.md` §pilastro 1, design completo del kernel

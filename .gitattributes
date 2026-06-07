@@ -27,3 +27,11 @@
 *.jpg binary
 *.mp4 binary
 *.db binary
+
+# GitHub Linguist: keep the language bar Rust-first.
+# Client SDKs and Helm charts are vendored artifacts, not the core.
+sdks/** linguist-vendored
+charts/** linguist-vendored
+# Documentation should not skew the language stats.
+docs/** linguist-documentation
+*.md linguist-documentation

@@ -1,16 +1,16 @@
 # Ignored advisories for cargo audit
 #
-# RUSTSEC-2023-0071 — rsa 0.9.10 timing sidechannel (Marvin Attack)
+# RUSTSEC-2023-0071, rsa 0.9.10 timing sidechannel (Marvin Attack)
 #   Pulled transitively via sqlx-macros-core -> sqlx-mysql. We use only
 #   SQLite/Postgres at runtime; sqlx-macros pulls every DB backend at
 #   compile time for query!() checks. Vulnerable code is never executed.
 #   No upstream fix available as of 2026-04.
 #
-# RUSTSEC-2025-0057 — fxhash 0.2.1 unmaintained
+# RUSTSEC-2025-0057, fxhash 0.2.1 unmaintained
 #   Pulled via wasmtime 36.0.7 -> fxprof-processed-profile. Out of our
 #   control; tracked upstream in bytecodealliance/wasmtime.
 #
-# RUSTSEC-2024-0436 — paste 1.0.15 unmaintained
+# RUSTSEC-2024-0436, paste 1.0.15 unmaintained
 #   Pulled via tract-onnx -> tract-core -> tract-linalg. Required by the
 #   reasoning plane; no drop-in replacement available.
 [advisories]

@@ -1,4 +1,4 @@
-//! OSS 1.2 — drift-replay capture: signing-determinism + 1.1 roundtrip.
+//! OSS 1.2, drift-replay capture: signing-determinism + 1.1 roundtrip.
 //!
 //! These tests are load-bearing for the additive-only contract:
 //!
@@ -8,7 +8,7 @@
 //!    1.1 → 1.2 binary upgrades.
 //!
 //! 2. A receipt body persisted by 1.1 (missing the three capture
-//!    fields entirely) deserializes cleanly via serde defaults — old
+//!    fields entirely) deserializes cleanly via serde defaults, old
 //!    chains still verify.
 //!
 //! 3. With capture fields populated, the serialization includes them
@@ -117,7 +117,7 @@ fn capture_fields_populated_roundtrip_through_signing_bytes() {
 #[test]
 fn body_hash_stable_when_capture_none() {
     // Two distinct constructions of the same logical 1.1 body produce
-    // identical body_hash — the chain link is signature-stable.
+    // identical body_hash, the chain link is signature-stable.
     let body_a = legacy_11_body();
     let body_b = legacy_11_body();
     assert_eq!(

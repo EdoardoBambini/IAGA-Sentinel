@@ -162,7 +162,7 @@ async fn handle_tool_call(
 
     match intercept {
         InterceptResult::Allow => {
-            tracing::info!(tool = %tool_call.name, "ALLOW — forwarding to downstream");
+            tracing::info!(tool = %tool_call.name, "ALLOW, forwarding to downstream");
             // Forward original request to downstream
             forward_and_relay(request, downstream_writer, downstream_reader).await
         }
@@ -174,7 +174,7 @@ async fn handle_tool_call(
                 tool = %tool_call.name,
                 review_id = %review_id,
                 risk_score = risk_score,
-                "REVIEW — tool call held for human review"
+                "REVIEW, tool call held for human review"
             );
             JsonRpcResponse::error_with_data(
                 request.id.clone(),
@@ -199,7 +199,7 @@ async fn handle_tool_call(
                 tool = %tool_call.name,
                 risk_score = risk_score,
                 reasons = ?reasons,
-                "BLOCK — tool call denied by governance"
+                "BLOCK, tool call denied by governance"
             );
             JsonRpcResponse::error_with_data(
                 request.id.clone(),

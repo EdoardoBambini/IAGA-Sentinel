@@ -31,7 +31,7 @@ struct StorageBundle {
     policy_store: Arc<dyn PolicyStore>,
     api_key_store: Arc<dyn ApiKeyStore>,
     tenant_store: Arc<dyn TenantStore>,
-    // v0.4.0 — Durable State stores
+    // v0.4.0, Durable State stores
     nhi_store: Arc<dyn NhiStore>,
     session_store: Arc<dyn SessionStore>,
     taint_store: Arc<dyn TaintStore>,
@@ -111,7 +111,7 @@ async fn init_storage_bundle(db_url: &str) -> Result<StorageBundle, String> {
     }
 }
 
-/// IAGA Sentinel — Zero-trust governance for autonomous AI agents
+/// IAGA Sentinel: EU AI Act conformity evidence layer for AI agents
 #[derive(Parser)]
 #[command(name = "iaga-sentinel", version, about, long_about = None)]
 struct Cli {
@@ -135,7 +135,7 @@ enum Commands {
         #[arg(long, default_value_t = true)]
         seed_demo: bool,
 
-        /// 1.0 M6 — load an APL policy file as an overlay on top of YAML.
+        /// 1.0 M6, load an APL policy file as an overlay on top of YAML.
         /// Stricter wins: APL can tighten the verdict, never relax it.
         #[cfg(feature = "apl")]
         #[arg(long, value_name = "FILE")]
@@ -217,21 +217,21 @@ enum Commands {
         seed_demo: bool,
     },
 
-    /// 1.0 M3 — work with .apl policy files (parse, validate, dry-run)
+    /// 1.0 M3, work with .apl policy files (parse, validate, dry-run)
     #[cfg(feature = "apl")]
     Policy {
         #[command(subcommand)]
         command: PolicyCommands,
     },
 
-    /// 1.0 M3.5 — inspect the configured probabilistic reasoning engine
+    /// 1.0 M3.5, inspect the configured probabilistic reasoning engine
     #[cfg(feature = "reasoning")]
     Reasoning {
         #[command(subcommand)]
         command: ReasoningCommands,
     },
 
-    /// 1.0 M4 — launch a child process under the enforcement kernel
+    /// 1.0 M4, launch a child process under the enforcement kernel
     #[cfg(feature = "kernel")]
     Run {
         /// Agent identity that owns the launched process for governance purposes
@@ -247,14 +247,14 @@ enum Commands {
         cmd: Vec<String>,
     },
 
-    /// 1.0 M4 — show kernel backend status
+    /// 1.0 M4, show kernel backend status
     #[cfg(feature = "kernel")]
     Kernel {
         #[command(subcommand)]
         command: KernelCommands,
     },
 
-    /// 1.0 M2 — verify or replay a signed receipt chain for a run_id
+    /// 1.0 M2, verify or replay a signed receipt chain for a run_id
     #[cfg(feature = "receipts")]
     Replay {
         /// run_id (event_id in M2) whose receipts should be inspected
@@ -278,6 +278,11 @@ enum Commands {
         /// IAGA_SENTINEL_RECEIPT_CAPTURE=1 on the source pipeline.
         #[arg(long = "re-execute", default_value_t = false)]
         re_execute: bool,
+
+        /// Export the run's signed receipt chain to a JSON file for offline
+        /// verification with the standalone `iaga-verify` tool.
+        #[arg(long, value_name = "FILE")]
+        export: Option<String>,
     },
 }
 
@@ -295,19 +300,19 @@ enum PolicyCommands {
         context: Option<String>,
     },
     /// Lint an .apl file: parse + validate only, no execution.
-    /// 1.0 M6 — semantic alias for `iaga policy test <file>` without --context.
+    /// 1.0 M6, semantic alias for `iaga policy test <file>` without --context.
     Lint {
         /// Path to the .apl source file
         path: String,
     },
-    /// 1.2 OSS — type-check (Hindley-Milner) an .apl file.
+    /// 1.2 OSS, type-check (Hindley-Milner) an .apl file.
     /// Reports per-policy `when`-clause types and any type errors
     /// (mismatch, occurs-check, builtin arity, non-bool when).
     Check {
         /// Path to the .apl source file
         path: String,
     },
-    /// 1.2 OSS — compile an .apl file to a WebAssembly module
+    /// 1.2 OSS, compile an .apl file to a WebAssembly module
     /// (literal + boolean / numeric / comparison ops only; rejects
     /// Path / Call / Membership in the MVP 1.2 scope, see ADR 0014).
     Compile {
@@ -371,6 +376,40 @@ enum PluginCommands {
         /// Output format: json or table
         #[arg(short, long, default_value = "table")]
         format: String,
+    },
+
+    /// Sign a plugin manifest (plugin sha256 + identity) with the local
+    /// Ed25519 signer, writing <plugin>.manifest.json and .manifest.json.sig.
+    #[cfg(feature = "plugin-manifest-signing")]
+    SignManifest {
+        /// Path to the plugin .wasm file
+        path: String,
+
+        /// Signer key file (defaults to IAGA_SENTINEL_SIGNER_KEY_PATH or
+        /// ~/.iaga-sentinel/keys/receipt_signer.ed25519)
+        #[arg(long)]
+        key: Option<String>,
+
+        /// Plugin name recorded in the manifest
+        #[arg(long, default_value = "plugin")]
+        name: String,
+
+        /// Plugin version recorded in the manifest
+        #[arg(long, default_value = "0.0.0")]
+        version: String,
+    },
+
+    /// Verify a plugin's signed manifest against a file of trusted Ed25519
+    /// public keys (hex, whitespace-separated). Checks the plugin sha256
+    /// and the signature. Exit 0 verified, 1 not verified.
+    #[cfg(feature = "plugin-manifest-signing")]
+    VerifyManifest {
+        /// Path to the plugin .wasm file
+        path: String,
+
+        /// File of trusted public keys, hex, one per line
+        #[arg(long = "trusted-keys", value_name = "FILE")]
+        trusted_keys: String,
     },
 }
 
@@ -439,6 +478,21 @@ async fn main() {
             PluginCommands::Verify { path, format } => {
                 cmd_plugins_verify(&path, &format);
             }
+            #[cfg(feature = "plugin-manifest-signing")]
+            PluginCommands::SignManifest {
+                path,
+                key,
+                name,
+                version,
+            } => {
+                let code = cmd_plugins_sign_manifest(&path, key.as_deref(), &name, &version);
+                process::exit(code);
+            }
+            #[cfg(feature = "plugin-manifest-signing")]
+            PluginCommands::VerifyManifest { path, trusted_keys } => {
+                let code = cmd_plugins_verify_manifest(&path, &trusted_keys);
+                process::exit(code);
+            }
         },
         Some(Commands::Migrate) => {
             cmd_migrate(&db_url).await;
@@ -506,6 +560,7 @@ async fn main() {
             list,
             limit,
             re_execute,
+            export,
         }) => {
             if verify_only && re_execute {
                 eprintln!("iaga replay: --verify-only and --re-execute are mutually exclusive");
@@ -518,6 +573,7 @@ async fn main() {
                 list,
                 limit,
                 re_execute,
+                export.as_deref(),
             )
             .await;
             process::exit(code);
@@ -620,7 +676,7 @@ async fn cmd_serve(
     let behavioral_engine = Arc::new(BehavioralEngine::new());
 
     // ═══════════════════════════════════════════════════════════════
-    // v0.4.0 — Startup hydration: load persisted state into memory
+    // v0.4.0, Startup hydration: load persisted state into memory
     // ═══════════════════════════════════════════════════════════════
     {
         use iaga_sentinel::modules::nhi::crypto_identity;
@@ -711,7 +767,7 @@ async fn cmd_serve(
     webhooks::spawn_webhook_worker(event_bus.clone(), webhook_manager.clone());
 
     // Spawn periodic TTL cleanup for session/taint data (every 5 minutes)
-    // v0.4.0 — also prunes durable storage in parallel
+    // v0.4.0, also prunes durable storage in parallel
     let cleanup_nhi = storage.nhi_store.clone();
     let cleanup_session = storage.session_store.clone();
     let cleanup_taint = storage.taint_store.clone();
@@ -1341,6 +1397,117 @@ IAGA Sentinel Enterprise (see ENTERPRISE.md / ADR 0013)."
     process::exit(exit_code);
 }
 
+#[cfg(feature = "plugin-manifest-signing")]
+fn resolve_signer_key_path(explicit: Option<&str>) -> Option<std::path::PathBuf> {
+    if let Some(p) = explicit {
+        return Some(std::path::PathBuf::from(p));
+    }
+    std::env::var("IAGA_SENTINEL_SIGNER_KEY_PATH")
+        .ok()
+        .map(std::path::PathBuf::from)
+        .or_else(|| {
+            std::env::var_os("HOME")
+                .or_else(|| std::env::var_os("USERPROFILE"))
+                .map(|h| {
+                    let mut p = std::path::PathBuf::from(h);
+                    p.push(".iaga-sentinel");
+                    p.push("keys");
+                    p.push("receipt_signer.ed25519");
+                    p
+                })
+        })
+}
+
+#[cfg(feature = "plugin-manifest-signing")]
+fn cmd_plugins_sign_manifest(path: &str, key: Option<&str>, name: &str, version: &str) -> i32 {
+    use iaga_sentinel::plugins::manifest::sign_manifest;
+    use iaga_sentinel_receipts::LocalDiskSigner;
+
+    let key_path = match resolve_signer_key_path(key) {
+        Some(p) => p,
+        None => {
+            eprintln!("iaga plugins sign-manifest: cannot resolve signer key path");
+            return 3;
+        }
+    };
+    let signer = match LocalDiskSigner::load_or_create(&key_path) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("iaga plugins sign-manifest: signer load failed: {e}");
+            return 3;
+        }
+    };
+    let created_at = chrono::Utc::now().to_rfc3339();
+    match sign_manifest(
+        std::path::Path::new(path),
+        &signer,
+        name,
+        version,
+        &created_at,
+    ) {
+        Ok((mpath, spath)) => {
+            println!("SIGNED  plugin={path}  signer={}", signer.key_id());
+            println!("  manifest:  {}", mpath.display());
+            println!("  signature: {}", spath.display());
+            println!(
+                "  public key (hex, pin this to verify): {}",
+                hex::encode(signer.verifying_key().to_bytes())
+            );
+            0
+        }
+        Err(e) => {
+            eprintln!("iaga plugins sign-manifest: {e}");
+            3
+        }
+    }
+}
+
+#[cfg(feature = "plugin-manifest-signing")]
+fn cmd_plugins_verify_manifest(path: &str, trusted_keys: &str) -> i32 {
+    use ed25519_dalek::VerifyingKey;
+    use iaga_sentinel::plugins::manifest::verify_signed_manifest;
+
+    let raw = match std::fs::read_to_string(trusted_keys) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("iaga plugins verify-manifest: cannot read trusted keys {trusted_keys}: {e}");
+            return 3;
+        }
+    };
+    let mut keys = Vec::new();
+    for tok in raw.split_whitespace() {
+        let Ok(bytes) = hex::decode(tok) else {
+            continue;
+        };
+        let Ok(arr) = <[u8; 32]>::try_from(bytes.as_slice()) else {
+            continue;
+        };
+        if let Ok(vk) = VerifyingKey::from_bytes(&arr) {
+            keys.push(vk);
+        }
+    }
+    if keys.is_empty() {
+        eprintln!("iaga plugins verify-manifest: no valid 32-byte hex keys in {trusted_keys}");
+        return 2;
+    }
+    let result = verify_signed_manifest(std::path::Path::new(path), &keys);
+    let status = if result.verified {
+        "VERIFIED"
+    } else {
+        "UNVERIFIED"
+    };
+    println!(
+        "{status}  plugin={path}  signer={}  reason={}",
+        result.signer_key_id.as_deref().unwrap_or("-"),
+        result.reason.as_deref().unwrap_or("-")
+    );
+    if result.verified {
+        0
+    } else {
+        1
+    }
+}
+
 // ── migrate ──
 
 async fn cmd_migrate(db_url: &str) {
@@ -1482,7 +1649,7 @@ async fn cmd_gen_key(db_url: &str, label: &str) {
     println!("  Key:   {raw_key}");
     println!("  Label: {label}");
     println!();
-    println!("Save this key now — it cannot be retrieved again.");
+    println!("Save this key now, it cannot be retrieved again.");
 }
 
 // ── audit ──
@@ -2017,8 +2184,11 @@ async fn cmd_replay(
     list: bool,
     limit: u32,
     re_execute: bool,
+    export: Option<&str>,
 ) -> i32 {
-    use iaga_sentinel_receipts::{ChainStatus, ReceiptSigner, ReceiptStore, SqliteReceiptStore};
+    use iaga_sentinel_receipts::{
+        ChainExport, ChainStatus, ReceiptSigner, ReceiptStore, SqliteReceiptStore,
+    };
 
     if !db_url.starts_with("sqlite:") {
         eprintln!("iaga replay: only sqlite:// URLs are supported in 1.0-alpha.1");
@@ -2100,6 +2270,42 @@ async fn cmd_replay(
         }
     };
 
+    if let Some(out_path) = export {
+        let chain = match store.get_run(rid).await {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!("iaga replay --export: get_run: {e}");
+                return 3;
+            }
+        };
+        let count = chain.len();
+        let doc = ChainExport {
+            run_id: rid.to_string(),
+            signer_key_id: signer.key_id().to_string(),
+            signer_verifying_key: hex::encode(signer.verifying_key().to_bytes()),
+            receipts: chain,
+        };
+        let json = match serde_json::to_string_pretty(&doc) {
+            Ok(j) => j,
+            Err(e) => {
+                eprintln!("iaga replay --export: serialize: {e}");
+                return 3;
+            }
+        };
+        if let Err(e) = std::fs::write(out_path, json) {
+            eprintln!("iaga replay --export: write {out_path}: {e}");
+            return 3;
+        }
+        println!(
+            "EXPORTED  run_id={}  receipts={}  signer={}  file={}",
+            rid,
+            count,
+            signer.key_id(),
+            out_path
+        );
+        return 0;
+    }
+
     match store.verify_chain(rid).await {
         Ok(ChainStatus::Valid { receipt_count }) => {
             println!(
@@ -2130,7 +2336,7 @@ async fn cmd_replay(
         return 0;
     }
 
-    // Drift replay: for M2 we do a minimal identity replay — no pipeline
+    // Drift replay: for M2 we do a minimal identity replay, no pipeline
     // re-execution, we just print the stored verdict chain. Full drift
     // replay against the current pipeline is M5.
     let chain = match store.get_run(rid).await {

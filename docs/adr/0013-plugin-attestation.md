@@ -1,9 +1,9 @@
-# ADR 0013 — Plugin Sigstore + SBOM CycloneDX Attestation Primitive (OSS 1.2)
+# ADR 0013, Plugin Sigstore + SBOM CycloneDX Attestation Primitive (OSS 1.2)
 
 - **Status**: Accepted
 - **Date**: 2026-05-28
 - **Deciders**: Edoardo Bambini
-- **Milestone**: 1.2 — primitive evolution release
+- **Milestone**: 1.2, primitive evolution release
 - **Relates to**: ADR 0010 (OSS↔Enterprise boundary §3, §2.10)
 
 ## Contesto
@@ -77,7 +77,7 @@ Default off: zero footprint di build per hosts che non lo abilitano,
 nessuna dep `base64` nel grafo, nessun PluginManifest schema change.
 
 La feature è composta come `plugin-attestation = ["plugins",
-"dep:base64"]` — implica `plugins`. `base64` è l'unica nuova dep
+"dep:base64"]`, implica `plugins`. `base64` è l'unica nuova dep
 aggiunta al workspace, scope minimo (decode B64 → bytes per
 confrontare digests).
 
@@ -140,13 +140,13 @@ OSS **non** include (resta Enterprise):
   signed-feed subscription).
 - **Supply-chain SLA contractual** (response time on CVE in
   attested plugins, curated rebuild pipeline).
-- **Threat-intel feed integration** — l'attestation issuer/SAN può
+- **Threat-intel feed integration**, l'attestation issuer/SAN può
   essere cross-referenziato contro un feed live di issuer banned.
   OSS non implementa quel matching.
 - **Online Rekor lookup + Fulcio root validation** (turnkey
   chain-of-trust).
 - **Curated eBPF/LSM AI-specific program library** (ADR 0010 §2.11)
-  è separato — non c'è overlap.
+  è separato, non c'è overlap.
 
 ## Conseguenze
 
@@ -175,7 +175,7 @@ OSS **non** include (resta Enterprise):
   evolve significativamente (1.6, 2.0), il parser MVP non gestisce
   i new keys (parsa solo `bomFormat`, `specVersion`, `components`).
 - **No issuer/SAN extraction**. `attestation_issuer` resta `None`
-  da OSS — è un slot reservato per Enterprise (con x509 parsing).
+  da OSS, è un slot reservato per Enterprise (con x509 parsing).
 
 ### Neutre
 
@@ -186,14 +186,14 @@ OSS **non** include (resta Enterprise):
 
 ## Riferimenti
 
-- ADR 0010 — OSS↔Enterprise Boundary, §3 (4 primitive 1.2 reinstaurate),
-  §2.10 (curated ML library Enterprise — distinct).
-- `crates/iaga-sentinel-core/src/plugins/attestation.rs` — verify_plugin,
+- ADR 0010, OSS↔Enterprise Boundary, §3 (4 primitive 1.2 reinstaurate),
+  §2.10 (curated ML library Enterprise, distinct).
+- `crates/iaga-sentinel-core/src/plugins/attestation.rs`, verify_plugin,
   parse_sbom_cyclonedx, PluginAttestation, SbomReport.
-- `crates/iaga-sentinel-core/src/plugins/registry.rs` — annotation
+- `crates/iaga-sentinel-core/src/plugins/registry.rs`, annotation
   hook on reload.
-- `crates/iaga-sentinel-core/src/plugins/types.rs` — PluginManifest
+- `crates/iaga-sentinel-core/src/plugins/types.rs`, PluginManifest
   additive fields.
-- `crates/iaga-sentinel-receipts/src/receipt.rs` — PluginDigest
+- `crates/iaga-sentinel-receipts/src/receipt.rs`, PluginDigest
   attested / attestation_issuer.
-- `crates/iaga-sentinel-core/src/main.rs` — `iaga plugin verify` CLI.
+- `crates/iaga-sentinel-core/src/main.rs`, `iaga plugin verify` CLI.

@@ -1,7 +1,7 @@
 {
   "name": "@iaga-sentinel/sdk",
-  "version": "0.4.0",
-  "description": "IAGA Sentinel TypeScript SDK for zero-trust governance of AI agent actions",
+  "version": "1.3.0",
+  "description": "IAGA Sentinel TypeScript SDK: signed, replay-verifiable audit evidence for AI agent actions",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -9,7 +9,7 @@
     "prepublishOnly": "npm run build"
   },
   "keywords": ["ai", "agents", "governance", "security", "mcp", "a2a", "iaga"],
-  "author": "IAGA <iaga.start@gmail.com>",
+  "author": "IAGA <info@iaga.tech>",
   "license": "MIT",
   "devDependencies": {
     "typescript": "^5.0.0"

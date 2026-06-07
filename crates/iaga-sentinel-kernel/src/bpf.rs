@@ -3,7 +3,7 @@
 //! **Status: scaffold only.** The actual eBPF program loader, LSM hook
 //! attachment, and ringbuf-based event delivery are tracked for M4.1.
 //! That work needs `bpf-linker` + LLVM 18+ on the build host plus a
-//! kernel ≥ 5.13 at runtime — neither is assumed by 1.0-alpha CI.
+//! kernel ≥ 5.13 at runtime, neither is assumed by 1.0-alpha CI.
 //!
 //! What this file ships today:
 //! - The `BpfKernel` type with the same trait surface as

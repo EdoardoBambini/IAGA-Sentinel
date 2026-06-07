@@ -1,8 +1,8 @@
-# Case Study: IAGA Sentinel v2 — Continuous Risk Scoring Across 8 Security Layers
+# Case Study: IAGA Sentinel v2, Continuous Risk Scoring Across 8 Security Layers
 
-> **Historical case study (March 30, 2026) — measured against the v0.4.0 era
+> **Historical case study (March 30, 2026), measured against the v0.4.0 era
 > 8-layer pipeline.** The current 1.x architecture ships **12 layers** (the
-> original 8 hardened in M2–M5 + 4 new ones from M3.5 + M4 — see
+> original 8 hardened in M2-M5 + 4 new ones from M3.5 + M4, see
 > [`IAGA_SENTINEL_1.0.md`](../IAGA_SENTINEL_1.0.md) §3). The methodology and
 > findings here remain valid for the layers covered; the 12-layer surface adds
 > supply chain attestation, blast radius enforcement, behavioral baseline, and
@@ -22,7 +22,7 @@ All data was collected from instrumented execution on **March 30, 2026**.
 
 ## 1. Problem Statement: Why v1 Failed
 
-The v1 case study (March 27, 2026) revealed a critical flaw: the governance pipeline produced only two risk scores — **0** (allow) and **70** (block). Every blocked action received the same score regardless of whether it was a minor policy violation or a full remote code execution attempt.
+The v1 case study (March 27, 2026) revealed a critical flaw: the governance pipeline produced only two risk scores, **0** (allow) and **70** (block). Every blocked action received the same score regardless of whether it was a minor policy violation or a full remote code execution attempt.
 
 | v1 Problem | Impact |
 |---|---|
@@ -273,8 +273,8 @@ profiles:
 | **REVIEW** | 102 | 12.8% |
 
 Only 2 mismatches out of 800 requests:
-- `file_read_safe` rep 24: scored 39 (REVIEW instead of ALLOW) — behavioral baseline timing artifact
-- `http_safe_domain` rep 31: scored 40 (REVIEW instead of ALLOW) — same cause
+- `file_read_safe` rep 24: scored 39 (REVIEW instead of ALLOW), behavioral baseline timing artifact
+- `http_safe_domain` rep 31: scored 40 (REVIEW instead of ALLOW), same cause
 
 Both edge cases occurred on a single rep out of 50 and scored just 4-5 points above the REVIEW threshold (35). This is attributable to the behavioral fingerprinting layer detecting a slight timing anomaly during that specific repetition.
 
@@ -399,7 +399,7 @@ Stage 1 regex signatures were sufficient for all injection variants in the test 
 | Reps per scenario | 50 | 50 | Same statistical power |
 | Total requests | 602 | 800 | +33% coverage |
 
-*v1 claimed 100% but had hidden session contamination — benign requests were blocked because prior attack sessions poisoned the graph. v2's 99.8% is an honest measurement with isolated sessions.
+*v1 claimed 100% but had hidden session contamination, benign requests were blocked because prior attack sessions poisoned the graph. v2's 99.8% is an honest measurement with isolated sessions.
 
 **The 2 mismatches (0.2%) are behavioral timing artifacts, not scoring bugs.
 
@@ -470,4 +470,4 @@ The key architectural insight is that **no single security layer is sufficient**
 
 ---
 
-*Built by [IAGA](https://www.iaga.tech) — Building the governance layer for the agentic era.*
+*Built by [IAGA](https://www.iaga.tech), Building the governance layer for the agentic era.*

@@ -35,7 +35,7 @@ pub struct PluginManifest {
     /// 1.2: convenience flag. `true` iff `attestation.is_some()` and
     /// the offline check passed (bundle well-formed + payload digest
     /// matches plugin bytes). Does **not** indicate Rekor inclusion
-    /// proof or Fulcio root trust — those checks are out of scope
+    /// proof or Fulcio root trust, those checks are out of scope
     /// per ADR 0013.
     #[cfg(feature = "plugin-attestation")]
     #[serde(default)]

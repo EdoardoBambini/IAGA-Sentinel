@@ -1,9 +1,9 @@
-//! LAYER 7 — Prompt Injection Firewall
+//! LAYER 7, Prompt Injection Firewall
 //!
 //! 3-stage pipeline:
-//!   Stage 1: Signature scan (<1ms) — 25+ known injection patterns
-//!   Stage 2: Structural analysis (<5ms) — entropy, role confusion, encoding tricks
-//!   Stage 3: Semantic gating (<200ms) — only triggered if stages 1-2 flag risk
+//!   Stage 1: Signature scan (<1ms), 25+ known injection patterns
+//!   Stage 2: Structural analysis (<5ms), entropy, role confusion, encoding tricks
+//!   Stage 3: Semantic gating (<200ms), only triggered if stages 1-2 flag risk
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -719,7 +719,7 @@ pub fn scan_prompt(text: &str) -> FirewallResult {
     }
 }
 
-/// Quick check for use in the pipeline — returns (blocked, score)
+/// Quick check for use in the pipeline, returns (blocked, score)
 pub fn quick_scan(text: &str) -> (bool, u32) {
     let result = scan_prompt(text);
     (result.blocked, result.risk_score)

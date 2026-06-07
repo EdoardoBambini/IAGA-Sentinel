@@ -1,4 +1,4 @@
-//! Replay engine — verify a stored receipt chain and (in future milestones)
+//! Replay engine, verify a stored receipt chain and (in future milestones)
 //! re-execute the pipeline to detect policy drift.
 //!
 //! For M2 the replay surface is intentionally minimal:

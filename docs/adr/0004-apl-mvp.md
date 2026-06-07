@@ -1,4 +1,4 @@
-# ADR 0004 — Agent Policy Language (APL) MVP (M3)
+# ADR 0004, Agent Policy Language (APL) MVP (M3)
 
 - **Status**: Accepted
 - **Date**: 2026-04-23
@@ -38,7 +38,7 @@ Questa ADR fissa le scelte di M3, scope MVP incluso, e documenta i trade-off che
 - I test di M3 coprono la semantica della lingua, non la rappresentazione eseguibile. Quando arriverà il compiler WASM userà gli stessi test per regressione.
 - **Budget di istruzioni**: implementato come `EvalBudget` con decremento su ogni nodo AST. Default 10_000 step, override per-call. Sufficiente per bloccare loop patologici senza pagare il costo di sandbox-kernel per ogni eval.
 
-**Trade-off accettato.** L'evaluator gira nello stesso processo di `iaga-sentinel-core`. In ambiente enterprise con policy fornite da terzi questo non è il modello di minaccia — l'APL MVP assume policy fornite dal workspace owner, non da attori potenzialmente ostili. Quando (in 1.1) apriremo la marketplace di policy firmate, si sostituirà l'evaluator con un modulo WASM isolato.
+**Trade-off accettato.** L'evaluator gira nello stesso processo di `iaga-sentinel-core`. In ambiente enterprise con policy fornite da terzi questo non è il modello di minaccia, l'APL MVP assume policy fornite dal workspace owner, non da attori potenzialmente ostili. Quando (in 1.1) apriremo la marketplace di policy firmate, si sostituirà l'evaluator con un modulo WASM isolato.
 
 ### 2. Scope del linguaggio (M3 MVP)
 
@@ -71,13 +71,13 @@ Fuori scope M3 (rinviati a M3.1 o oltre):
 crates/iaga-sentinel-apl/
 ├── Cargo.toml
 └── src/
-    ├── lib.rs       — public surface (parse, compile, validate, evaluate_program)
-    ├── errors.rs    — AplError
-    ├── lexer.rs     — logos-based Token + tokenize(src)
-    ├── ast.rs       — Program, Policy, Action, Expr, Lit, BinOp, UnOp, Verdict
-    ├── parser.rs    — recursive-descent parser
-    ├── validator.rs — structural validator (non-empty names, arity, ...)
-    └── eval.rs      — Context, EvalBudget, Value, evaluate_program, eval_expr
+    ├── lib.rs      , public surface (parse, compile, validate, evaluate_program)
+    ├── errors.rs   , AplError
+    ├── lexer.rs    , logos-based Token + tokenize(src)
+    ├── ast.rs      , Program, Policy, Action, Expr, Lit, BinOp, UnOp, Verdict
+    ├── parser.rs   , recursive-descent parser
+    ├── validator.rs, structural validator (non-empty names, arity, ...)
+    └── eval.rs     , Context, EvalBudget, Value, evaluate_program, eval_expr
 ```
 
 Dipendenze esterne: `logos 0.14` (lexer), più i condivisi del workspace (`serde`, `serde_json`, `thiserror`). Zero dep WASM o parser-combinator heavyweight.
@@ -144,6 +144,6 @@ FIRE  policy=default_allow  verdict=Allow  reason=None
 
 ## Riferimenti
 
-- `docs/adr/0002-open-source-license-and-scope.md` — scelte trasversali 1.0
-- `docs/adr/0003-signed-receipts-design.md` — design M2
-- `IAGA_SENTINEL_1.0.md` §2 Pilastro 3 — disegno APL completo
+- `docs/adr/0002-open-source-license-and-scope.md`, scelte trasversali 1.0
+- `docs/adr/0003-signed-receipts-design.md`, design M2
+- `IAGA_SENTINEL_1.0.md` §2 Pilastro 3, disegno APL completo

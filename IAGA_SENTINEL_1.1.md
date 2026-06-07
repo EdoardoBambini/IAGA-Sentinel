@@ -1,4 +1,4 @@
-# IAGA Sentinel 1.1 — Notes
+# IAGA Sentinel 1.1, Notes
 
 > 1.1 is a **consolidation + rebrand release** of the OSS line. The
 > 1.0 design shipped the full governance kernel; 1.1 holds that line,
@@ -16,7 +16,7 @@
 
 Two things:
 
-1. **Complete rebrand** — the project is renamed *Agent Armor → IAGA
+1. **Complete rebrand**, the project is renamed *Agent Armor → IAGA
    Sentinel* across the board: binary (`agent-armor` → `iaga`, with
    `iaga-sentinel` as the long-form name), crates (`armor-*` →
    `iaga-sentinel-*`), library import paths, environment variables
@@ -33,10 +33,10 @@ Two things:
 **Governance behaviour is unchanged.** The 12-layer pipeline, the
 verdict logic, the receipt format (Ed25519 + Merkle), and the HTTP
 API contract (endpoints, camelCase JSON, Bearer auth) are identical
-to 1.0.0 — only names changed. The renames *are* breaking for CLI
+to 1.0.0, only names changed. The renames *are* breaking for CLI
 users, operators, and crate consumers; see
 [`MIGRATION.md`](MIGRATION.md) for the one-to-one mapping. Existing
-API keys keep working — only newly generated keys use the `iaga_`
+API keys keep working, only newly generated keys use the `iaga_`
 prefix.
 
 ## Why a release at all
@@ -56,7 +56,7 @@ The OSS edition keeps the full governance kernel:
 
 - Enforcement kernel trait + `UserspaceKernel` cross-platform.
 - `BpfKernel` scaffold (Linux, feature `linux-bpf`) with the same
-  honest "soft enforcement" posture as 1.0 — `iaga kernel status`
+  honest "soft enforcement" posture as 1.0, `iaga kernel status`
   continues to report the truth.
 - Receipt schema (Ed25519-signed, Merkle log, hash-chained per
   `run_id`) and the SQLite + Postgres backends.
@@ -76,7 +76,7 @@ or rebranded. The promise from ADR 0002 stands.
 ## What lives in Enterprise
 
 Capabilities where the value is **scale, UX, evidence, ops, or
-contractual support** — not the security primitive itself —
+contractual support**, not the security primitive itself -
 ship in the Enterprise edition. See [`ENTERPRISE.md`](ENTERPRISE.md)
 for the full list and EU AI Act / GDPR / DORA mapping. Headlines:
 
@@ -101,7 +101,7 @@ for the full list and EU AI Act / GDPR / DORA mapping. Headlines:
 ## OSS roadmap going forward
 
 No fixed milestone calendar for the OSS line. Improvements ship as
-they make sense — bug fixes, dependency hardening, documentation,
+they make sense, bug fixes, dependency hardening, documentation,
 ergonomics, security advisories. Larger capabilities are evaluated
 case by case against the OSS↔Enterprise boundary documented above.
 

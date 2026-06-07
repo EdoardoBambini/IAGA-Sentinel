@@ -21,7 +21,7 @@ use async_trait::async_trait;
 #[async_trait]
 pub trait ReasoningHandle: Send + Sync {
     /// Best-effort evaluation. Implementations must never panic and
-    /// must never propagate errors — empty evidence is the failure
+    /// must never propagate errors, empty evidence is the failure
     /// mode. Output JSON shape is whatever the underlying engine emits.
     async fn evaluate_json(
         &self,

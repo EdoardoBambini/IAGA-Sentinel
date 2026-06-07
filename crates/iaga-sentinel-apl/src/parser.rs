@@ -187,7 +187,7 @@ impl P {
                 })
             }
             Some(Token::Not) => {
-                // could be `not in` (membership) — lookahead:
+                // could be `not in` (membership), lookahead:
                 let save = self.pos;
                 self.advance();
                 if matches!(self.peek(), Some(Token::In)) {
@@ -199,7 +199,7 @@ impl P {
                         haystack: Box::new(right),
                     })
                 } else {
-                    // not a `not in` — rewind and return left; the outer
+                    // not a `not in`, rewind and return left; the outer
                     // parser will see the stray `not` and either consume
                     // it as a prefix or report an error.
                     self.pos = save;

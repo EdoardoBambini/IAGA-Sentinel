@@ -1,5 +1,5 @@
-# IAGA Sentinel — workspace root
-# 1.0 ("Fortezza") shipped M1–M6: workspace split + Receipts + APL +
+# IAGA Sentinel, workspace root
+# 1.0 ("Fortezza") shipped M1-M6: workspace split + Receipts + APL +
 # Reasoning + Kernel scaffold + APL live overlay. 1.1 is a
 # consolidation release: binary swap, runtime behaviour identical to
 # 1.0.0, public docs reconciled to make the OSS↔Enterprise boundary
@@ -16,10 +16,11 @@ members = [
     "crates/iaga-sentinel-apl",
     "crates/iaga-sentinel-reasoning",
     "crates/iaga-sentinel-kernel",
+    "crates/iaga-sentinel-verify",
 ]
 
 [workspace.package]
-version = "1.2.0"
+version = "1.3.0"
 edition = "2021"
 license = "BUSL-1.1"
 repository = "https://github.com/EdoardoBambini/IAGA-Sentinel"
