@@ -342,7 +342,7 @@ The open build of IAGA Sentinel is source available under [**Business Source Lic
 
 Source available is not the same as OSI open source. The BUSL term is deliberate: it stops a third party from reselling IAGA Sentinel as a hosted service, while guaranteeing that every release becomes true open source on its Change Date.
 
-IAGA Sentinel Enterprise is sold under a separate commercial agreement. The two share the same kernel; Enterprise adds modules that live in a separate repository and are not covered by this license.
+IAGA Sentinel Enterprise is sold under a separate commercial agreement. The two share the same kernel, enterprise adds modules that live in a separate repository and are not covered by this license.
 
 Repository: <https://github.com/EdoardoBambini/IAGA-Sentinel>
 Contact: `info@iaga.tech` or `info@edoardobambini.dev`
