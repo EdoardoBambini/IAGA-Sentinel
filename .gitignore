@@ -25,6 +25,10 @@ __pycache__/
 
 # Internal docs
 docs/PRD.md
+IAGA_SENTINEL_1.0.md
+IAGA_SENTINEL_1.1.md
+IAGA_SENTINEL_1.2.md
+IAGA_SENTINEL_1.3.md
 
 # Research paper artifacts (kept local, never in public repo)
 docs/aisec-2026/
