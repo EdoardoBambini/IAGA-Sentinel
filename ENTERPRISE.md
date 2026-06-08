@@ -245,7 +245,11 @@ exactly the regulated buyers we are targeting.
   `BpfKernel` scaffold and the trait surface; the real Aya-rs LSM
   loader (with hooks `bprm_check_security` / `file_open` /
   `socket_connect` / `socket_sendmsg`, Landlock fallback, cgroup
-  jailing) lives in Enterprise. On top of the loader, Enterprise
+  jailing) lives in Enterprise. When the authoritative loader is
+  active it records `is_authoritative: true` in every receipt; the
+  open build always records `false` (ADR 0018), so the evidence
+  itself states whether the action was hard-blocked or soft-observed.
+  On top of the loader, Enterprise
   ships **a library of pre-written eBPF programs** for AI-specific
   attack patterns: rootkit-style hook detection, keylogger
   fingerprints, container escape vectors, model-weight exfiltration

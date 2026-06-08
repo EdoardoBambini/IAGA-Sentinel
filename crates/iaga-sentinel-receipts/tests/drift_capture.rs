@@ -36,6 +36,7 @@ fn legacy_11_body() -> ReceiptBody {
         pipeline_inputs_capture: None,
         apl_eval_trace: None,
         ml_inference_inputs: None,
+        is_authoritative: None,
     }
 }
 
@@ -58,6 +59,12 @@ fn capture_fields_none_byte_equal_to_11_serialization() {
     assert!(
         !json.contains("mlInferenceInputs") && !json.contains("ml_inference_inputs"),
         "ml_inference_inputs leaked into 1.1-style body: {json}"
+    );
+    // 1.3.1: the honesty flag is likewise elided when `None`, so a
+    // receipt produced before 1.3.1 stays byte-identical and verifies.
+    assert!(
+        !json.contains("is_authoritative") && !json.contains("isAuthoritative"),
+        "is_authoritative leaked into a None-flag body: {json}"
     );
 }
 
@@ -140,5 +147,32 @@ fn body_hash_differs_when_capture_populated() {
     assert_ne!(
         body_legacy.body_hash().expect("hash legacy"),
         body_with_capture.body_hash().expect("hash w/ capture")
+    );
+}
+
+#[test]
+fn is_authoritative_flag_serializes_and_preserves_byte_equality() {
+    // None (legacy / pre-1.3.1): the key is elided from signing_bytes.
+    let none_body = legacy_11_body();
+    assert!(none_body.is_authoritative.is_none());
+
+    // Some(false): the 1.3.1 OSS honesty flag is present and roundtrips.
+    let mut flagged = legacy_11_body();
+    flagged.is_authoritative = Some(false);
+    let bytes = flagged.signing_bytes().expect("signing_bytes");
+    let json = std::str::from_utf8(&bytes).expect("utf8");
+    assert!(
+        json.contains("\"is_authoritative\":false"),
+        "expected is_authoritative=false in body: {json}"
+    );
+    let parsed: ReceiptBody = serde_json::from_slice(&bytes).expect("parse");
+    assert_eq!(parsed.is_authoritative, Some(false));
+
+    // The flag participates in signing, so a flagged body hashes
+    // differently from the legacy (None) body, while the legacy body
+    // itself is unchanged from pre-1.3.1.
+    assert_ne!(
+        none_body.body_hash().expect("hash none"),
+        flagged.body_hash().expect("hash flagged"),
     );
 }

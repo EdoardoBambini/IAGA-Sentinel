@@ -59,4 +59,17 @@ Release artifacts and git tags are not signed today. If that changes it will be 
 Qualified eIDAS signatures are an Enterprise capability and are out of scope for this open
 build.
 
+## Secret handling for governed processes
+
+When `iaga run` launches a child process under the kernel, the child receives a scoped
+environment: an allowlist of inherited variables plus the entries the caller passes
+explicitly. On top of that, IAGA Sentinel scrubs a denylist of 23 known secret-bearing
+variables (cloud and model-provider credentials such as `AWS_SECRET_ACCESS_KEY` and
+`OPENAI_API_KEY`, registry tokens, and the receipt signing-key path
+`IAGA_SENTINEL_SIGNER_KEY_PATH`) from the final child environment, even when passed
+explicitly. The scrub is authoritative: known secrets do not reach a governed agent
+through the process environment, so deliver them through a vetted channel instead. Extend
+the denylist at runtime with a TOML file pointed to by `IAGA_SENTINEL_ENV_DENYLIST`
+(`deny = ["MY_SECRET", ...]`). Added in 1.3.1 (ADR 0018), always on, no feature flag.
+
 For what data the software stores and where it goes, see [`DATA_HANDLING.md`](DATA_HANDLING.md).

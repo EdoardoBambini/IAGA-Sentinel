@@ -40,6 +40,7 @@ stable order; fields that are empty or absent are omitted from the JSON.
 | `risk_score` | integer | always | Numeric risk for the decision. |
 | `timestamp` | string | always | RFC3339 UTC time of the verdict. |
 | `signer_key_id` | string | always | Identifier of the signing key, for example `ed25519-1c81ae26...`. Not the key itself. |
+| `is_authoritative` | boolean | open build (1.3.1+) | `false` on every open-build receipt: enforcement is soft, no authoritative kernel ships in the open build. Added in 1.3.1; absent on receipts produced before 1.3.1 and elided when unset, so old receipts verify unchanged. |
 | `signature` | string | always | Hex Ed25519 signature over the canonical body (on the receipt wrapper). |
 | `plugin_digests` | array | reserved | Present in the schema but not populated in this build (always empty, so omitted). |
 | `model_digests` | array | conditional | Digests of ML models consulted. Present only with the `ml` feature and ML evidence; otherwise omitted. |
@@ -68,6 +69,7 @@ like this. Note the absence of any raw command, path, or argument:
   "risk_score": 2,
   "timestamp": "2026-06-07T13:30:41.476975+00:00",
   "signer_key_id": "ed25519-1c81ae26e45ab1173062ea4ec12dde3f",
+  "is_authoritative": false,
   "signature": "89a167550f2c982f009c51fde02d15a35db8d6c5c784949d9308401cf66f05e2..."
 }
 ```
@@ -129,7 +131,9 @@ URLs the operator registers; there are no default webhook destinations.
 OpenTelemetry stays local. Spans and metrics are kept in an in-process buffer and exposed
 on the operator's own endpoints (`/v1/telemetry/spans`, `/v1/telemetry/metrics`,
 `/v1/telemetry/export`). The `otel-receipts` feature emits signed receipts as spans into
-that same in-process feed; it does not push to a remote collector in this build.
+that same in-process feed; it does not push to a remote collector in this build. Since
+1.3.1 the receipt span also carries `iaga.receipt.id`, `iaga.chain.head`,
+`iaga.policy.verdict`, and `iaga.is_authoritative`; all of it stays local.
 
 ### Verification is offline
 
@@ -137,6 +141,17 @@ that same in-process feed; it does not push to a remote collector in this build.
 Ed25519 signatures and the Merkle links. It opens no database, starts no server, and makes
 no network call. It reuses the same `verify_chain` routine the runtime uses, so an external
 auditor can confirm a chain on an air-gapped machine.
+
+## Governed-process environment
+
+When `iaga run` launches a child process, the child gets a scoped environment: an allowlist
+of inherited variables plus the entries passed explicitly in the launch spec. On top of
+that, a denylist of 23 known secret-bearing variables (cloud and model-provider
+credentials, registry tokens, and the receipt signing-key path) is stripped from the final
+environment, even when passed explicitly, so a governed agent does not receive host secrets
+through its process environment. The denylist is extendable at runtime with a TOML file at
+`IAGA_SENTINEL_ENV_DENYLIST`. This is an open-build hardening added in 1.3.1; it is always
+on, with no feature flag.
 
 ## Response scanning and redaction
 
@@ -179,6 +194,7 @@ signature; the qualified eIDAS seal is an Enterprise capability.
 | `IAGA_SENTINEL_RECEIPT_CAPTURE` | off | When `1`/`true`/`yes`, stores raw request snapshots, policy traces, and tokenized-input digests in receipts. |
 | `DATABASE_URL` | `sqlite:iaga_sentinel.db?mode=rwc` | Where all state is stored. `postgres://` requires the `postgres` feature. |
 | `IAGA_SENTINEL_SIGNER_KEY_PATH` | `~/.iaga-sentinel/keys/receipt_signer.ed25519` | Path to the Ed25519 receipt signing key. Auto-generated on first use if absent. |
+| `IAGA_SENTINEL_ENV_DENYLIST` | unset | Path to a TOML file (`deny = [...]`) that extends the 23-variable sensitive-env denylist scrubbed from governed child processes (1.3.1). |
 | `IAGA_SENTINEL_NHI_MASTER_SEED` | random per process | Seed for non-human-identity derivation. Set it for stable identities across restarts. |
 | `IAGA_SENTINEL_REASONING_MODELS` | unset | Local ONNX model paths for the `ml` feature. Models are read from local disk only. |
 | `IAGA_SENTINEL_PLUGIN_DIR` | `./plugins` | Local directory WASM plugins are loaded from. |

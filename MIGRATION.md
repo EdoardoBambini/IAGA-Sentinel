@@ -777,6 +777,58 @@ All four primitives are opt-in. Default behaviour matches 1.1 exactly:
 
 ---
 
+## 1.2.0 → 1.3.0
+
+**Scope:** the **conformity-evidence release**. Three additive, opt-in primitives,
+no breaking changes; default behaviour and receipt bytes are unchanged with the
+new features off. See [`IAGA_SENTINEL_1.3.md`](IAGA_SENTINEL_1.3.md) and ADRs 0015–0017.
+
+- New slim crate `iaga-sentinel-verify` (binary `iaga-verify`): offline receipt
+  verification, no DB, no async. Export a run with
+  `iaga replay <run_id> --export run.json`, then `iaga-verify run.json --key <hex>`.
+- New `iaga-sentinel-core` feature `otel-receipts` (default off): emit each signed
+  receipt as an OpenTelemetry span on `/v1/telemetry/spans` and `/v1/telemetry/export`.
+- New `iaga-sentinel-core` feature `plugin-manifest-signing` (default off): Ed25519
+  signed plugin manifests, `iaga plugins sign-manifest` / `verify-manifest`.
+
+Upgrade is risk-free: default behaviour matches 1.2 exactly.
+
+---
+
+## 1.3.0 → 1.3.1
+
+**Scope:** the **1.3 conformity-closure patch** (ADR 0018). Additive, no breaking
+changes. Receipts produced before 1.3.1 verify unchanged, the new optional field is
+elided when absent.
+
+- **Receipt `is_authoritative` flag.** `ReceiptBody` gains an optional
+  `is_authoritative` field, set to `false` on every open-build receipt (soft
+  enforcement). New receipts carry it; pre-1.3.1 receipts (field absent) stay
+  byte-identical and verify unchanged.
+- **OpenTelemetry roadmap keys.** The receipt span now carries `iaga.receipt.id`,
+  `iaga.chain.head`, `iaga.policy.verdict`, and `iaga.is_authoritative`, alongside
+  the existing `receipt.*` aliases (feature `otel-receipts`).
+- **Sensitive-environment scrub.** `iaga run` strips a denylist of 23 known
+  secret-bearing variables from governed child processes, even when passed
+  explicitly. Extend it with a TOML file at `IAGA_SENTINEL_ENV_DENYLIST`.
+- **`verify-only` feature.** `iaga-sentinel-verify` gains a default-on `verify-only`
+  feature so the reproducible build
+  `cargo build --release -p iaga-sentinel-verify --no-default-features --features verify-only`
+  is valid.
+
+### What stayed
+
+- Receipt JSON keys, canonical signing bytes, Ed25519 + SHA-256 chain link.
+  Receipts with the new field absent are byte-identical to 1.3.0.
+- HTTP API surface, Bearer auth, camelCase JSON keys.
+- Database schema, APL AST, SDK surface.
+- License: BUSL-1.1 with Change License Apache-2.0 baked in.
+- All Enterprise categories in ADR 0010 §2.
+
+Upgrade is risk-free.
+
+---
+
 ## Future (not yet released)
 
 The OSS line has no fixed milestone calendar. Bug fixes, dependency

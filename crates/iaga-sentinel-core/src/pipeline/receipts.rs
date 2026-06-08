@@ -257,6 +257,10 @@ mod signed {
                 pipeline_inputs_capture,
                 apl_eval_trace,
                 ml_inference_inputs,
+                // 1.3.1: OSS enforcement is soft (no authoritative kernel
+                // ships in the community build), so every OSS receipt
+                // honestly records is_authoritative = false.
+                is_authoritative: Some(false),
             };
 
             let receipt = match self.signer.sign_body(body).await {

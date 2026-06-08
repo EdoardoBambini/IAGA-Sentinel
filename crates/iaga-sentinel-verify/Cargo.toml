@@ -15,6 +15,17 @@ path = "src/lib.rs"
 name = "iaga-verify"
 path = "src/main.rs"
 
+[features]
+# The crate is already dependency-minimal (no database, no async runtime,
+# no server). `verify-only` is the canonical, explicit marker for that slim
+# offline verifier build: it pulls nothing extra and gates nothing, it
+# exists so the reproducible build recipe
+#   cargo build --release --no-default-features --features verify-only
+# is meaningful and stable across releases (ADR 0015). Default-on so a plain
+# `cargo build` and the explicit recipe produce identical binaries.
+default = ["verify-only"]
+verify-only = []
+
 [dependencies]
 iaga-sentinel-receipts = { path = "../iaga-sentinel-receipts", default-features = false }
 ed25519-dalek = { workspace = true }

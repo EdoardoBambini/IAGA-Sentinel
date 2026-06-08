@@ -356,12 +356,26 @@ pub fn emit_receipt_span(receipt: &iaga_sentinel_receipts::Receipt) -> OtelSpan 
         _ => ("OK", "receipt recorded"),
     };
     let sig_prefix: String = receipt.signature.chars().take(16).collect();
+    // 1.3.1: roadmap-named attribute keys. `iaga.receipt.id` is the stable
+    // (run_id, seq) identity; `iaga.chain.head` is this receipt's body hash
+    // (the new chain head after append); `iaga.policy.verdict` is the
+    // decision. The existing `receipt.*` keys are kept as back-compat
+    // aliases. Full `gen_ai.*` semantic-convention alignment lands in 1.4.
+    let receipt_id = format!("{}:{}", b.run_id, b.seq);
+    let chain_head = b.body_hash().map(hex::encode).unwrap_or_default();
     SpanBuilder::new("iaga_sentinel.receipt")
         .with_kind("INTERNAL")
         .attr("service.name", serde_json::json!("iaga-sentinel"))
         .attr(
             "service.version",
             serde_json::json!(env!("CARGO_PKG_VERSION")),
+        )
+        .attr("iaga.receipt.id", serde_json::json!(receipt_id))
+        .attr("iaga.chain.head", serde_json::json!(chain_head))
+        .attr("iaga.policy.verdict", serde_json::json!(verdict))
+        .attr(
+            "iaga.is_authoritative",
+            serde_json::json!(b.is_authoritative),
         )
         .attr("receipt.runId", serde_json::json!(b.run_id))
         .attr("receipt.seq", serde_json::json!(b.seq))
@@ -446,6 +460,7 @@ mod receipt_span_tests {
             pipeline_inputs_capture: None,
             apl_eval_trace: None,
             ml_inference_inputs: None,
+            is_authoritative: None,
         };
         let receipt = signer.sign(body).expect("sign ok");
         emit_receipt_span(&receipt);
@@ -476,5 +491,20 @@ mod receipt_span_tests {
             span.attributes.get("receipt.signerKeyId"),
             Some(&serde_json::json!(signer.key_id()))
         );
+        // 1.3.1: roadmap-named keys present alongside the `receipt.*` aliases.
+        assert_eq!(
+            span.attributes.get("iaga.receipt.id"),
+            Some(&serde_json::json!("otel-test-run-xyz:0"))
+        );
+        assert_eq!(
+            span.attributes.get("iaga.policy.verdict"),
+            Some(&serde_json::json!("block"))
+        );
+        let chain_head = span
+            .attributes
+            .get("iaga.chain.head")
+            .and_then(|v| v.as_str())
+            .expect("iaga.chain.head present");
+        assert_eq!(chain_head.len(), 64, "chain head is a hex SHA-256");
     }
 }

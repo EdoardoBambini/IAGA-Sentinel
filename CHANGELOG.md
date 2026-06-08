@@ -15,6 +15,44 @@ Enterprise pitch and the EU AI Act + GDPR + DORA compliance pack mapping.
 
 ---
 
+## [1.3.1], 2026-06-08
+
+The 1.3 conformity-closure patch: reconciles the shipped open build with the
+1.3 roadmap's "verifier sovereignty" OSS track (ADR 0018). All changes are
+additive, no breaking changes against 1.3.0. Receipts produced before 1.3.1
+verify unchanged, the new optional field is elided when absent.
+
+### Added
+
+- ADR 0018: receipt honesty flag. `ReceiptBody` gains an optional
+  `is_authoritative` field, populated `false` on every open-build receipt
+  because OSS enforcement is soft (no authoritative kernel ships in the
+  community edition; `UserspaceKernel::is_authoritative()` is `false`).
+  Elided from `signing_bytes` when absent, so 1.3.0 receipts stay
+  byte-identical and verify unchanged.
+- OpenTelemetry receipt span now also carries the roadmap-named keys
+  `iaga.receipt.id` (`run_id:seq`), `iaga.chain.head` (the receipt body
+  hash) and `iaga.policy.verdict`, plus `iaga.is_authoritative`, alongside
+  the existing `receipt.*` aliases. Full `gen_ai.*` GenAI semantic-convention
+  alignment remains a 1.4 deliverable.
+- Sensitive-environment scrub on `UserspaceKernel`: a denylist of 23 known
+  secret-bearing variables (cloud and model-provider credentials, registry
+  tokens, the receipt signing-key path) is stripped from every governed
+  child environment, even when passed explicitly via `ProcessSpec.env`, and
+  is extendable at runtime via a TOML file at `IAGA_SENTINEL_ENV_DENYLIST`.
+- `verify-only` cargo feature on `iaga-sentinel-verify` (default-on), so the
+  documented reproducible build
+  `cargo build --release --no-default-features --features verify-only` is
+  valid and stable across releases.
+- CI now exercises the `otel-receipts` and `plugin-manifest-signing`
+  features, 1.3 primitives that previously had no CI coverage.
+
+### License
+
+Unchanged: BUSL-1.1 with Change License Apache-2.0 baked in.
+
+---
+
 ## [1.3.0], 2026-06-07
 
 The conformity-evidence release: three additive, opt-in primitives that strengthen the trusted-evidence substrate, plus a repositioning of the public narrative around the EU AI Act conformity evidence layer. All changes are additive, no breaking changes against 1.2.0. Default behaviour and receipt bytes are unchanged with the new features off.

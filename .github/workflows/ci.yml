@@ -87,6 +87,12 @@ jobs:
       - name: Run iaga-sentinel-core lib tests with `plugin-attestation` feature (1.2)
         run: cargo test -p iaga-sentinel-core --features plugins,plugin-attestation --lib
 
+      - name: Run iaga-sentinel-core lib tests with `otel-receipts` feature (1.3)
+        run: cargo test -p iaga-sentinel-core --features otel-receipts --lib
+
+      - name: Run iaga-sentinel-core lib tests with `plugin-manifest-signing` feature (1.3)
+        run: cargo test -p iaga-sentinel-core --features plugin-manifest-signing --lib
+
       - name: Run iaga-sentinel-receipts tests with `postgres` feature (1.2)
         run: cargo build -p iaga-sentinel-receipts --features postgres
         # No live postgres in this job, feature compile-check only.

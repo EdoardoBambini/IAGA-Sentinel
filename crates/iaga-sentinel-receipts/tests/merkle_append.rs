@@ -32,6 +32,7 @@ fn build_chain(signer: &ReceiptSigner, len: u64) -> Vec<Receipt> {
             pipeline_inputs_capture: None,
             apl_eval_trace: None,
             ml_inference_inputs: None,
+            is_authoritative: None,
         };
         let r = signer.sign(body).expect("sign ok");
         head = Some(r.clone());

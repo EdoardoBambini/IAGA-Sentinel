@@ -167,6 +167,15 @@ pub struct ReceiptBody {
     pub apl_eval_trace: Option<AplEvalTrace>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ml_inference_inputs: Option<MlInferenceInputs>,
+    /// 1.3.1 honesty flag. `Some(false)` on every OSS receipt because the
+    /// community build enforces softly: no authoritative kernel ships in
+    /// OSS (`UserspaceKernel::is_authoritative()` is `false` and
+    /// `BpfKernel` is a scaffold). An Enterprise build wired to an
+    /// authoritative eBPF/LSM kernel would set `Some(true)`. Elided from
+    /// `signing_bytes` when `None`, so receipts produced before 1.3.1
+    /// stay byte-identical and verify unchanged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub is_authoritative: Option<bool>,
 }
 
 impl ReceiptBody {

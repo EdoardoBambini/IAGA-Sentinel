@@ -20,6 +20,7 @@ fn body_template(signer_key_id: &str) -> ReceiptBody {
         pipeline_inputs_capture: None,
         apl_eval_trace: None,
         ml_inference_inputs: None,
+        is_authoritative: None,
     }
 }
 

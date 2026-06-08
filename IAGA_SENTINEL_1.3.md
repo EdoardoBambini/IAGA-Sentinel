@@ -122,6 +122,38 @@ Default behaviour matches 1.2 exactly. Upgrade to 1.3 is risk-free.
 
 ---
 
+## 1.3.1, conformity closure (patch)
+
+1.3.1 reconciles the shipped open build with the 1.3 roadmap's "verifier
+sovereignty" OSS track (ADR 0018). All additive, no breaking changes against
+1.3.0. Receipts produced before 1.3.1 verify unchanged; the new optional field is
+elided when absent.
+
+- **Receipt honesty flag.** `ReceiptBody` gains an optional `is_authoritative`
+  field, set to `false` on every open-build receipt because OSS enforcement is
+  soft (no authoritative kernel ships in the open build;
+  `UserspaceKernel::is_authoritative()` is `false`). Elided from the signing bytes
+  when absent, so 1.3.0 receipts stay byte-identical and verify unchanged.
+- **OpenTelemetry roadmap keys.** The receipt span now also carries
+  `iaga.receipt.id` (`run_id:seq`), `iaga.chain.head` (the receipt body hash),
+  `iaga.policy.verdict`, and `iaga.is_authoritative`, alongside the existing
+  `receipt.*` aliases. Full `gen_ai.*` GenAI semantic-convention alignment is a 1.4
+  deliverable.
+- **Sensitive-environment scrub.** `iaga run` strips a denylist of 23 known
+  secret-bearing variables (cloud and model-provider credentials, registry tokens,
+  the signing-key path) from every governed child process, even when passed
+  explicitly via the launch spec. Extend the denylist at runtime with a TOML file
+  at `IAGA_SENTINEL_ENV_DENYLIST`.
+- **`verify-only` feature + CI coverage.** `iaga-sentinel-verify` gains a default-on
+  `verify-only` feature so the reproducible build
+  `cargo build --release -p iaga-sentinel-verify --no-default-features --features verify-only`
+  is valid. CI now also exercises the `otel-receipts` and `plugin-manifest-signing`
+  features, which previously had no coverage.
+
+270/270 default tests pass. Upgrade from 1.3.0 is risk-free.
+
+---
+
 ## Forward
 
 The OSS line continues to ship additively. The larger capabilities
