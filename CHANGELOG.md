@@ -4,14 +4,13 @@ All notable changes to IAGA Sentinel are documented here. Format follows
 [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) and the
 project adheres to [Semantic Versioning](https://semver.org/).
 
-For path renames and migration steps, see [MIGRATION.md](MIGRATION.md).
 For architectural rationale, see the ADRs under [docs/adr/](docs/adr/).
 
 This changelog tracks the **open-source build** of IAGA Sentinel,
 licensed under BUSL-1.1 with Change License: Apache-2.0 baked in.
 IAGA Sentinel Enterprise is a separate commercial product built on the
 same governance kernel; see [`ENTERPRISE.md`](ENTERPRISE.md) for the
-Enterprise pitch and the EU AI Act + GDPR + DORA compliance pack mapping.
+Enterprise overview.
 
 ---
 
@@ -175,8 +174,7 @@ IAGA Sentinel Enterprise per ADR 0010 §2 (20 categories), including:
 A consolidation + rebrand release. 1.1.0 keeps 1.0.0's runtime
 behaviour and API contract, but **renames the project Agent Armor →
 IAGA Sentinel** across binary, crates, env vars, paths, and
-identifiers (breaking for CLI / ops / crate consumers, see
-[`MIGRATION.md`](MIGRATION.md)), and pins **how the OSS line is
+identifiers (breaking for CLI / ops / crate consumers), and pins **how the OSS line is
 positioned** relative to the IAGA Sentinel Enterprise commercial
 product.
 
@@ -230,12 +228,12 @@ the concise Enterprise overview.
 ### Changed
 
 - Workspace version bumped to `1.1.0`.
-- [`CHANGELOG.md`](CHANGELOG.md), [`MIGRATION.md`](MIGRATION.md),
-  [`ENTERPRISE.md`](ENTERPRISE.md), and [`README.md`](README.md)
+- [`CHANGELOG.md`](CHANGELOG.md), [`ENTERPRISE.md`](ENTERPRISE.md), and
+  [`README.md`](README.md)
   updated to reflect the OSS↔Enterprise boundary clarification.
 - ADR 0010 committed as the canonical public boundary note.
 
-### Renamed (breaking, see [`MIGRATION.md`](MIGRATION.md))
+### Renamed (breaking)
 
 - Complete rebrand **Agent Armor → IAGA Sentinel**: primary binary
   `agent-armor` → `iaga-sentinel` (short alias `armor` → `iaga`);
@@ -355,8 +353,7 @@ deterministic policy decides on.
   hardened in M2-M5; M3.5 + M4 add supply chain attestation /
   blast radius enforcement / behavioral baseline / counterparty trust
   scaffolding.
-- **All paths** `community/` → `crates/iaga-sentinel-core/`. Detailed renames
-  in [MIGRATION.md](MIGRATION.md).
+- **All paths** `community/` → `crates/iaga-sentinel-core/`.
 - **Cargo `default` features** for `iaga-sentinel-core`:
   `["demo", "sqlite", "receipts", "apl", "reasoning", "kernel"]`.
 

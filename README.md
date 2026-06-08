@@ -346,7 +346,6 @@ iaga-sentinel/
 │   └── iaga-sentinel-kernel/        # cross-platform launcher + eBPF scaffold
 ├── docs/adr/                # 17 ADRs (0001 to 0018, no 0009)
 ├── media/                   # hero assets
-├── MIGRATION.md             # 0.4.0 to 1.0 to 1.1 to 1.2 to 1.3 per-milestone notes
 └── CHANGELOG.md             # release notes
 ```
 
@@ -354,7 +353,6 @@ iaga-sentinel/
 
 ## Documentation
 
-- Migration from 0.4.0: [`MIGRATION.md`](MIGRATION.md)
 - Release notes: [`CHANGELOG.md`](CHANGELOG.md)
 - Architectural decisions:
   - [ADR 0001: Workspace split](docs/adr/0001-workspace-split.md)

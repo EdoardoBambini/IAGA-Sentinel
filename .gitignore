@@ -26,6 +26,7 @@ __pycache__/
 # Internal docs
 docs/PRD.md
 IAGA_SENTINEL_*.md
+MIGRATION.md
 
 # Research paper artifacts (kept local, never in public repo)
 docs/aisec-2026/
