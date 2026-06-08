@@ -39,8 +39,9 @@ docs/internal/
 docs/enterprise/
 
 # Confidential strategy artifacts that sometimes land in the working dir.
-# Roadmap and GTM PDFs, and the untracked FEATURES draft, stay local only.
-/*.pdf
+# Roadmap and GTM PDFs (in any folder), and the untracked FEATURES draft,
+# stay local only.
+*.pdf
 FEATURES.md
 IAGA_SENTINEL_FEATURES_AND_POSITIONING.md
 
@@ -48,12 +49,17 @@ IAGA_SENTINEL_FEATURES_AND_POSITIONING.md
 docs/ROADMAP_v0.4.0.md
 docs/DEMO.md
 
-# Media (large, kept local)
+# Media (large, kept local). Committed README assets are GIF/PNG
+# (media/*.gif, charts/*.png); raw video stays local in any folder.
 media/hero.mp4
+*.mp4
+*.mov
 
 # 1.0 M1: build artifacts + dev leftovers
 *.log
 !.claude/**/*.log
-iaga-sentinel-video/out/
+# Local-only Remotion promo video project (NEVER push to public repo).
+# Whole folder is ignored: source, node_modules, and rendered out/.
+iaga-sentinel-video/
 crates/iaga-sentinel-core/*.db
 crates/iaga-sentinel-core/*.sqlite

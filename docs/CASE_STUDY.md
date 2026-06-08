@@ -437,14 +437,14 @@ Unified all decision thresholds to `THRESHOLD_BLOCK = 70` and `THRESHOLD_REVIEW 
 ## 7. Reproduction
 
 ```bash
-# Build
-cd community
-cargo build --release
+# Build (from the workspace root)
+cargo build --release -p iaga-sentinel-core
 
 # Start server
 IAGA_SENTINEL_OPEN_MODE=true ./target/release/iaga-sentinel serve &
 
-# Run benchmark (requires Python 3 + requests + matplotlib + seaborn)
+# Run benchmark. Note: benchmark_v2.py is a local-only script (gitignored),
+# not shipped in the public repo. Requires Python 3 + requests + matplotlib + seaborn.
 python benchmark_v2.py
 
 # Results appear in:
