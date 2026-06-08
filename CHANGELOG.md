@@ -163,7 +163,7 @@ IAGA Sentinel Enterprise per ADR 0010 §2 (20 categories), including:
   key lifecycle, mesh tier-2, multi-tenant, Enterprise SSO, SIEM
   connectors, air-gap distro, EU AI Act + GDPR + DORA compliance pack,
   DPO dashboard, curated ML library, curated eBPF/LSM library,
-  confidential-computing receipts, founder-led contractual support,
+  confidential-computing receipts, commercial support,
   conformity assessment notified-body, real eBPF/LSM loader,
   cross-platform kernel macOS/Windows, mesh single-cluster baseline,
   curated ONNX models + HF tokenizers.
@@ -205,7 +205,7 @@ Capabilities originally listed under "Deferred to 1.0.x" or
   provides; keeping them OSS reinforces the open-core covenant
   without diminishing Enterprise.
 - **Migrated to IAGA Sentinel Enterprise** (separate commercial
-  product, private repo): real Aya-rs eBPF/LSM loader on Linux
+  product): real Aya-rs eBPF/LSM loader on Linux
   (was 1.0.1), macOS Endpoint Security backend + Windows ETW/WFP
   backend (was 1.1), governance mesh single-cluster baseline + the
   pre-existing tier-2 multi-region active-active (was 1.1),
@@ -221,21 +221,19 @@ Capabilities originally listed under "Deferred to 1.0.x" or
 The Enterprise edition is where the EU AI Act + GDPR + DORA
 compliance pack, DPO Dashboard, multi-tenant isolation, Enterprise
 SSO, eIDAS qualified signature pipeline, native SIEM connectors,
-air-gapped distribution, founder-led 24/7 SLA, confidential-computing
+air-gapped distribution, commercial support, confidential-computing
 receipts, forensic time-travel replay, conformity assessment
 notified-body workflow, and the curated AI-specific eBPF/LSM
 program library also live. See [`ENTERPRISE.md`](ENTERPRISE.md) for
-the full pitch and EU AI Act article-by-article mapping.
+the concise Enterprise overview.
 
 ### Changed
 
 - Workspace version bumped to `1.1.0`.
 - [`CHANGELOG.md`](CHANGELOG.md), [`MIGRATION.md`](MIGRATION.md),
-  [`ENTERPRISE.md`](ENTERPRISE.md), [`README.md`](README.md), and
-  [`IAGA_SENTINEL_1.0.md`](IAGA_SENTINEL_1.0.md) §9 updated to reflect
-  the OSS↔Enterprise boundary clarification.
-- New [`IAGA_SENTINEL_1.1.md`](IAGA_SENTINEL_1.1.md) committed as the
-  canonical 1.1 design note.
+  [`ENTERPRISE.md`](ENTERPRISE.md), and [`README.md`](README.md)
+  updated to reflect the OSS↔Enterprise boundary clarification.
+- ADR 0010 committed as the canonical public boundary note.
 
 ### Renamed (breaking, see [`MIGRATION.md`](MIGRATION.md))
 

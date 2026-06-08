@@ -324,7 +324,7 @@ The standalone verifier `iaga-verify` (crate `iaga-sentinel-verify`) is a separa
 
 ## Architecture
 
-12 layers of defense in depth, organized into 7 architectural pillars described in [`IAGA_SENTINEL_1.0.md`](IAGA_SENTINEL_1.0.md):
+12 layers of defense in depth, organized into 7 architectural pillars:
 
 1. Enforcement Kernel: `crates/iaga-sentinel-kernel/` (M4 scaffold plus `UserspaceKernel` cross-platform soft enforcement; real eBPF/LSM loader plus macOS ES plus Windows ETW/WFP backends in IAGA Sentinel Enterprise).
 2. Signed Receipts: `crates/iaga-sentinel-receipts/` (M2).
@@ -346,7 +346,6 @@ iaga-sentinel/
 │   └── iaga-sentinel-kernel/        # cross-platform launcher + eBPF scaffold
 ├── docs/adr/                # 17 ADRs (0001 to 0018, no 0009)
 ├── media/                   # hero assets
-├── IAGA_SENTINEL_1.0.md     # design document (plus 1.1, 1.2, 1.3 release notes)
 ├── MIGRATION.md             # 0.4.0 to 1.0 to 1.1 to 1.2 to 1.3 per-milestone notes
 └── CHANGELOG.md             # release notes
 ```
@@ -355,11 +354,6 @@ iaga-sentinel/
 
 ## Documentation
 
-- Design:
-  [`IAGA_SENTINEL_1.0.md`](IAGA_SENTINEL_1.0.md),
-  [`IAGA_SENTINEL_1.1.md`](IAGA_SENTINEL_1.1.md),
-  [`IAGA_SENTINEL_1.2.md`](IAGA_SENTINEL_1.2.md),
-  [`IAGA_SENTINEL_1.3.md`](IAGA_SENTINEL_1.3.md)
 - Migration from 0.4.0: [`MIGRATION.md`](MIGRATION.md)
 - Release notes: [`CHANGELOG.md`](CHANGELOG.md)
 - Architectural decisions:
@@ -388,7 +382,7 @@ iaga-sentinel/
 
 ## Status
 
-The open build is shipped and tested: 270/270 default tests pass, clippy `--all-targets -D warnings` clean. The current release is 1.3.1; per-release notes are in [`IAGA_SENTINEL_1.3.md`](IAGA_SENTINEL_1.3.md) and [`CHANGELOG.md`](CHANGELOG.md).
+The open build is shipped and tested: 270/270 default tests pass, clippy `--all-targets -D warnings` clean. The current release is 1.3.1; release notes are in [`CHANGELOG.md`](CHANGELOG.md).
 
 What is intentionally honest about the posture:
 
@@ -401,9 +395,9 @@ What is intentionally honest about the posture:
 
 ## Community vs Enterprise
 
-> **IAGA Sentinel Enterprise: from signed evidence to audit dossier in 14 days.**
+IAGA Sentinel has an open build and a commercial Enterprise edition. The open build is the source-verifiable evidence core in this repository. Enterprise adds managed, platform-specific, and compliance-delivery capabilities for organizations that need operational support beyond the public runtime.
 
-The open-build core is the same in both editions. Enterprise adds modules that live in a separate commercial repository. The lists below separate what is verifiable today, what you can clone, build, inspect, or call against a running instance, from what is an Enterprise commitment. The boundary (20 Enterprise categories plus 4 primitives reinstated to the open 1.2 roadmap) is documented in [`docs/adr/0010-oss-enterprise-boundary.md`](docs/adr/0010-oss-enterprise-boundary.md).
+The public boundary is documented in [`docs/adr/0010-oss-enterprise-boundary.md`](docs/adr/0010-oss-enterprise-boundary.md).
 
 ### What ships in the open build today (this repository)
 
@@ -423,21 +417,17 @@ Verifiable by `git clone && cargo test --workspace && docker compose up -d`:
 
 Run the smoke yourself. Every claim above is reproducible from a clean checkout.
 
-### What IAGA Sentinel Enterprise adds (separate commercial repository)
+### What Enterprise adds
 
-These modules live in a separate commercial repository. We scope and demonstrate them under NDA. From this repository they are roadmap, not something you can verify by cloning, so treat them as Enterprise commitments rather than open-build features:
+Enterprise capabilities are not required to evaluate or run the open build. They are aimed at teams that need managed deployment, compliance workflows, identity integration, or platform-specific enforcement:
 
-- EU AI Act plus GDPR plus DORA compliance evidence engine. Generates Annex IV dossiers, RoPA, DPIA, post-market monitoring reports, EU AI Office incident notifications. PDF plus JSON-LD output, signed with qualified e-signatures (eIDAS). Tied to the open-build receipt schema so dossiers cite the chain that produced them.
-- DPO Dashboard. Web app for human-in-the-loop review queues, escalation, SLA timers, audit-trailed approvals signed Ed25519 for non-repudiation.
-- Multi-tenant isolation paths. Schema-per-tenant DB layer, per-tenant resource quotas, cross-tenant audit isolation, tenant lifecycle management.
-- Enterprise SSO. SAML 2.0 plus OIDC plus SCIM provisioning, fine-grained RBAC with role inheritance, MFA enforcement, IP allowlist per tenant.
-- eIDAS qualified signature pipeline. ETSI EN 319 132 (XAdES, PAdES, CAdES), Long-Term Validation profile, connectors to specific EU Trust Service Providers. Receipts gain legal weight in EU jurisdictions.
-- Native SIEM connectors. Splunk, Datadog, Elastic, Sentinel, Chronicle. Field mappings done, not "send us a webhook".
-- Air-gapped distribution. Offline update channel with signed bundle delivery, custom installer, air-gap registry, bundle verification chain.
-- Founder-led support. SLA 99.95%, 24/7 oncall handled by the same team that wrote the kernel. No tier-1 ticket triage.
-- Iaga Cloud managed deployment, for when you do not want to run the box yourself.
-
-The compliance pieces require a compliance officer and an EU regulatory lawyer kept current as the regulator publishes new guidelines. That ongoing work is what you pay for, on top of the code itself.
+- Compliance evidence packaging for regulatory reviews.
+- Qualified-signature and managed-key integrations.
+- SSO, RBAC, multi-tenancy, and operational audit workflows.
+- Native SIEM and managed deployment options.
+- Platform-specific authoritative enforcement implementations.
+- Curated model and threat-intelligence packages.
+- Commercial support and deployment assistance.
 
 ### Open-core promise
 
@@ -445,13 +435,13 @@ The conceptual governance kernel is the open build: the receipt schema, the repl
 
 The implementations that require specialist engineering at scale live in IAGA Sentinel Enterprise: the real Aya-rs eBPF/LSM loader on Linux, the macOS Endpoint Security and Windows ETW/WFP backends, the governance mesh (single-cluster plus tier-2), the four native KMS SDK backends, and the curated ML model library. None of them shipped in 1.0 GA, so moving them to Enterprise does not violate the never-retroactively-remove-from-the-open-build covenant.
 
-The full boundary is documented in [`docs/adr/0010-oss-enterprise-boundary.md`](docs/adr/0010-oss-enterprise-boundary.md) and reinforced in [`IAGA_SENTINEL_1.0.md`](IAGA_SENTINEL_1.0.md) §9 so future maintainers cannot rewrite it.
+The full boundary is documented in [`docs/adr/0010-oss-enterprise-boundary.md`](docs/adr/0010-oss-enterprise-boundary.md) so future maintainers have a clear public reference.
 
 ### Why Enterprise exists
 
-For teams in regulated environments (banks, insurers, healthcare, public sector, critical infrastructure), the question is not whether you can be compliant; the open build answers that. The question is whether you can prove it to the auditor, the notified body, the DPO, or the regulator within two weeks instead of six months. Enterprise turns the open-build mechanisms into the dossiers, dashboards, and signed evidence packs that the EU AI Act, GDPR, and DORA ask for in their acceptance language, and gives you a phone number to the people who wrote the governance kernel when something goes wrong.
+The open build proves the technical evidence path. Enterprise packages that evidence for teams that need repeatable operations, compliance handoff, managed integrations, or support obligations.
 
-See [`ENTERPRISE.md`](ENTERPRISE.md) for the full Enterprise pitch and the EU AI Act, GDPR, and DORA article-by-article mapping. Contact: `info@iaga.tech` or `info@edoardobambini.dev`.
+See [`ENTERPRISE.md`](ENTERPRISE.md) for the concise Enterprise overview. Contact: `info@iaga.tech`.
 
 ---
 
@@ -468,4 +458,4 @@ Source available is not the same as OSI open source. The BUSL term is deliberate
 IAGA Sentinel Enterprise is sold under a separate commercial agreement. The two share the same kernel, enterprise adds modules that live in a separate repository and are not covered by this license.
 
 Repository: <https://github.com/EdoardoBambini/IAGA-Sentinel>
-Contact: `info@iaga.tech` or `info@edoardobambini.dev`
+Contact: `info@iaga.tech`

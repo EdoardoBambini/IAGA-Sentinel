@@ -2,8 +2,7 @@
 
 > **Historical document, describes the v0.4.0 community runtime.**
 > The current 1.x architecture is documented in
-> [`README.md`](../README.md) (Architecture section), the design
-> rationale in [`IAGA_SENTINEL_1.0.md`](../IAGA_SENTINEL_1.0.md), and the
+> [`README.md`](../README.md) (Architecture section) and the
 > OSS↔Enterprise boundary in
 > [`adr/0010-oss-enterprise-boundary.md`](adr/0010-oss-enterprise-boundary.md).
 > Path references in this file (`community/...`) reflect pre-1.0

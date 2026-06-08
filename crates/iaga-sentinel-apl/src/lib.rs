@@ -10,8 +10,8 @@
 //! - a structural validator (see [`validate`]),
 //! - a deterministic tree-walk evaluator with an instruction budget.
 //!
-//! **Scope note (M3 MVP)**: the design in `IAGA_SENTINEL_1.0.md` calls for
-//! WASM bytecode as the execution target. For M3 we ship a tree-walk
+//! **Scope note (M3 MVP)**: the long-term APL design calls for
+//! WASM bytecode as an execution target. For M3 we ship a tree-walk
 //! interpreter that is pure and deterministic (no I/O, no wall clock,
 //! no RNG, single-threaded). This is already sufficient for receipt
 //! replay: given the same AST and context, eval yields the same result.

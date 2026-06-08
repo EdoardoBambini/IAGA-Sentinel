@@ -30,8 +30,8 @@ locally, add `--features ml` to `cargo build` / `cargo test` for the
 
 - **Bug fixes** with a regression test.
 - **Documentation** improvements.
-- **New features** that fit the architecture documented in
-  [`IAGA_SENTINEL_1.0.md`](IAGA_SENTINEL_1.0.md).
+- **New features** that fit the architecture described in
+  [`README.md`](README.md) and the ADRs under [`docs/adr/`](docs/adr/).
 - **Performance** improvements with a reproducible benchmark.
 
 ## ADRs are required for non-trivial changes
@@ -98,18 +98,18 @@ What this means in practice for contributors:
 - A bug fix or feature in `crates/iaga-sentinel-core`, `crates/iaga-sentinel-receipts`,
   `crates/iaga-sentinel-apl`, `crates/iaga-sentinel-reasoning`, or `crates/iaga-sentinel-kernel`
   benefits both OSS and Enterprise users. Welcome.
-- We will **never** silently move OSS features behind an Enterprise
-  paywall. The promise is documented in
-  [`IAGA_SENTINEL_1.0.md`](IAGA_SENTINEL_1.0.md) §9 and we honour it.
+- We will **never** silently move open-build features behind an
+  Enterprise paywall. The public boundary is documented in
+  [`docs/adr/0010-oss-enterprise-boundary.md`](docs/adr/0010-oss-enterprise-boundary.md).
 - If you want to discuss building something Enterprise-only (a
   vertical compliance pack, a SIEM connector, a notified-body
-  workflow), email `info@iaga.tech` or `info@edoardobambini.dev` rather than
+  workflow), email `info@iaga.tech` rather than
   opening a PR here.
 
 ## Security
 
 If you find a security issue that should not be reported publicly,
-email `info@iaga.tech` or `info@edoardobambini.dev` rather than opening a public issue.
+email `info@iaga.tech` rather than opening a public issue.
 We'll respond within a reasonable timeframe and coordinate disclosure.
 
 ## Questions

@@ -1,8 +1,8 @@
 # Migration Guide
 
 This document tracks breaking changes and path renames across IAGA Sentinel
-releases. The high-level 1.0 design lives in [`IAGA_SENTINEL_1.0.md`](IAGA_SENTINEL_1.0.md);
-this file tracks the **concrete moves** you need to make when bumping versions.
+releases. The release history lives in [`CHANGELOG.md`](CHANGELOG.md); this file
+tracks the **concrete moves** you need to make when bumping versions.
 
 ---
 
@@ -781,7 +781,7 @@ All four primitives are opt-in. Default behaviour matches 1.1 exactly:
 
 **Scope:** the **conformity-evidence release**. Three additive, opt-in primitives,
 no breaking changes; default behaviour and receipt bytes are unchanged with the
-new features off. See [`IAGA_SENTINEL_1.3.md`](IAGA_SENTINEL_1.3.md) and ADRs 0015–0017.
+new features off. See [`CHANGELOG.md`](CHANGELOG.md) and ADRs 0015-0017.
 
 - New slim crate `iaga-sentinel-verify` (binary `iaga-verify`): offline receipt
   verification, no DB, no async. Export a run with

@@ -2,8 +2,7 @@
 
 > **Historical case study (March 30, 2026), measured against the v0.4.0 era
 > 8-layer pipeline.** The current 1.x architecture ships **12 layers** (the
-> original 8 hardened in M2-M5 + 4 new ones from M3.5 + M4, see
-> [`IAGA_SENTINEL_1.0.md`](../IAGA_SENTINEL_1.0.md) §3). The methodology and
+> original 8 hardened in M2-M5 + 4 new ones from M3.5 + M4). The methodology and
 > findings here remain valid for the layers covered; the 12-layer surface adds
 > supply chain attestation, blast radius enforcement, behavioral baseline, and
 > counterparty trust on top. The OSS↔Enterprise boundary that governs which

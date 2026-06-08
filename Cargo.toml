@@ -3,7 +3,7 @@
 # Reasoning + Kernel scaffold + APL live overlay. 1.1 is a
 # consolidation release: binary swap, runtime behaviour identical to
 # 1.0.0, public docs reconciled to make the OSS↔Enterprise boundary
-# unambiguous (see IAGA_SENTINEL_1.1.md + docs/adr/0010-oss-enterprise-boundary.md).
+# unambiguous (see CHANGELOG.md + docs/adr/0010-oss-enterprise-boundary.md).
 # Licensed under BUSL-1.1 with Change License: Apache-2.0
 # (auto-converts 4 years after each release; see LICENSE +
 # docs/adr/0002-open-source-license-and-scope.md).
