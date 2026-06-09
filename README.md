@@ -54,7 +54,7 @@ All of it is driven by APL: a typed DSL with deterministic tree-walk evaluation 
 
 Also in the open build: a pluggable `Signer` trait with filesystem BYOK, optional drift-replay capture (`iaga replay --re-execute`), offline Sigstore and SBOM plugin attestation (`iaga plugins verify`), the APL Hindley-Milner type checker (`iaga policy check`) with an optional WASM codegen path (`iaga policy compile`), a standalone offline receipt verifier (`iaga-verify`), optional OpenTelemetry receipt export (`otel-receipts`), and Ed25519-signed plugin manifests (`iaga plugins sign-manifest`). Optional capabilities are feature-flagged off by default; the binary behaves identically until you opt in.
 
-The 1.3.1 patch makes the soft-enforcement posture explicit in the evidence itself and hardens the governed launcher: every open-build receipt now records `is_authoritative: false`, the receipt OpenTelemetry span carries the roadmap keys `iaga.receipt.id` / `iaga.chain.head` / `iaga.policy.verdict`, and `iaga run` scrubs 23 known secret-bearing environment variables (cloud and model-provider credentials, registry tokens, the signing-key path) from every governed child process, extendable via a TOML denylist at `IAGA_SENTINEL_ENV_DENYLIST`. All additive: receipts produced before 1.3.1 verify unchanged.
+The 1.4.0 release expands the public integration surface in a serious way: the repo now ships first-class adapter examples for Claude Code, Claude Agent SDK, OpenAI, OpenAI Agents, Vercel AI, LangChain, LangGraph, CrewAI, AutoGen, LlamaIndex, MCP, Microsoft Agent Framework, and PydanticAI, plus a lightweight Rust integrations crate (`iaga-sentinel-integrations`) that mirrors the public `POST /v1/inspect` contract over async HTTP. The earlier hardening stays part of that same public surface: open-build receipts carry `is_authoritative: false`, receipt OpenTelemetry spans expose `iaga.receipt.id` / `iaga.chain.head` / `iaga.policy.verdict`, and `iaga run` scrubs 23 known secret-bearing environment variables (cloud and model-provider credentials, registry tokens, the signing-key path) from every governed child process, extendable via a TOML denylist at `IAGA_SENTINEL_ENV_DENYLIST`. Existing receipt chains still verify unchanged.
 
 ---
 
@@ -223,7 +223,7 @@ curl -s http://localhost:4010/v1/receipts                 # list runs
 curl -s http://localhost:4010/v1/receipts/<run_id>        # one run's receipts
 ```
 
-A receipt records the verdict, the input and policy hashes (not the raw payload), the signer key id, and — since 1.3.1 — `is_authoritative: false`, the open build's honest statement that enforcement is soft:
+A receipt records the verdict, the input and policy hashes (not the raw payload), the signer key id, and `is_authoritative: false`, the open build's honest statement that enforcement is soft:
 
 ```json
 { "run_id": "ed55fdce-…", "seq": 0, "verdict": "block", "risk_score": 87,
@@ -313,7 +313,7 @@ Cargo features on `iaga-sentinel-core`:
 | `linux-bpf`  | ❌      | Linux eBPF/LSM scaffold + ringbuf API. Real Aya-rs loader lives in IAGA Sentinel Enterprise. |
 | `plugin-attestation` | ❌ | Offline Sigstore bundle + CycloneDX SBOM verify + `iaga plugins verify` (1.2). |
 | `apl-wasm`   | ❌      | APL to WASM codegen MVP + `iaga policy compile` (1.2). The Hindley-Milner type checker (`iaga policy check`) is always on, no feature needed. |
-| `otel-receipts` | ❌ | Emit each signed receipt as an OpenTelemetry span on `/v1/telemetry/spans` and `/v1/telemetry/export`, so any OTel stack ingests the evidence (1.3). 1.3.1 adds the `iaga.receipt.id`, `iaga.chain.head`, `iaga.policy.verdict` keys. No new dependency. |
+| `otel-receipts` | ❌ | Emit each signed receipt as an OpenTelemetry span on `/v1/telemetry/spans` and `/v1/telemetry/export`, so any OTel stack ingests the evidence. The span includes `iaga.receipt.id`, `iaga.chain.head`, `iaga.policy.verdict`, and `iaga.is_authoritative`. No new dependency. |
 | `plugin-manifest-signing` | ❌ | Ed25519-signed plugin manifests verified at load against trusted keys, plus `iaga plugins sign-manifest` and `verify-manifest` (1.3). Orthogonal to `plugin-attestation`. |
 
 `default = ["demo", "sqlite", "receipts", "apl", "reasoning", "kernel"]`.
@@ -395,7 +395,7 @@ matrix and per-framework guides in
   - [ADR 0015: Standalone receipt verifier + run export (1.3)](docs/adr/0015-standalone-receipt-verifier.md)
   - [ADR 0016: OpenTelemetry receipt export (1.3)](docs/adr/0016-otel-receipt-export.md)
   - [ADR 0017: Ed25519 signed plugin manifests (1.3)](docs/adr/0017-signed-plugin-manifests.md)
-  - [ADR 0018: 1.3 conformance closure, receipt `is_authoritative` + OTel keys + env scrub (1.3.1)](docs/adr/0018-1.3-conformance-closure.md)
+  - [ADR 0018: Conformance closure, receipt `is_authoritative` + OTel keys + env scrub](docs/adr/0018-1.3-conformance-closure.md)
 - Security and vulnerability reporting: [`SECURITY.md`](SECURITY.md)
 - Data handling and privacy: [`DATA_HANDLING.md`](DATA_HANDLING.md)
 - Contributing: [`CONTRIBUTING.md`](CONTRIBUTING.md)
@@ -408,7 +408,7 @@ The open build is shipped and tested: 275/275 default tests pass, clippy `--all-
 
 What is intentionally honest about the posture:
 
-- `iaga kernel status` reports `authoritative: no (soft enforcement)` on `UserspaceKernel`. Authoritative kernel-level enforcement (the Aya-rs eBPF/LSM loader on Linux) is not in the open build; it lives on the Enterprise side. We do not market enforcement we do not yet provide. Since 1.3.1 the same honesty is recorded inside the evidence: every open-build receipt carries `is_authoritative: false`.
+- `iaga kernel status` reports `authoritative: no (soft enforcement)` on `UserspaceKernel`. Authoritative kernel-level enforcement (the Aya-rs eBPF/LSM loader on Linux) is not in the open build; it lives on the Enterprise side. We do not market enforcement we do not yet provide. The same honesty is recorded inside the evidence: every open-build receipt carries `is_authoritative: false`.
 - `iaga reasoning info` reports `engine: noop` unless models are configured. The reasoning framework, the `TractEngine`, and BYO ONNX are in the open build. The curated ML model library (intent-drift, prompt-injection, anomaly-seq, pre-trained and signed) lives in Enterprise.
 - APL is tree-walking, fully deterministic, and replay-safe. The Hindley-Milner type checker is always available via `iaga policy check`. The WASM codegen path (`apl-wasm` feature) covers literal and boolean, numeric, comparison expressions; the tree-walk evaluator remains canonical for the full APL surface. Full WASM coverage with host imports for Path, Call, and Membership is not in the open build today.
 - macOS Endpoint Security and Windows ETW/WFP kernel backends, the governance mesh, native KMS SDK signers (AWS KMS, Azure Key Vault, HashiCorp Vault, PKCS#11), and GPU ML live on the Enterprise side. The boundary is documented in [`docs/adr/0010-oss-enterprise-boundary.md`](docs/adr/0010-oss-enterprise-boundary.md).
