@@ -1,4 +1,9 @@
-import { SentinelBlockedError, SentinelClient, SentinelReviewError } from "../client";
+import {
+  SentinelBlockedError,
+  SentinelClient,
+  SentinelReviewError,
+  inspectWithPolicy,
+} from "../client";
 import type { SentinelMiddlewareOptions, InspectRequest, JsonObject } from "../types";
 
 function buildInspectRequest(
@@ -25,7 +30,11 @@ async function inspectPayload(
   options: SentinelMiddlewareOptions,
   payload: JsonObject
 ): Promise<void> {
-  const result = await client.inspect(buildInspectRequest(options, payload));
+  const result = await inspectWithPolicy(
+    client,
+    buildInspectRequest(options, payload),
+    { failClosed: options.failClosed }
+  );
   if (result.decision === "block") {
     throw new SentinelBlockedError(result);
   }
@@ -34,27 +43,58 @@ async function inspectPayload(
   }
 }
 
+// The Vercel AI SDK calls a middleware's wrapGenerate/wrapStream with a single
+// options object `{ doGenerate, doStream, params, model }` (params holds the
+// prompt, tools, etc.). Extract a JSON-safe governance payload from it so the
+// firewall can scan the prompt the model is about to run.
+function paramsToPayload(params: unknown): JsonObject {
+  if (!params || typeof params !== "object") return {};
+  const p = params as Record<string, unknown>;
+  try {
+    return JSON.parse(
+      JSON.stringify({ prompt: p.prompt, tools: p.tools, toolChoice: p.toolChoice })
+    ) as JsonObject;
+  } catch {
+    return { prompt: String(p.prompt ?? "") };
+  }
+}
+
+/**
+ * IAGA Sentinel middleware for the Vercel AI SDK.
+ *
+ * It is a real `LanguageModelMiddleware`: pass it to `wrapLanguageModel`, and
+ * every `generateText` / `streamText` call is inspected (prompt + tools) before
+ * the model runs. A `block` raises `SentinelBlockedError`, a `review` raises
+ * `SentinelReviewError`; transport errors fail open by default (`failClosed`).
+ *
+ * The returned object is dependency-light (it does not import `ai`); it is
+ * duck-typed against the SDK's middleware contract. `inspect(payload)` is also
+ * exposed as a standalone escape hatch for governing an arbitrary payload.
+ *
+ * See examples/integrations/vercel-ai/ for a runnable example.
+ */
 export function sentinelMiddleware(options: SentinelMiddlewareOptions) {
   const client = new SentinelClient(options);
+  const inspect = (payload: JsonObject) => inspectPayload(client, options, payload);
 
   return {
+    middlewareVersion: "v2" as const,
     name: "iaga-sentinel",
-    async inspect(payload: JsonObject): Promise<void> {
-      await inspectPayload(client, options, payload);
+    async wrapGenerate(opts: {
+      doGenerate: () => unknown;
+      params?: unknown;
+    }): Promise<unknown> {
+      await inspect(paramsToPayload(opts?.params));
+      return opts.doGenerate();
     },
-    async wrapGenerate<T>(
-      next: (payload: JsonObject) => Promise<T>,
-      payload: JsonObject
-    ): Promise<T> {
-      await inspectPayload(client, options, payload);
-      return next(payload);
+    async wrapStream(opts: {
+      doStream: () => unknown;
+      params?: unknown;
+    }): Promise<unknown> {
+      await inspect(paramsToPayload(opts?.params));
+      return opts.doStream();
     },
-    async wrapStream<T>(
-      next: (payload: JsonObject) => Promise<T>,
-      payload: JsonObject
-    ): Promise<T> {
-      await inspectPayload(client, options, payload);
-      return next(payload);
-    },
+    /** Standalone escape hatch: inspect an arbitrary payload yourself. */
+    inspect,
   };
 }

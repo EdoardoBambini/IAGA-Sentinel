@@ -1,0 +1,20 @@
+# Registers the "langchain-demo" agent used by python_example.py.
+#   iaga import examples/integrations/langchain/langchain.policy.yaml
+# Decisions default to allow (every call still produces a receipt); the injection
+# firewall hard-blocks dangerous payloads (curl | sh) regardless.
+profiles:
+  - agentId: langchain-demo
+    workspaceId: ws-langchain
+    framework: langchain
+    role: builder
+    approvedTools: [filesystem.read, shell]
+    approvedSecrets: []
+    baselineActionTypes: [file_read, shell]
+workspaces:
+  - workspaceId: ws-langchain
+    allowedProtocols: [http-function, mcp]
+    allowedDomains: ["*"]
+    tools:
+      - { toolName: filesystem.read, allowedActionTypes: [file_read], maxDecision: allow, requiresHumanReview: false }
+      - { toolName: shell, allowedActionTypes: [shell], maxDecision: allow, requiresHumanReview: false }
+vault: []

@@ -4,10 +4,10 @@ build-backend = "hatchling.build"
 
 [project]
 name = "iaga-sentinel"
-version = "1.3.0"
+version = "1.4.0"
 description = "IAGA Sentinel Python SDK: signed, replay-verifiable audit evidence for AI agent actions"
 readme = "README.md"
-license = "MIT"
+license = "BUSL-1.1"
 requires-python = ">=3.9"
 authors = [
     { name = "IAGA", email = "info@iaga.tech" },
@@ -26,7 +26,13 @@ dependencies = [
 
 [project.optional-dependencies]
 sync = ["requests>=2.28"]
+test = ["pytest>=7"]
 
 [project.urls]
 Homepage = "https://github.com/EdoardoBambini/IAGA-Sentinel"
 Documentation = "https://github.com/EdoardoBambini/IAGA-Sentinel"
+
+[tool.pytest.ini_options]
+markers = [
+    "e2e: real end-to-end test that needs the framework library installed (auto-skips when absent)",
+]

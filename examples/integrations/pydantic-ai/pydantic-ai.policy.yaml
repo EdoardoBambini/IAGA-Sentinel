@@ -1,0 +1,18 @@
+# Registers the "pydantic-ai-demo" agent.
+#   iaga import examples/integrations/pydantic-ai/pydantic-ai.policy.yaml
+profiles:
+  - agentId: pydantic-ai-demo
+    workspaceId: ws-pydantic-ai
+    framework: pydantic-ai
+    role: builder
+    approvedTools: [filesystem.read, shell]
+    approvedSecrets: []
+    baselineActionTypes: [file_read, shell]
+workspaces:
+  - workspaceId: ws-pydantic-ai
+    allowedProtocols: [http-function, mcp]
+    allowedDomains: ["*"]
+    tools:
+      - { toolName: filesystem.read, allowedActionTypes: [file_read], maxDecision: allow, requiresHumanReview: false }
+      - { toolName: shell, allowedActionTypes: [shell], maxDecision: allow, requiresHumanReview: false }
+vault: []

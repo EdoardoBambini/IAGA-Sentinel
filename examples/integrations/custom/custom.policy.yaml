@@ -1,0 +1,18 @@
+# Registers the "custom-agent" used by python_example.py.
+#   iaga import examples/integrations/custom/custom.policy.yaml
+profiles:
+  - agentId: custom-agent
+    workspaceId: ws-custom
+    framework: custom
+    role: builder
+    approvedTools: [filesystem.read, shell]
+    approvedSecrets: []
+    baselineActionTypes: [file_read, shell]
+workspaces:
+  - workspaceId: ws-custom
+    allowedProtocols: [http-function, mcp]
+    allowedDomains: ["*"]
+    tools:
+      - { toolName: filesystem.read, allowedActionTypes: [file_read], maxDecision: allow, requiresHumanReview: false }
+      - { toolName: shell, allowedActionTypes: [shell], maxDecision: allow, requiresHumanReview: false }
+vault: []

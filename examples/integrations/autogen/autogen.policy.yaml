@@ -1,0 +1,18 @@
+# Registers the "autogen-demo" agent.
+#   iaga import examples/integrations/autogen/autogen.policy.yaml
+profiles:
+  - agentId: autogen-demo
+    workspaceId: ws-autogen
+    framework: autogen
+    role: builder
+    approvedTools: [filesystem.read, shell]
+    approvedSecrets: []
+    baselineActionTypes: [file_read, shell]
+workspaces:
+  - workspaceId: ws-autogen
+    allowedProtocols: [http-function, mcp]
+    allowedDomains: ["*"]
+    tools:
+      - { toolName: filesystem.read, allowedActionTypes: [file_read], maxDecision: allow, requiresHumanReview: false }
+      - { toolName: shell, allowedActionTypes: [shell], maxDecision: allow, requiresHumanReview: false }
+vault: []

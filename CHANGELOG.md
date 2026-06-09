@@ -14,6 +14,47 @@ Enterprise overview.
 
 ---
 
+## [1.4.0], 2026-06-09
+
+Agent & framework integrations: put IAGA Sentinel in the loop of any agent stack,
+one signed receipt per tool call. Cooperative governance (`allow` / `review` /
+`block`, fail-open-by-default transport); every receipt still records
+`is_authoritative: false`. All additive — no change to the receipt schema or the
+existing public wire contract.
+
+### Added
+
+- **Python adapters** (`sdks/python/iaga_sentinel/adapters/`): `@governed` (custom),
+  LangChain (`SentinelCallbackHandler`), LangGraph (`GovernedToolNode`), LlamaIndex
+  (`IagaCallbackHandler`), Pydantic AI (`governed_tool`), OpenAI Agents SDK
+  (`iaga_tool_guardrail` + `governed_tool`), CrewAI (`SentinelGuardrail`), AutoGen
+  (`AutoGenSentinelHook`), Microsoft Agent Framework (`sentinel_middleware`), OpenAI
+  (`sentinel_wrap_openai`), and MCP (`govern_tool`). Shared transport helper
+  `_common.py`, fail-open by default (configurable via `fail_closed`).
+- **TypeScript adapters** (`sdks/typescript/src/adapters/`): OpenAI
+  (`sentinelWrapOpenAI`), Vercel AI SDK (`sentinelMiddleware`), LangGraph
+  (`governedToolNode`), and MCP (`governMcpTool`); `failClosed` opt-in.
+- **Claude Code** `PreToolUse` hook example (zero-dependency Python + Bash variants)
+  and **Claude Agent SDK** examples (`canUseTool` for TS, `PreToolUse` hook for
+  Python).
+- **MCP `GovernedTool`** wrapper (Python + TS) for MCP servers you author;
+  complements the existing `iaga proxy` transparent interception.
+- **`iaga-sentinel-integrations` Rust crate**: a lightweight standalone async client
+  (`SentinelClient` over `reqwest`) mirroring the public camelCase wire contract,
+  decoupled from the pipeline internals (ADR 0019).
+- **Examples** for all 15 framework integrations under `examples/integrations/`
+  (runnable code + `*.policy.yaml` + README + an index and support matrix).
+- **Tests**: dependency-free fakes drive every adapter against the live sidecar in
+  CI (`sdks/python/tests/`, `sdks/typescript/smoke.cjs`), plus **real end-to-end
+  tests** against the actual framework libraries (`sdks/python/tests/e2e/`,
+  `importorskip`-guarded so CI stays green without them).
+
+### License
+
+Unchanged: BUSL-1.1 with Change License Apache-2.0 baked in.
+
+---
+
 ## [1.3.1], 2026-06-08
 
 The 1.3 conformity-closure patch: reconciles the shipped open build with the

@@ -2,11 +2,22 @@
 
 from __future__ import annotations
 
+import asyncio
+import functools
+import inspect
 from dataclasses import dataclass
 from typing import Any, Callable, Optional
 
+import httpx
+
 from ..client import SentinelClient, AsyncSentinelClient
-from ..types import ActionDetail, ActionType, GovernanceResult, InspectRequest
+from ..types import (
+    ActionDetail,
+    ActionType,
+    GovernanceResult,
+    InspectRequest,
+    resolve_unreachable,
+)
 
 
 @dataclass(frozen=True)
@@ -19,6 +30,7 @@ class AdapterConfig:
     tenant_id: Optional[str] = None
     session_id: Optional[str] = None
     metadata: Optional[dict[str, Any]] = None
+    fail_closed: bool = False
 
 
 def build_request(
@@ -75,18 +87,40 @@ def infer_action_type(tool_name: str, default: ActionType = ActionType.CUSTOM) -
 
 
 def inspect_sync(config: AdapterConfig, request: InspectRequest) -> GovernanceResult:
-    with SentinelClient(base_url=config.base_url, api_key=config.api_key) as client:
-        result = client.inspect(request)
+    try:
+        with SentinelClient(base_url=config.base_url, api_key=config.api_key) as client:
+            result = client.inspect(request)
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code < 500:
+            raise
+        return resolve_unreachable(
+            request.action.tool_name, exc, fail_closed=config.fail_closed
+        )
+    except httpx.TransportError as exc:
+        return resolve_unreachable(
+            request.action.tool_name, exc, fail_closed=config.fail_closed
+        )
     ensure_allowed(result, request.action.tool_name)
     return result
 
 
 async def inspect_async(config: AdapterConfig, request: InspectRequest) -> GovernanceResult:
-    async with AsyncSentinelClient(
-        base_url=config.base_url,
-        api_key=config.api_key,
-    ) as client:
-        result = await client.inspect(request)
+    try:
+        async with AsyncSentinelClient(
+            base_url=config.base_url,
+            api_key=config.api_key,
+        ) as client:
+            result = await client.inspect(request)
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code < 500:
+            raise
+        return resolve_unreachable(
+            request.action.tool_name, exc, fail_closed=config.fail_closed
+        )
+    except httpx.TransportError as exc:
+        return resolve_unreachable(
+            request.action.tool_name, exc, fail_closed=config.fail_closed
+        )
     ensure_allowed(result, request.action.tool_name)
     return result
 
@@ -133,3 +167,82 @@ async def run_guarded_async(
         ),
     )
     return await call()
+
+
+def _safe_value(val: Any) -> Any:
+    if isinstance(val, (str, int, float, bool, type(None))):
+        return val
+    if isinstance(val, (list, tuple)):
+        return [_safe_value(v) for v in val]
+    if isinstance(val, dict):
+        return {str(k): _safe_value(v) for k, v in val.items()}
+    return str(val)
+
+
+def named_payload(
+    func: Callable,
+    args: tuple[Any, ...],
+    kwargs: dict[str, Any],
+    *,
+    exclude: tuple[str, ...] = ("self", "ctx", "context"),
+) -> dict[str, Any]:
+    """Build a payload from a function's named arguments, skipping ``exclude``."""
+    try:
+        params = list(inspect.signature(func).parameters.keys())
+    except (TypeError, ValueError):
+        params = []
+    payload: dict[str, Any] = {}
+    for i, arg in enumerate(args):
+        name = params[i] if i < len(params) else f"arg{i}"
+        if name in exclude:
+            continue
+        payload[name] = _safe_value(arg)
+    for key, value in kwargs.items():
+        if key in exclude:
+            continue
+        payload[key] = _safe_value(value)
+    return payload
+
+
+def governed_callable(
+    config: AdapterConfig,
+    func: Callable,
+    *,
+    tool_name: Optional[str] = None,
+    action_type: Optional[ActionType] = None,
+    exclude: tuple[str, ...] = ("self", "ctx", "context"),
+) -> Callable:
+    """Wrap a tool function so each call is inspected before it runs.
+
+    Preserves sync/async. The payload is built from the call's named arguments
+    (minus ``exclude``); block/review raise PermissionError, transport errors
+    follow the fail-open/closed policy on ``config``.
+    """
+    name = tool_name or getattr(func, "__name__", "tool")
+    resolved_type = action_type or infer_action_type(name)
+
+    if asyncio.iscoroutinefunction(func):
+
+        @functools.wraps(func)
+        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
+            return await run_guarded_async(
+                config,
+                tool_name=name,
+                action_type=resolved_type,
+                payload=named_payload(func, args, kwargs, exclude=exclude),
+                call=lambda: func(*args, **kwargs),
+            )
+
+        return async_wrapper
+
+    @functools.wraps(func)
+    def sync_wrapper(*args: Any, **kwargs: Any) -> Any:
+        return run_guarded_sync(
+            config,
+            tool_name=name,
+            action_type=resolved_type,
+            payload=named_payload(func, args, kwargs, exclude=exclude),
+            call=lambda: func(*args, **kwargs),
+        )
+
+    return sync_wrapper

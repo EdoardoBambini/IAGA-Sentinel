@@ -1,0 +1,20 @@
+# Registers the "openai-agents-demo" agent.
+#   iaga import examples/integrations/openai-agents/openai-agents.policy.yaml
+# The guardrail reports the tool's qualified name (e.g. "filesystem_read"); the
+# governed_tool wrapper uses the tool_name you pass (here "shell").
+profiles:
+  - agentId: openai-agents-demo
+    workspaceId: ws-openai-agents
+    framework: openai-agents
+    role: builder
+    approvedTools: [filesystem_read, shell]
+    approvedSecrets: []
+    baselineActionTypes: [file_read, shell]
+workspaces:
+  - workspaceId: ws-openai-agents
+    allowedProtocols: [http-function, mcp]
+    allowedDomains: ["*"]
+    tools:
+      - { toolName: filesystem_read, allowedActionTypes: [file_read], maxDecision: allow, requiresHumanReview: false }
+      - { toolName: shell, allowedActionTypes: [shell], maxDecision: allow, requiresHumanReview: false }
+vault: []

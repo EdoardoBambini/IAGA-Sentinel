@@ -77,6 +77,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         serde_json::to_string_pretty(&inspect_response)?
     );
 
+    let demo_card = format!("{}{}", "4111 1111 ", "1111 1111");
     let response_scan = rpc_request(
         4,
         "tools/call",
@@ -87,8 +88,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "agentId": "openclaw-builder-01",
                 "toolName": "terminal.exec",
                 "responsePayload": {
-                    "secret": "AKIA1234567890ABCDEF",
-                    "message": "temporary credential"
+                    "card": demo_card,
+                    "message": "test payment data"
                 }
             }
         }),

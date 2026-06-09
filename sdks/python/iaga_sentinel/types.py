@@ -230,3 +230,38 @@ class GovernanceResult:
     @property
     def needs_review(self) -> bool:
         return self.decision == GovernanceDecision.REVIEW
+
+    @classmethod
+    def fail_open(
+        cls, reason: str = "IAGA Sentinel unreachable; failing open"
+    ) -> "GovernanceResult":
+        """Synthesize an ``allow`` result for the transport fail-open path.
+
+        Used when the IAGA sidecar is unreachable and the operator has not
+        opted into fail-closed; the action proceeds but no receipt is signed.
+        """
+        return cls(
+            trace_id="",
+            decision=GovernanceDecision.ALLOW,
+            review_status=ReviewStatus.NOT_REQUIRED,
+            risk=RiskScore(score=0, decision=GovernanceDecision.ALLOW, reasons=[reason]),
+            policy_findings=[],
+            protocol=ProtocolKind.UNKNOWN,
+        )
+
+
+def resolve_unreachable(
+    tool_name: str, exc: Exception, *, fail_closed: bool
+) -> GovernanceResult:
+    """Apply the transport-error policy: fail-open (default) or fail-closed.
+
+    Adapters fail **open** on transport errors by default, so a governance
+    outage does not take the agent down; operators may opt into fail-closed.
+    """
+    if fail_closed:
+        raise PermissionError(
+            f"IAGA Sentinel unreachable for '{tool_name}' (fail-closed): {exc}"
+        ) from exc
+    return GovernanceResult.fail_open(
+        f"IAGA Sentinel unreachable ({exc}); failing open"
+    )

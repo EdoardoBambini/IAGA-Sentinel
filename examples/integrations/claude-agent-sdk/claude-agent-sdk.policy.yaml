@@ -1,0 +1,26 @@
+# Registers the "claude-agent-sdk" agent used by canUseTool.ts / hooks_example.py.
+#   iaga import examples/integrations/claude-agent-sdk/claude-agent-sdk.policy.yaml
+# Decisions default to allow (every call still produces a receipt); the injection
+# firewall hard-blocks dangerous payloads (curl | sh) regardless.
+profiles:
+  - agentId: claude-agent-sdk
+    workspaceId: ws-claude-agent
+    framework: claude-agent-sdk
+    role: builder
+    approvedTools: [Bash, Read, Glob, Grep, Write, Edit, MultiEdit, WebFetch]
+    approvedSecrets: []
+    baselineActionTypes: [shell, file_read, file_write, http]
+workspaces:
+  - workspaceId: ws-claude-agent
+    allowedProtocols: [http-function, mcp]
+    allowedDomains: ["*"]
+    tools:
+      - { toolName: Bash, allowedActionTypes: [shell], maxDecision: allow, requiresHumanReview: false }
+      - { toolName: Read, allowedActionTypes: [file_read], maxDecision: allow, requiresHumanReview: false }
+      - { toolName: Glob, allowedActionTypes: [file_read], maxDecision: allow, requiresHumanReview: false }
+      - { toolName: Grep, allowedActionTypes: [file_read], maxDecision: allow, requiresHumanReview: false }
+      - { toolName: Write, allowedActionTypes: [file_write], maxDecision: allow, requiresHumanReview: false }
+      - { toolName: Edit, allowedActionTypes: [file_write], maxDecision: allow, requiresHumanReview: false }
+      - { toolName: MultiEdit, allowedActionTypes: [file_write], maxDecision: allow, requiresHumanReview: false }
+      - { toolName: WebFetch, allowedActionTypes: [http], maxDecision: allow, requiresHumanReview: false }
+vault: []

@@ -1,0 +1,18 @@
+# Registers the "crewai-demo" agent.
+#   iaga import examples/integrations/crewai/crewai.policy.yaml
+profiles:
+  - agentId: crewai-demo
+    workspaceId: ws-crewai
+    framework: crewai
+    role: builder
+    approvedTools: [filesystem.read, shell]
+    approvedSecrets: []
+    baselineActionTypes: [file_read, shell]
+workspaces:
+  - workspaceId: ws-crewai
+    allowedProtocols: [http-function, mcp]
+    allowedDomains: ["*"]
+    tools:
+      - { toolName: filesystem.read, allowedActionTypes: [file_read], maxDecision: allow, requiresHumanReview: false }
+      - { toolName: shell, allowedActionTypes: [shell], maxDecision: allow, requiresHumanReview: false }
+vault: []

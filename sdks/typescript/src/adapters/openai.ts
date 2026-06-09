@@ -1,4 +1,9 @@
-import { SentinelBlockedError, SentinelClient, SentinelReviewError } from "../client";
+import {
+  SentinelBlockedError,
+  SentinelClient,
+  SentinelReviewError,
+  inspectWithPolicy,
+} from "../client";
 import type { ActionType, InspectRequest, JsonObject, JsonValue, OpenAIAdapterOptions } from "../types";
 
 type AnyRecord = Record<string | symbol, unknown>;
@@ -53,9 +58,10 @@ function buildInspectRequest(
 
 async function enforcePolicy(
   client: SentinelClient,
-  request: InspectRequest
+  request: InspectRequest,
+  failClosed?: boolean
 ): Promise<void> {
-  const result = await client.inspect(request);
+  const result = await inspectWithPolicy(client, request, { failClosed });
   if (result.decision === "block") {
     throw new SentinelBlockedError(result);
   }
@@ -81,7 +87,8 @@ function wrapCreate(
   return async (...args: unknown[]) => {
     await enforcePolicy(
       iaga,
-      buildInspectRequest(options, toolName, "http", serializeArgs(args))
+      buildInspectRequest(options, toolName, "http", serializeArgs(args)),
+      options.failClosed
     );
     return fn.apply(target, args);
   };

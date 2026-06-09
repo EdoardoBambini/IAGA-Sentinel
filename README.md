@@ -9,10 +9,10 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.3.1-0f9d6b?style=flat-square" alt="version" />
+  <img src="https://img.shields.io/badge/version-1.4.0-0f9d6b?style=flat-square" alt="version" />
   <img src="https://img.shields.io/badge/license-BUSL--1.1-0f9d6b?style=flat-square" alt="license" />
   <img src="https://img.shields.io/badge/EU%20AI%20Act-Art.%2012%20and%20Annex%20IV-0B0F0E?style=flat-square" alt="EU AI Act Article 12 and Annex IV" />
-  <img src="https://img.shields.io/badge/tests-270%20passing-0f9d6b?style=flat-square" alt="tests" />
+  <img src="https://img.shields.io/badge/tests-275%20passing-0f9d6b?style=flat-square" alt="tests" />
   <img src="https://img.shields.io/badge/Rust-stable-0B0F0E?style=flat-square" alt="Rust" />
 </p>
 
@@ -140,7 +140,7 @@ iaga gen-key --label my-app
 # Payload uses camelCase: agentId, toolName, actionType.
 curl -X POST http://localhost:4010/v1/inspect \
   -H 'Content-Type: application/json' \
-  -H 'Authorization: Bearer iaga_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' \
+  -H "Authorization: Bearer $IAGA_API_KEY" \
   -d '{
     "agentId":  "openclaw-builder-01",
     "framework":"langchain",
@@ -343,11 +343,35 @@ iaga-sentinel/
 │   ├── iaga-sentinel-receipts/      # Ed25519 + Merkle log + replay
 │   ├── iaga-sentinel-apl/           # APL parser + evaluator
 │   ├── iaga-sentinel-reasoning/     # ML evidence (tract-onnx behind `ml`)
-│   └── iaga-sentinel-kernel/        # cross-platform launcher + eBPF scaffold
-├── docs/adr/                # 17 ADRs (0001 to 0018, no 0009)
+│   ├── iaga-sentinel-kernel/        # cross-platform launcher + eBPF scaffold
+│   ├── iaga-sentinel-verify/        # standalone offline receipt verifier
+│   └── iaga-sentinel-integrations/  # shared adapter contract + async HTTP client
+├── sdks/                    # Python + TypeScript SDKs and framework adapters
+├── examples/integrations/   # copy-paste adapter examples (15 frameworks)
+├── docs/adr/                # 18 ADRs (0001 to 0019, no 0009)
 ├── media/                   # hero assets
 └── CHANGELOG.md             # release notes
 ```
+
+---
+
+## Integrations
+
+Put IAGA Sentinel in the loop of any agent framework — one signed receipt per
+tool call. Adapters live in the SDKs (`sdks/python`, `sdks/typescript`) with
+copy-paste examples in **[`examples/integrations/`](examples/integrations/)**.
+
+Shipped: Custom (`@governed`), LangChain, LangGraph (Py/JS), LlamaIndex,
+Pydantic AI, OpenAI Agents SDK, CrewAI, AutoGen, Microsoft Agent Framework,
+OpenAI (Py/TS), Vercel AI SDK, MCP (`GovernedTool` + `iaga proxy`), Claude Code
+(`PreToolUse` hook) and the Claude Agent SDK. Each is cooperative governance
+(`allow` / `review` / `block`, fail-open-by-default transport); a Rust client
+crate (`iaga-sentinel-integrations`) speaks the same wire contract.
+
+The Python adapters are tested both with dependency-free fakes (CI) and against
+the **real** framework libraries (`sdks/python/tests/e2e/`). See the support
+matrix and per-framework guides in
+**[`examples/integrations/README.md`](examples/integrations/README.md)**.
 
 ---
 
@@ -380,7 +404,7 @@ iaga-sentinel/
 
 ## Status
 
-The open build is shipped and tested: 270/270 default tests pass, clippy `--all-targets -D warnings` clean. The current release is 1.3.1; release notes are in [`CHANGELOG.md`](CHANGELOG.md).
+The open build is shipped and tested: 275/275 default tests pass, clippy `--all-targets -D warnings` clean. The current release is 1.4.0; release notes are in [`CHANGELOG.md`](CHANGELOG.md).
 
 What is intentionally honest about the posture:
 
@@ -401,7 +425,7 @@ The public boundary is documented in [`docs/adr/0010-oss-enterprise-boundary.md`
 
 Verifiable by `git clone && cargo test --workspace && docker compose up -d`:
 
-- 12-layer governance pipeline, single binary, single endpoint (`POST /v1/inspect`), 270/270 default tests passing.
+- 12-layer governance pipeline, single binary, single endpoint (`POST /v1/inspect`), 275/275 default tests passing.
 - Signed action receipts, Ed25519 plus Merkle append-log per run, verifiable offline with `iaga replay <run_id> --verify-only`.
 - Agent Policy Language (APL), a typed DSL with deterministic tree-walk evaluator, instruction budget, short-circuit evaluation. Try `iaga policy lint <file.apl>`.
 - APL live overlay, load a bundle as `iaga serve --policy <file.apl>`. Stricter-wins merge with the YAML profile system.

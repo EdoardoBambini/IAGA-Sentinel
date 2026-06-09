@@ -1,0 +1,23 @@
+# Registers the "mcp-demo" agent used by python_example.py / ts_example.ts.
+#   iaga import examples/integrations/mcp/mcp.policy.yaml
+# Decisions default to allow (every call still produces a receipt); the injection
+# firewall hard-blocks dangerous payloads (curl | sh) regardless.
+# NOTE: this is the policy-profile "framework" label only; the adapter sends
+# framework="model-context-tool" on the wire so it does not trip the MCP
+# protocol-guard (which would reject non-envelope payloads).
+profiles:
+  - agentId: mcp-demo
+    workspaceId: ws-mcp
+    framework: mcp
+    role: builder
+    approvedTools: [filesystem.read, shell]
+    approvedSecrets: []
+    baselineActionTypes: [file_read, shell]
+workspaces:
+  - workspaceId: ws-mcp
+    allowedProtocols: [mcp, http-function]
+    allowedDomains: ["*"]
+    tools:
+      - { toolName: filesystem.read, allowedActionTypes: [file_read], maxDecision: allow, requiresHumanReview: false }
+      - { toolName: shell, allowedActionTypes: [shell], maxDecision: allow, requiresHumanReview: false }
+vault: []

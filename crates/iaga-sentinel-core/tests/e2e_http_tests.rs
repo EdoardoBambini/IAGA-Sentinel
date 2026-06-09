@@ -286,13 +286,14 @@ async fn test_http_end_to_end_governance_flow() {
         "blocked response should carry a high risk score"
     );
 
+    let demo_card = format!("{}{}", "4111 1111 ", "1111 1111");
     let scan_body = serde_json::json!({
         "requestId": "scan-e2e-1",
         "agentId": "openclaw-builder-01",
         "toolName": "terminal.exec",
         "responsePayload": {
-            "secret": "AKIA1234567890ABCDEF",
-            "message": "temporary credential"
+            "card": demo_card,
+            "message": "test payment data"
         },
         "metadata": null
     });

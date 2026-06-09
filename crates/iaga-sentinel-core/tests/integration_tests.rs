@@ -124,7 +124,9 @@ async fn test_safe_file_read_is_allowed() {
             ]),
         },
         requested_secrets: None,
-        metadata: None,
+        // Unique sessionId so this test's session DAG is isolated from other
+        // tests in the shared process-global session store (session_dag::SESSIONS).
+        metadata: session_metadata("it-safe-file-read"),
     };
 
     let result = execute_pipeline(&request, &state)
@@ -184,7 +186,7 @@ async fn test_wasm_plugin_registry_populates_governance_results() {
             ]),
         },
         requested_secrets: None,
-        metadata: None,
+        metadata: session_metadata("it-wasm-plugin"),
     };
 
     let result = execute_pipeline(&request, &state)
@@ -326,7 +328,7 @@ async fn test_workspace_allow_rule_can_lower_review_to_allow() {
             ]),
         },
         requested_secrets: None,
-        metadata: None,
+        metadata: session_metadata("it-workspace-allow-rule"),
     };
 
     let result = execute_pipeline(&request, &state)
@@ -461,7 +463,7 @@ async fn test_shell_with_env_secret_triggers_review_or_block() {
             ]),
         },
         requested_secrets: None,
-        metadata: None,
+        metadata: session_metadata("it-shell-env-secret"),
     };
 
     let result = execute_pipeline(&request, &state)
@@ -500,7 +502,7 @@ async fn test_destructive_command_is_blocked() {
             ]),
         },
         requested_secrets: None,
-        metadata: None,
+        metadata: session_metadata("it-destructive-cmd"),
     };
 
     let result = execute_pipeline(&request, &state)
@@ -540,7 +542,7 @@ async fn test_unknown_secret_triggers_review() {
             ]),
         },
         requested_secrets: Some(vec!["secretref://prod/root/aws-admin".into()]),
-        metadata: None,
+        metadata: session_metadata("it-unknown-secret"),
     };
 
     let result = execute_pipeline(&request, &state)

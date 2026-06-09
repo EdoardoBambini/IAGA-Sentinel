@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "target": "es2022",
+    "lib": ["es2022"],
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@iaga-sentinel/sdk": ["../dist/index.d.ts"],
+      "@anthropic-ai/claude-agent-sdk": ["./node_modules/@anthropic-ai/claude-agent-sdk/sdk.d.ts"]
+    },
+    "allowImportingTsExtensions": true
+  },
+  "include": ["typecheck.ts"]
+}

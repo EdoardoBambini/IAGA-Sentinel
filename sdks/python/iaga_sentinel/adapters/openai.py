@@ -1,4 +1,7 @@
-"""Dependency-light OpenAI wrapper for IAGA Sentinel."""
+"""Dependency-light OpenAI wrapper for IAGA Sentinel.
+
+See examples/integrations/openai/ for a runnable example.
+"""
 
 from __future__ import annotations
 
@@ -96,6 +99,7 @@ def sentinel_wrap_openai(
     tenant_id: Optional[str] = None,
     session_id: Optional[str] = None,
     metadata: Optional[dict[str, Any]] = None,
+    fail_closed: bool = False,
 ) -> SentinelOpenAIWrapper:
     return SentinelOpenAIWrapper(
         client,
@@ -108,6 +112,7 @@ def sentinel_wrap_openai(
             tenant_id=tenant_id,
             session_id=session_id,
             metadata=metadata,
+            fail_closed=fail_closed,
         ),
     )
 

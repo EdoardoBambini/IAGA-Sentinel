@@ -490,12 +490,18 @@ export class SentinelApiError extends Error {
   }
 }
 
+export interface GovernedOptions {
+  /** Deny (throw) when the sidecar is unreachable. Default: fail-open. */
+  failClosed?: boolean;
+}
+
 export async function governed<T>(
   client: SentinelClient,
   request: InspectRequest,
-  fn: () => T | Promise<T>
+  fn: () => T | Promise<T>,
+  options: GovernedOptions = {}
 ): Promise<T> {
-  const result = await client.inspect(request);
+  const result = await inspectWithPolicy(client, request, options);
 
   if (result.decision === "block") {
     throw new SentinelBlockedError(result);
@@ -522,5 +528,52 @@ export class SentinelReviewError extends Error {
       `Tool requires review (reviewId=${result.reviewRequestId}, risk=${result.risk.score})`
     );
     this.name = "SentinelReviewError";
+  }
+}
+
+function failOpenResult(reason: string): GovernanceResult {
+  return {
+    traceId: "",
+    decision: "allow",
+    reviewStatus: "not_required",
+    risk: { score: 0, decision: "allow", reasons: [reason] },
+    policyFindings: [],
+    protocol: "unknown",
+    normalizedPayload: {},
+    schemaValidation: { toolName: "", valid: false, findings: [] },
+    secretPlan: { approved: [], denied: [] },
+  };
+}
+
+function unreachableBlockResult(reason: string): GovernanceResult {
+  return {
+    ...failOpenResult(reason),
+    decision: "block",
+    risk: { score: 100, decision: "block", reasons: [reason] },
+  };
+}
+
+/**
+ * Inspect an action, applying the transport-error policy. Fail-open by default
+ * (returns an allow result so the action proceeds),
+ * or fail-closed (throws SentinelBlockedError) when options.failClosed is set.
+ * 4xx responses are genuine client errors and are rethrown unchanged.
+ */
+export async function inspectWithPolicy(
+  client: SentinelClient,
+  request: InspectRequest,
+  options: GovernedOptions = {}
+): Promise<GovernanceResult> {
+  try {
+    return await client.inspect(request);
+  } catch (err) {
+    if (err instanceof SentinelApiError && err.status < 500) {
+      throw err;
+    }
+    const reason = `IAGA Sentinel unreachable (${String(err)})`;
+    if (options.failClosed) {
+      throw new SentinelBlockedError(unreachableBlockResult(`${reason}; fail-closed`));
+    }
+    return failOpenResult(`${reason}; failing open`);
   }
 }

@@ -1,0 +1,21 @@
+# Registers the "langgraph-demo" agent used by python_example.py / js_example.mjs.
+#   iaga import examples/integrations/langgraph/langgraph.policy.yaml
+# Decisions default to allow (every call still produces a receipt); the injection
+# firewall hard-blocks dangerous payloads (curl | sh) regardless.
+profiles:
+  - agentId: langgraph-demo
+    workspaceId: ws-langgraph
+    framework: langgraph
+    role: builder
+    approvedTools: [filesystem.read, filesystem_read, shell]
+    approvedSecrets: []
+    baselineActionTypes: [file_read, shell]
+workspaces:
+  - workspaceId: ws-langgraph
+    allowedProtocols: [http-function, mcp]
+    allowedDomains: ["*"]
+    tools:
+      - { toolName: filesystem.read, allowedActionTypes: [file_read], maxDecision: allow, requiresHumanReview: false }
+      - { toolName: filesystem_read, allowedActionTypes: [file_read], maxDecision: allow, requiresHumanReview: false }
+      - { toolName: shell, allowedActionTypes: [shell], maxDecision: allow, requiresHumanReview: false }
+vault: []

@@ -1,0 +1,88 @@
+# IAGA Sentinel - policy that registers a "claude-code" agent so the
+# PreToolUse hook can govern Claude Code's built-in tools.
+#
+# Without this, an unregistered agentId returns 404 (the hook then fails open),
+# and unknown tool names get escalated. Import it before using the hook:
+#
+#     iaga import examples/integrations/claude-code/claude-code.policy.yaml
+#
+# or copy it to ./iaga-sentinel.yaml, which the server auto-imports on boot.
+#
+# Decisions default to "allow" so every tool call still produces a signed
+# receipt, while the injection firewall independently blocks dangerous payloads
+# (e.g. "curl ... | sh") regardless of these settings. Tighten any tool to
+# maxDecision: review to require human approval before it runs.
+
+profiles:
+  - agentId: claude-code
+    workspaceId: ws-claude-code
+    framework: claude-code
+    role: builder
+    approvedTools:
+      - Bash
+      - Read
+      - Glob
+      - Grep
+      - Write
+      - Edit
+      - MultiEdit
+      - NotebookEdit
+      - WebFetch
+      - WebSearch
+    approvedSecrets: []
+    baselineActionTypes:
+      - shell
+      - file_read
+      - file_write
+      - http
+
+workspaces:
+  - workspaceId: ws-claude-code
+    allowedProtocols:
+      - http-function
+      - mcp
+    allowedDomains:
+      - "*"
+    tools:
+      - toolName: Bash
+        allowedActionTypes: [shell]
+        maxDecision: allow
+        requiresHumanReview: false
+      - toolName: Read
+        allowedActionTypes: [file_read]
+        maxDecision: allow
+        requiresHumanReview: false
+      - toolName: Glob
+        allowedActionTypes: [file_read]
+        maxDecision: allow
+        requiresHumanReview: false
+      - toolName: Grep
+        allowedActionTypes: [file_read]
+        maxDecision: allow
+        requiresHumanReview: false
+      - toolName: Write
+        allowedActionTypes: [file_write]
+        maxDecision: allow
+        requiresHumanReview: false
+      - toolName: Edit
+        allowedActionTypes: [file_write]
+        maxDecision: allow
+        requiresHumanReview: false
+      - toolName: MultiEdit
+        allowedActionTypes: [file_write]
+        maxDecision: allow
+        requiresHumanReview: false
+      - toolName: NotebookEdit
+        allowedActionTypes: [file_write]
+        maxDecision: allow
+        requiresHumanReview: false
+      - toolName: WebFetch
+        allowedActionTypes: [http]
+        maxDecision: allow
+        requiresHumanReview: false
+      - toolName: WebSearch
+        allowedActionTypes: [http]
+        maxDecision: allow
+        requiresHumanReview: false
+
+vault: []

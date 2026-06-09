@@ -1,0 +1,18 @@
+# Registers the "ms-agent-demo" agent.
+#   iaga import examples/integrations/microsoft-agent-framework/microsoft-agent-framework.policy.yaml
+profiles:
+  - agentId: ms-agent-demo
+    workspaceId: ws-ms-agent
+    framework: microsoft-agent-framework
+    role: builder
+    approvedTools: [filesystem.read, shell]
+    approvedSecrets: []
+    baselineActionTypes: [file_read, shell]
+workspaces:
+  - workspaceId: ws-ms-agent
+    allowedProtocols: [http-function, mcp]
+    allowedDomains: ["*"]
+    tools:
+      - { toolName: filesystem.read, allowedActionTypes: [file_read], maxDecision: allow, requiresHumanReview: false }
+      - { toolName: shell, allowedActionTypes: [shell], maxDecision: allow, requiresHumanReview: false }
+vault: []

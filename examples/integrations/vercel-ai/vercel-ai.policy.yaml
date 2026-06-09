@@ -1,0 +1,17 @@
+# Registers the "vercel-ai-demo" agent.
+#   iaga import examples/integrations/vercel-ai/vercel-ai.policy.yaml
+profiles:
+  - agentId: vercel-ai-demo
+    workspaceId: ws-vercel-ai
+    framework: vercel-ai
+    role: builder
+    approvedTools: ["vercel-ai.generate"]
+    approvedSecrets: [OPENAI_API_KEY]
+    baselineActionTypes: [http]
+workspaces:
+  - workspaceId: ws-vercel-ai
+    allowedProtocols: [http-function, mcp]
+    allowedDomains: ["*"]
+    tools:
+      - { toolName: "vercel-ai.generate", allowedActionTypes: [http], maxDecision: allow, requiresHumanReview: false }
+vault: []

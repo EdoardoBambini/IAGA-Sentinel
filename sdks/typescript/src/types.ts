@@ -123,6 +123,8 @@ export interface OpenAIAdapterOptions extends SentinelClientOptions {
   workspaceId?: string;
   sessionId?: string;
   metadata?: JsonObject;
+  /** Deny when the sidecar is unreachable. Default: fail-open (action proceeds). */
+  failClosed?: boolean;
 }
 
 export interface SentinelMiddlewareOptions extends OpenAIAdapterOptions {

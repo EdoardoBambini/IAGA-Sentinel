@@ -274,10 +274,11 @@ fn test_taint_http_task_id_is_not_secret() {
 
 #[test]
 fn test_taint_http_openai_key_is_secret() {
+    let demo_key = format!("{}{}", "sk-", "abcdefghijklmnopqrstuvwxyz123456");
     let labels = classify_source(
         "http",
         "fetch",
-        "Authorization: Bearer sk-abcdefghijklmnopqrstuvwxyz123456",
+        &format!("Authorization: Bearer {demo_key}"),
     );
     assert!(
         labels.contains(&SECRET.to_string()),

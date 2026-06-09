@@ -22,9 +22,18 @@ benchmark_results.csv
 benchmark_v2_results.csv
 *.pyc
 __pycache__/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+venv/
+coverage/
+.coverage
+*.tsbuildinfo
 
 # Internal docs
 docs/PRD.md
+docs/INTEGRATIONS.md
 IAGA_SENTINEL_*.md
 MIGRATION.md
 
@@ -55,7 +64,11 @@ media/hero.mp4
 
 # 1.0 M1: build artifacts + dev leftovers
 *.log
-!.claude/**/*.log
+*.out
+*.err
+*.trace
+logs/
+.logs/
 # Local-only Remotion promo video project (NEVER push to public repo).
 # Whole folder is ignored: source, node_modules, and rendered out/.
 iaga-sentinel-video/

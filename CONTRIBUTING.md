@@ -39,7 +39,7 @@ locally, add `--features ml` to `cargo build` / `cargo test` for the
 If your change introduces a new capability, alters a public trait, or
 shifts an architectural boundary, add an ADR under
 [`docs/adr/`](docs/adr/) following the numbering and template of the
-existing ones (0001-0018, 0009 is intentionally unused). Keep it
+existing ones (0001-0019, 0009 is intentionally unused). Keep it
 short: context, decision,
 consequences, what's deliberately out of scope.
 
@@ -53,6 +53,25 @@ before review.
 - Public APIs need rustdoc with at least a one-line summary.
 - Prefer additive feature flags over breaking changes.
 - Comments explain *why*, not *what*. Code says what.
+
+## Adding an integration adapter
+
+Adapters put IAGA Sentinel in the loop of an agent framework. They are **thin and
+dependency-light**: they speak only the public `POST /v1/inspect` contract, never
+import the target framework, and declare nothing authoritative.
+
+1. Add the adapter under `sdks/python/iaga_sentinel/adapters/<framework>.py` (or
+   `sdks/typescript/src/adapters/<framework>.ts`); reuse `_common.py`
+   (`governed_callable`, `inspect_sync/async`) / `inspectWithPolicy`.
+2. Map the framework's tool-call event to an `InspectRequest`; enforce the three
+   verdicts (allow / review / block); fail **open** on transport errors by
+   default (`fail_closed` / `failClosed` to opt out).
+3. Add a fake test in `sdks/python/tests/` (duck-typed, no framework needed) and,
+   when the framework installs, a real test in `sdks/python/tests/e2e/` guarded by
+   `pytest.importorskip(...)` and the `e2e` marker.
+4. Add a copy-paste example under `examples/integrations/<framework>/`
+   (code + `<framework>.policy.yaml` + `README.md`) and a row in
+   `examples/integrations/README.md`.
 
 ## Commit conventions
 

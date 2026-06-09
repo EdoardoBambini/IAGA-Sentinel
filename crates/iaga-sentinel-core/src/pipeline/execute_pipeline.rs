@@ -210,6 +210,15 @@ pub async fn execute_pipeline(
     // ═══════════════════════════════════════════════════════════════
     // LAYER 1, Session Graph Analysis
     // ═══════════════════════════════════════════════════════════════
+    // Session key: prefer an explicit `sessionId` from metadata. When the caller
+    // omits it we fall back to `agent_id`, which groups every session-less call
+    // from the same agent into ONE long-lived DAG (session_dag::SESSIONS, 30-min
+    // TTL refreshed per call). Attack-signature matching is a subsequence scan
+    // over the whole uncapped node history, so a busy agent that never sets a
+    // sessionId can eventually match multi-step signatures across unrelated
+    // operations (false positives; fail-safe toward Review/Block, not a bypass).
+    // For precise per-task correlation, pass a stable `metadata.sessionId` per
+    // logical session (all SDK adapters expose it).
     let session_id = input
         .metadata
         .as_ref()

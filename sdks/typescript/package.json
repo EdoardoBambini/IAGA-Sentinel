@@ -1,6 +1,6 @@
 {
   "name": "@iaga-sentinel/sdk",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "IAGA Sentinel TypeScript SDK: signed, replay-verifiable audit evidence for AI agent actions",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -10,7 +10,7 @@
   },
   "keywords": ["ai", "agents", "governance", "security", "mcp", "a2a", "iaga"],
   "author": "IAGA <info@iaga.tech>",
-  "license": "MIT",
+  "license": "BUSL-1.1",
   "devDependencies": {
     "typescript": "^5.0.0"
   },

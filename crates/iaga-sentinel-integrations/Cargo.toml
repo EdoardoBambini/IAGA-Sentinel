@@ -1,0 +1,21 @@
+[package]
+name = "iaga-sentinel-integrations"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "IAGA Sentinel, shared adapter contract + async HTTP client for the governance API (POST /v1/inspect)"
+
+[lib]
+name = "iaga_sentinel_integrations"
+path = "src/lib.rs"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+reqwest = { version = "0.12", features = ["json"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }

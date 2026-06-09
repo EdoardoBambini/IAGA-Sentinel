@@ -1,4 +1,7 @@
-"""Decorator for governing tool calls with IAGA Sentinel."""
+"""Decorator for governing tool calls with IAGA Sentinel.
+
+See examples/integrations/custom/ for a runnable example.
+"""
 
 from __future__ import annotations
 
@@ -7,8 +10,16 @@ import functools
 import inspect
 from typing import Any, Callable, Optional
 
+import httpx
+
 from .client import SentinelClient, AsyncSentinelClient
-from .types import ActionDetail, ActionType, GovernanceDecision, InspectRequest
+from .types import (
+    ActionDetail,
+    ActionType,
+    GovernanceDecision,
+    InspectRequest,
+    resolve_unreachable,
+)
 
 
 def governed(
@@ -20,6 +31,7 @@ def governed(
     api_key: Optional[str] = None,
     on_block: Optional[Callable] = None,
     on_review: Optional[Callable] = None,
+    fail_closed: bool = False,
 ):
     """Decorator that runs governance check before executing the function.
 
@@ -51,8 +63,19 @@ def governed(
                     ),
                 )
 
-                async with AsyncSentinelClient(base_url=base_url, api_key=api_key) as client:
-                    result = await client.inspect(request)
+                try:
+                    async with AsyncSentinelClient(base_url=base_url, api_key=api_key) as client:
+                        result = await client.inspect(request)
+                except httpx.HTTPStatusError as exc:
+                    if exc.response.status_code < 500:
+                        raise
+                    result = resolve_unreachable(
+                        resolved_tool_name, exc, fail_closed=fail_closed
+                    )
+                except httpx.TransportError as exc:
+                    result = resolve_unreachable(
+                        resolved_tool_name, exc, fail_closed=fail_closed
+                    )
 
                 if result.blocked:
                     if on_block:
@@ -87,8 +110,19 @@ def governed(
                     ),
                 )
 
-                with SentinelClient(base_url=base_url, api_key=api_key) as client:
-                    result = client.inspect(request)
+                try:
+                    with SentinelClient(base_url=base_url, api_key=api_key) as client:
+                        result = client.inspect(request)
+                except httpx.HTTPStatusError as exc:
+                    if exc.response.status_code < 500:
+                        raise
+                    result = resolve_unreachable(
+                        resolved_tool_name, exc, fail_closed=fail_closed
+                    )
+                except httpx.TransportError as exc:
+                    result = resolve_unreachable(
+                        resolved_tool_name, exc, fail_closed=fail_closed
+                    )
 
                 if result.blocked:
                     if on_block:

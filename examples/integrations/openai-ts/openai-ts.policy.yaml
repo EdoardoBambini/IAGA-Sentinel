@@ -1,0 +1,18 @@
+# Registers the "openai-ts-demo" agent.
+#   iaga import examples/integrations/openai-ts/openai-ts.policy.yaml
+profiles:
+  - agentId: openai-ts-demo
+    workspaceId: ws-openai-ts
+    framework: openai
+    role: builder
+    approvedTools: [openai.chat.completions.create, openai.responses.create]
+    approvedSecrets: [OPENAI_API_KEY]
+    baselineActionTypes: [http]
+workspaces:
+  - workspaceId: ws-openai-ts
+    allowedProtocols: [http-function, mcp]
+    allowedDomains: ["*"]
+    tools:
+      - { toolName: openai.chat.completions.create, allowedActionTypes: [http], maxDecision: allow, requiresHumanReview: false }
+      - { toolName: openai.responses.create, allowedActionTypes: [http], maxDecision: allow, requiresHumanReview: false }
+vault: []

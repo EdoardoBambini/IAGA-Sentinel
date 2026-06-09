@@ -9,7 +9,10 @@ from ._common import AdapterConfig, build_request, inspect_async, inspect_sync
 
 
 class AutoGenSentinelHook:
-    """Hook object for AutoGen-style pre-tool-call governance checks."""
+    """Hook object for AutoGen-style pre-tool-call governance checks.
+
+    See examples/integrations/autogen/ for a runnable example.
+    """
 
     def __init__(
         self,
@@ -22,6 +25,7 @@ class AutoGenSentinelHook:
         tenant_id: Optional[str] = None,
         session_id: Optional[str] = None,
         metadata: Optional[dict[str, Any]] = None,
+        fail_closed: bool = False,
     ):
         self._config = AdapterConfig(
             agent_id=agent_id,
@@ -32,6 +36,7 @@ class AutoGenSentinelHook:
             tenant_id=tenant_id,
             session_id=session_id,
             metadata=metadata,
+            fail_closed=fail_closed,
         )
 
     def pre_tool_call(
