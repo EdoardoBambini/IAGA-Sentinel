@@ -195,6 +195,23 @@ enum Commands {
         format: String,
     },
 
+    /// Show LLM cost / spend (requires the `cost-control` feature)
+    #[cfg(feature = "cost-control")]
+    Cost {
+        /// View: summary | by-model | by-agent | by-tool | budget
+        #[arg(default_value = "summary")]
+        view: String,
+        /// Lower time bound (RFC3339)
+        #[arg(long)]
+        from: Option<String>,
+        /// Upper time bound (RFC3339)
+        #[arg(long)]
+        to: Option<String>,
+        /// Max rows for by-* views
+        #[arg(short, long, default_value_t = 20)]
+        limit: u32,
+    },
+
     /// Run as MCP proxy: intercept tool calls between MCP client and downstream server
     Proxy {
         /// Agent ID for governance checks
@@ -508,6 +525,15 @@ async fn main() {
         }
         Some(Commands::Audit { limit, format }) => {
             cmd_audit(&db_url, limit, &format).await;
+        }
+        #[cfg(feature = "cost-control")]
+        Some(Commands::Cost {
+            view,
+            from,
+            to,
+            limit,
+        }) => {
+            cmd_cost(&db_url, &view, from.as_deref(), to.as_deref(), limit).await;
         }
         Some(Commands::Proxy {
             agent_id,
@@ -1654,6 +1680,60 @@ async fn cmd_gen_key(db_url: &str, label: &str) {
 
 // ── audit ──
 
+#[cfg(feature = "cost-control")]
+async fn cmd_cost(db_url: &str, view: &str, from: Option<&str>, to: Option<&str>, limit: u32) {
+    let storage = init_storage_bundle(db_url).await.unwrap_or_else(|e| {
+        eprintln!("{e}");
+        process::exit(1);
+    });
+    let store = &storage.audit_store;
+
+    let value: serde_json::Value = match view {
+        "summary" => {
+            let s = store.cost_summary(from, to).await.unwrap_or_else(|e| {
+                eprintln!("cost_summary failed: {e}");
+                process::exit(1);
+            });
+            serde_json::to_value(s).unwrap_or_default()
+        }
+        "by-model" => serde_json::to_value(
+            store
+                .cost_by_model(from, to, limit)
+                .await
+                .unwrap_or_default(),
+        )
+        .unwrap_or_default(),
+        "by-agent" => serde_json::to_value(
+            store
+                .cost_by_agent(from, to, limit)
+                .await
+                .unwrap_or_default(),
+        )
+        .unwrap_or_default(),
+        "by-tool" => serde_json::to_value(
+            store
+                .cost_by_tool(from, to, limit)
+                .await
+                .unwrap_or_default(),
+        )
+        .unwrap_or_default(),
+        "budget" => serde_json::json!({
+            "sessionLimitUsd": iaga_sentinel::pipeline::cost::session_budget_usd(),
+        }),
+        other => {
+            eprintln!(
+                "unknown view '{other}' (use: summary | by-model | by-agent | by-tool | budget)"
+            );
+            process::exit(2);
+        }
+    };
+
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&value).unwrap_or_else(|_| value.to_string())
+    );
+}
+
 async fn cmd_audit(db_url: &str, limit: u32, format: &str) {
     let storage = init_storage_bundle(db_url).await.unwrap_or_else(|e| {
         eprintln!("{e}");
@@ -2134,6 +2214,7 @@ async fn cmd_kernel_run(db_url: &str, agent_id: &str, cwd: Option<&str>, cmd: &[
             },
             requested_secrets: None,
             metadata: None,
+            usage: None,
         };
         Box::pin(async move {
             match execute_pipeline(&request, &state).await {

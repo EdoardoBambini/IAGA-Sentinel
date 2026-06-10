@@ -144,6 +144,7 @@ fn stricter(a: GovernanceDecision, b: GovernanceDecision) -> GovernanceDecision 
 ///   "ml": { ... }
 /// }
 /// ```
+#[allow(clippy::too_many_arguments)]
 pub fn build_overlay_context(
     request: &crate::core::types::InspectRequest,
     risk_score: u32,
@@ -151,6 +152,8 @@ pub fn build_overlay_context(
     workspace_id: Option<&str>,
     workspace_allowlist: &[String],
     ml_scores: Option<&serde_json::Value>,
+    session_cost_usd: Option<f64>,
+    budget_limit_usd: Option<f64>,
 ) -> AplContext {
     let action_kind = match request.action.action_type {
         crate::core::types::ActionType::Shell => "shell",
@@ -191,12 +194,75 @@ pub fn build_overlay_context(
     if let (Some(ml), Some(obj)) = (ml_scores, root.as_object_mut()) {
         obj.insert("ml".to_string(), ml.clone());
     }
+    // 1.5 cost-control: expose cumulative session spend + the configured budget
+    // so a policy can write `when usage.session_cost_usd > budget.limit ...`.
+    if let Some(obj) = root.as_object_mut() {
+        if let Some(spent) = session_cost_usd {
+            obj.insert(
+                "usage".to_string(),
+                serde_json::json!({ "session_cost_usd": spent }),
+            );
+        }
+        if let Some(limit) = budget_limit_usd {
+            obj.insert("budget".to_string(), serde_json::json!({ "limit": limit }));
+        }
+    }
     AplContext::from_value(root)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn overlay_context_includes_cost_when_provided() {
+        use crate::core::types::{ActionDetail, ActionType, InspectRequest};
+        use std::collections::HashMap;
+        let req = InspectRequest {
+            agent_id: "a".into(),
+            tenant_id: None,
+            workspace_id: None,
+            framework: "test".into(),
+            protocol: None,
+            action: ActionDetail {
+                action_type: ActionType::Http,
+                tool_name: "t".into(),
+                payload: HashMap::new(),
+            },
+            requested_secrets: None,
+            metadata: None,
+            usage: None,
+        };
+        // With cost provided, `usage` + `budget` land in the policy context so
+        // `when usage.session_cost_usd > budget.limit ...` can evaluate.
+        let ctx = build_overlay_context(
+            &req,
+            10,
+            GovernanceDecision::Allow,
+            Some("ws"),
+            &[],
+            None,
+            Some(6.5),
+            Some(5.0),
+        );
+        assert_eq!(ctx.root["usage"]["session_cost_usd"], 6.5);
+        assert_eq!(ctx.root["budget"]["limit"], 5.0);
+
+        // Without cost, neither key is present (keeps the context unchanged for
+        // non-cost builds / sessions with no spend tracking).
+        let ctx2 = build_overlay_context(
+            &req,
+            10,
+            GovernanceDecision::Allow,
+            Some("ws"),
+            &[],
+            None,
+            None,
+            None,
+        );
+        assert!(ctx2.root.get("usage").is_none());
+        assert!(ctx2.root.get("budget").is_none());
+    }
 
     #[test]
     fn stricter_block_beats_allow() {

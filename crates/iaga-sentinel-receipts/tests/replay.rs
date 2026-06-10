@@ -29,6 +29,7 @@ async fn seed(store: &SqliteReceiptStore, signer: &ReceiptSigner, n: u64, run: &
             apl_eval_trace: None,
             ml_inference_inputs: None,
             is_authoritative: None,
+            usage: None,
         };
         let receipt = signer.sign(body).unwrap();
         store.append(&receipt).await.unwrap();

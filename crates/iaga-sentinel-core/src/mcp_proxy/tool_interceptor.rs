@@ -48,6 +48,7 @@ pub async fn intercept_tool_call(
         },
         requested_secrets: None,
         metadata: None,
+        usage: None,
     };
 
     match execute_pipeline(&request, state).await {
@@ -81,7 +82,7 @@ pub async fn intercept_tool_call(
 }
 
 /// Infer ActionType from tool name heuristic.
-fn infer_action_type(tool_name: &str) -> ActionType {
+pub(crate) fn infer_action_type(tool_name: &str) -> ActionType {
     let lower = tool_name.to_lowercase();
     if lower.contains("read")
         || lower.contains("get")

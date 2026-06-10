@@ -15,7 +15,8 @@
 //!    and the verifier reads them back identically.
 
 use iaga_sentinel_receipts::{
-    AplEvalTrace, MlInferenceInputs, MlTokenDigest, PipelineInputsCapture, ReceiptBody, Verdict,
+    AplEvalTrace, CostSource, MlInferenceInputs, MlTokenDigest, PipelineInputsCapture, ReceiptBody,
+    UsageData, Verdict,
 };
 
 fn legacy_11_body() -> ReceiptBody {
@@ -37,6 +38,7 @@ fn legacy_11_body() -> ReceiptBody {
         apl_eval_trace: None,
         ml_inference_inputs: None,
         is_authoritative: None,
+        usage: None,
     }
 }
 
@@ -65,6 +67,12 @@ fn capture_fields_none_byte_equal_to_11_serialization() {
     assert!(
         !json.contains("is_authoritative") && !json.contains("isAuthoritative"),
         "is_authoritative leaked into a None-flag body: {json}"
+    );
+    // 1.5 cost-control: the usage ledger is likewise elided when `None`, so a
+    // receipt produced before 1.5 stays byte-identical and verifies.
+    assert!(
+        !json.contains("usage") && !json.contains("costMicros"),
+        "usage leaked into a None-usage body: {json}"
     );
 }
 
@@ -175,4 +183,84 @@ fn is_authoritative_flag_serializes_and_preserves_byte_equality() {
         none_body.body_hash().expect("hash none"),
         flagged.body_hash().expect("hash flagged"),
     );
+}
+
+#[test]
+fn legacy_body_signing_bytes_match_pre_15_golden() {
+    // The exact bytes a pre-1.5 binary produced for this body. The 1.5
+    // `usage` field is elided when `None`, so this must stay byte-identical
+    // forever, otherwise every receipt signed before 1.5 fails verification.
+    let body = legacy_11_body();
+    let bytes = body.signing_bytes().expect("signing_bytes");
+    let actual = std::str::from_utf8(&bytes).expect("utf8");
+    let golden = format!(
+        concat!(
+            "{{\"run_id\":\"run-legacy\",\"seq\":0,\"parent_hash\":null,",
+            "\"input_hash\":\"{}\",\"policy_hash\":\"{}\",\"verdict\":\"allow\",",
+            "\"reasons\":[\"legacy\"],\"risk_score\":7,",
+            "\"timestamp\":\"2026-04-23T12:00:00Z\",",
+            "\"signer_key_id\":\"ed25519-deadbeef\"}}"
+        ),
+        "a".repeat(64),
+        "b".repeat(64)
+    );
+    assert_eq!(actual, golden, "1.5 broke pre-1.5 receipt byte-equality");
+}
+
+#[test]
+fn usage_body_signing_bytes_roundtrip_is_stable() {
+    let mut body = legacy_11_body();
+    body.usage = Some(UsageData {
+        provider: "anthropic".into(),
+        model: "claude-sonnet-4-6".into(),
+        prompt_tokens: Some(1000),
+        completion_tokens: Some(500),
+        total_tokens: Some(1500),
+        cost_micros: 20_000,
+        cache_hit: false,
+        savings_micros: None,
+        cost_source: CostSource::Caller,
+    });
+    let bytes1 = body.signing_bytes().expect("b1");
+    let parsed: ReceiptBody = serde_json::from_slice(&bytes1).expect("parse");
+    let bytes2 = parsed.signing_bytes().expect("b2");
+    assert_eq!(
+        std::str::from_utf8(&bytes1).unwrap(),
+        std::str::from_utf8(&bytes2).unwrap(),
+        "usage body signing bytes must be stable across a JSON round-trip"
+    );
+}
+
+#[test]
+fn usage_populated_serializes_and_changes_body_hash() {
+    let legacy = legacy_11_body();
+    let mut with_usage = legacy_11_body();
+    with_usage.usage = Some(UsageData {
+        provider: "anthropic".into(),
+        model: "claude-sonnet-4-6".into(),
+        prompt_tokens: Some(1_000),
+        completion_tokens: Some(500),
+        total_tokens: Some(1_500),
+        cost_micros: 10_500,
+        cache_hit: false,
+        savings_micros: None,
+        cost_source: CostSource::PricingTable,
+    });
+
+    let bytes = with_usage.signing_bytes().expect("signing_bytes");
+    let json = std::str::from_utf8(&bytes).expect("utf8");
+    assert!(json.contains("\"usage\":"));
+    assert!(json.contains("\"costMicros\":10500"));
+    assert!(json.contains("\"costSource\":\"pricing_table\""));
+
+    // Usage participates in signing: a body with usage hashes differently
+    // from the same logical body without it.
+    assert_ne!(
+        legacy.body_hash().expect("hash legacy"),
+        with_usage.body_hash().expect("hash w/ usage")
+    );
+
+    // And it round-trips through the canonical form unchanged.
+    let parsed: ReceiptBody = serde_json::from_slice(&bytes).expect("parse");
+    assert_eq!(parsed.usage, with_usage.usage);
 }

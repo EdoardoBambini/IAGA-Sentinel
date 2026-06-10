@@ -29,6 +29,8 @@ ed25519-dalek = { workspace = true }
 sha2 = { workspace = true }
 rand = { workspace = true }
 hex = { workspace = true }
+# canonical cost/usage types embedded in ReceiptBody (leaf crate, no cycle)
+iaga-sentinel-cost = { path = "../iaga-sentinel-cost" }
 sqlx = { workspace = true, optional = true }
 
 [dev-dependencies]

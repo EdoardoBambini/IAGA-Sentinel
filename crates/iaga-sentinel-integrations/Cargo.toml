@@ -16,6 +16,8 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 reqwest = { version = "0.12", features = ["json"] }
+# public wire type for cost/usage reporting (leaf crate, serde-only)
+iaga-sentinel-cost = { path = "../iaga-sentinel-cost" }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }

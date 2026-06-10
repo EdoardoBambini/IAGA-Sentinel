@@ -127,13 +127,14 @@ pub async fn execute_pipeline(
             reasons: audit_event.reasons.clone(),
             review_status: ReviewStatus::NotRequired,
             risk_score: 0,
+            usage: None,
         };
         if let Err(e) = state.audit_store.append(&stored).await {
             tracing::error!(event_id = %stored.event_id, error = %e, "Failed to persist audit event");
         }
         if let Some(rl) = state.receipts.as_ref() {
-            // Fast-path block: no ML evidence at this stage.
-            rl.record(&stored, None).await;
+            // Fast-path block: no ML evidence or usage at this stage.
+            rl.record(&stored, None, None).await;
         }
 
         return Ok(GovernanceResult {
@@ -653,6 +654,19 @@ pub async fn execute_pipeline(
     let mut reasons = risk.reasons.clone();
     reasons.push(format!("agent-role:{:?}", profile.role).to_lowercase());
 
+    // 1.5 cost-control: cumulative session spend so far + the configured budget,
+    // injected into the APL context and enforced by the non-APL fallback below.
+    #[cfg(feature = "cost-control")]
+    let (cost_session_usd, cost_budget_usd) = {
+        let key = crate::modules::cost::spend_store::SpendKey::from_request(input);
+        (
+            Some(crate::modules::cost::spend_store::session_spend_usd(&key)),
+            crate::pipeline::cost::session_budget_usd(),
+        )
+    };
+    #[cfg(not(feature = "cost-control"))]
+    let (cost_session_usd, cost_budget_usd): (Option<f64>, Option<f64>) = (None, None);
+
     // 1.0 M6: APL live overlay. If a policy bundle is loaded on the
     // host, run it after the YAML risk score and merge stricter-wins.
     // APL can tighten the verdict; it never relaxes it.
@@ -667,12 +681,28 @@ pub async fn execute_pipeline(
             Some(&workspace_policy.workspace_id),
             &workspace_policy.allowed_domains,
             ml_scores,
+            cost_session_usd,
+            cost_budget_usd,
         );
         if let Some(fired) = overlay.evaluate(&ctx) {
             let merged = crate::pipeline::apl_overlay::merge_decisions(decision, fired.verdict);
             let reason_str = fired.reason.unwrap_or_else(|| "fired".to_string());
             reasons.push(format!("apl[{}]: {}", fired.policy_name, reason_str));
             decision = merged;
+        }
+    }
+
+    // 1.5 cost-control: enforce the session budget even without an APL policy.
+    // Tightens to Block once the session's prior cumulative spend exceeds the
+    // configured limit (block-next semantics; this action's cost is added after
+    // recording). Stricter-wins: this can only tighten the verdict.
+    #[cfg(feature = "cost-control")]
+    if let (Some(spent), Some(limit)) = (cost_session_usd, cost_budget_usd) {
+        if spent > limit {
+            decision = GovernanceDecision::Block;
+            reasons.push(format!(
+                "cost: session spend ${spent:.4} exceeds budget ${limit:.4}"
+            ));
         }
     }
 
@@ -777,6 +807,14 @@ pub async fn execute_pipeline(
             .then_some(plugin_evaluation.outputs.clone()),
     };
 
+    // 1.5 cost-control: resolve any caller-reported usage into the canonical
+    // cost ledger (priced locally; a caller-supplied cost wins). No-op (None)
+    // when the feature is off, keeping the default build byte-identical.
+    #[cfg(feature = "cost-control")]
+    let captured_usage = crate::pipeline::cost::resolve_for_request(input);
+    #[cfg(not(feature = "cost-control"))]
+    let captured_usage: Option<iaga_sentinel_cost::UsageData> = None;
+
     // Persist audit event
     let stored = StoredAuditEvent {
         event_id: result.audit_event.event_id.clone(),
@@ -790,10 +828,20 @@ pub async fn execute_pipeline(
         reasons: result.audit_event.reasons.clone(),
         review_status: result.review_status,
         risk_score: result.risk.score,
+        usage: captured_usage,
     };
     state.audit_store.append(&stored).await?;
     if let Some(rl) = state.receipts.as_ref() {
-        rl.record(&stored, ml_outcome.as_ref()).await;
+        rl.record(&stored, ml_outcome.as_ref(), stored.usage.as_ref())
+            .await;
+    }
+
+    // 1.5 cost-control: add this action's cost to the session's cumulative
+    // spend so the next action in the session sees it for budget enforcement.
+    #[cfg(feature = "cost-control")]
+    if let Some(u) = stored.usage.as_ref() {
+        let key = crate::modules::cost::spend_store::SpendKey::from_request(input);
+        crate::modules::cost::spend_store::add(&key, u.cost_micros);
     }
 
     // Create review request if needed

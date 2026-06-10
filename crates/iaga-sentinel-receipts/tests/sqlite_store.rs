@@ -37,6 +37,7 @@ fn body(signer: &ReceiptSigner, seq: u64, parent: Option<String>) -> ReceiptBody
         apl_eval_trace: None,
         ml_inference_inputs: None,
         is_authoritative: None,
+        usage: None,
     }
 }
 

@@ -1,6 +1,8 @@
 //! Ed25519 sign + verify happy path + tampering negative cases.
 
-use iaga_sentinel_receipts::{verify_receipt, Receipt, ReceiptBody, ReceiptSigner, Verdict};
+use iaga_sentinel_receipts::{
+    verify_receipt, CostSource, Receipt, ReceiptBody, ReceiptSigner, UsageData, Verdict,
+};
 
 fn body_template(signer_key_id: &str) -> ReceiptBody {
     ReceiptBody {
@@ -21,6 +23,7 @@ fn body_template(signer_key_id: &str) -> ReceiptBody {
         apl_eval_trace: None,
         ml_inference_inputs: None,
         is_authoritative: None,
+        usage: None,
     }
 }
 
@@ -89,4 +92,33 @@ fn persisted_receipt_roundtrips_through_json() {
     let serialized = serde_json::to_string(&receipt).unwrap();
     let parsed: Receipt = serde_json::from_str(&serialized).unwrap();
     verify_receipt(&parsed, &signer.verifying_key()).expect("verify after roundtrip");
+}
+
+#[test]
+fn usage_receipt_roundtrips_through_json() {
+    let signer = ReceiptSigner::generate();
+    let mut body = body_template(signer.key_id());
+    body.usage = Some(UsageData {
+        provider: "anthropic".into(),
+        model: "claude-sonnet-4-6".into(),
+        prompt_tokens: Some(1000),
+        completion_tokens: Some(500),
+        total_tokens: Some(1500),
+        cost_micros: 20_000,
+        cache_hit: false,
+        savings_micros: None,
+        cost_source: CostSource::Caller,
+    });
+    let before = body.signing_bytes().expect("before");
+    let receipt = signer.sign(body).expect("sign ok");
+    let serialized = serde_json::to_string(&receipt).unwrap();
+    let parsed: Receipt = serde_json::from_str(&serialized).unwrap();
+    let after = parsed.body.signing_bytes().expect("after");
+    assert_eq!(
+        std::str::from_utf8(&before).unwrap(),
+        std::str::from_utf8(&after).unwrap(),
+        "body signing bytes changed across the Receipt (flatten) JSON round-trip"
+    );
+    verify_receipt(&parsed, &signer.verifying_key())
+        .expect("verify after Receipt round-trip with usage");
 }

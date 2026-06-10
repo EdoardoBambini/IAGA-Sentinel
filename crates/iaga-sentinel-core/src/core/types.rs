@@ -3,6 +3,11 @@ use std::collections::HashMap;
 
 use crate::plugins::PluginOutput;
 
+// 1.5 cost-control: the canonical cost/usage types live in the leaf crate
+// `iaga-sentinel-cost`; re-exported here so the rest of core (and tests) can
+// reach them via `crate::core::types::*`.
+pub use iaga_sentinel_cost::{CostSource, UsageData, UsageReport};
+
 // ── Tenant ──
 
 /// A tenant owns multiple workspaces. All data is scoped to a tenant.
@@ -92,6 +97,11 @@ pub struct InspectRequest {
     pub requested_secrets: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<HashMap<String, serde_json::Value>>,
+    /// 1.5 cost-control: optional usage reported by the caller (an agent SDK or
+    /// any client). Captured into the receipt + audit cost ledger when the host
+    /// build enables `cost-control`; ignored otherwise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub usage: Option<UsageReport>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -277,6 +287,10 @@ pub struct StoredAuditEvent {
     pub reasons: Vec<String>,
     pub review_status: ReviewStatus,
     pub risk_score: u32,
+    /// 1.5 cost-control: optional usage/cost ledger for this action.
+    /// `None` (and elided) unless the host captured usage for it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub usage: Option<iaga_sentinel_cost::UsageData>,
 }
 
 // ── Response Scanning ──
@@ -400,6 +414,55 @@ pub struct AgentAnalytics {
     pub top_tools: Vec<(String, u64)>,
     pub last_activity: String,
     pub trust_score: f64,
+}
+
+// ── Cost Control (1.5) ──
+
+/// Aggregate spend over a window. `gross = net + savings`: `net` is what was
+/// actually paid, `savings` is what cache hits avoided.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct CostSummary {
+    pub gross_cost_usd: f64,
+    pub net_cost_usd: f64,
+    pub savings_usd: f64,
+    pub total_tokens: u64,
+    pub cache_hits: u64,
+    pub total_actions: u64,
+}
+
+/// Spend grouped by a single key (agent, model, or tool).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CostByKey {
+    pub key: String,
+    pub net_cost_usd: f64,
+    pub savings_usd: f64,
+    pub total_tokens: u64,
+    pub actions: u64,
+    pub cache_hits: u64,
+}
+
+/// Spend in one time bucket (hourly or daily) for trend charts.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CostBucket {
+    pub bucket: String,
+    pub net_cost_usd: f64,
+    pub savings_usd: f64,
+    pub total_tokens: u64,
+    pub actions: u64,
+}
+
+/// Query parameters shared by the `/v1/cost/*` endpoints and the `iaga cost`
+/// CLI. All optional; `bucket` is `"hour"` (default) or `"day"`.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct CostQuery {
+    pub from_date: Option<String>,
+    pub to_date: Option<String>,
+    pub bucket: Option<String>,
+    pub limit: Option<u32>,
 }
 
 // ── Demo scenario ──

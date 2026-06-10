@@ -28,7 +28,15 @@ pub trait ReceiptLogger: Send + Sync {
     /// scores and model digests from the reasoning plane (M3.5); when
     /// `None`, the receipt body records empty `model_digests` and
     /// `ml_scores: None` (legacy M2 behavior).
-    async fn record(&self, event: &StoredAuditEvent, evidence: Option<&ReasoningOutcome>);
+    /// `usage` carries the optional cost/token ledger for this verdict
+    /// (1.5 cost-control); `None` when cost tracking is off, which leaves the
+    /// receipt byte-identical to a pre-1.5 receipt.
+    async fn record(
+        &self,
+        event: &StoredAuditEvent,
+        evidence: Option<&ReasoningOutcome>,
+        usage: Option<&iaga_sentinel_cost::UsageData>,
+    );
 
     /// 1.0 read surface for the dashboard / HTTP API. Implementations
     /// return JSON-shaped data; defaults return empty so non-receipt
@@ -160,6 +168,7 @@ mod signed {
             &self,
             event: &StoredAuditEvent,
             evidence: Option<&super::ReasoningOutcome>,
+            usage: Option<&iaga_sentinel_cost::UsageData>,
         ) {
             let run_id = Self::run_id(event);
 
@@ -261,6 +270,10 @@ mod signed {
                 // ships in the community build), so every OSS receipt
                 // honestly records is_authoritative = false.
                 is_authoritative: Some(false),
+                // 1.5 cost-control: the resolved usage/cost ledger when the
+                // host reported usage for this action; `None` otherwise, which
+                // keeps the receipt byte-identical to pre-1.5.
+                usage: usage.cloned(),
             };
 
             let receipt = match self.signer.sign_body(body).await {

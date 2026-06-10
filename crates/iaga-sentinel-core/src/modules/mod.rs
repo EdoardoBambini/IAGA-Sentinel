@@ -1,4 +1,6 @@
 pub mod audit;
+#[cfg(feature = "cost-control")]
+pub mod cost;
 pub mod fingerprint;
 pub mod injection_firewall;
 pub mod nhi;

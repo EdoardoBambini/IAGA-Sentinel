@@ -29,6 +29,14 @@ pub async fn run_sqlite_migrations(pool: &sqlx::SqlitePool) -> Result<(), Sentin
         ("agent_profiles", "tenant_id", "TEXT DEFAULT NULL"),
         ("workspace_policies", "tenant_id", "TEXT DEFAULT NULL"),
         ("api_keys", "tenant_id", "TEXT DEFAULT NULL"),
+        // 1.5 cost-control columns (idempotent backfill for older community DBs)
+        ("audit_events", "usage_json", "TEXT DEFAULT NULL"),
+        ("audit_events", "cost_usd", "REAL DEFAULT NULL"),
+        ("audit_events", "savings_usd", "REAL DEFAULT NULL"),
+        ("audit_events", "total_tokens", "INTEGER DEFAULT NULL"),
+        ("audit_events", "cache_hit", "INTEGER DEFAULT NULL"),
+        ("audit_events", "provider", "TEXT DEFAULT NULL"),
+        ("audit_events", "model", "TEXT DEFAULT NULL"),
     ] {
         ensure_sqlite_column(pool, table, column, definition).await?;
     }
@@ -73,6 +81,14 @@ pub async fn run_postgres_migrations(pool: &sqlx::PgPool) -> Result<(), Sentinel
         "ALTER TABLE IF EXISTS agent_profiles ADD COLUMN IF NOT EXISTS tenant_id TEXT REFERENCES tenants(tenant_id) ON DELETE CASCADE",
         "ALTER TABLE IF EXISTS workspace_policies ADD COLUMN IF NOT EXISTS tenant_id TEXT REFERENCES tenants(tenant_id) ON DELETE CASCADE",
         "ALTER TABLE IF EXISTS api_keys ADD COLUMN IF NOT EXISTS tenant_id TEXT REFERENCES tenants(tenant_id) ON DELETE CASCADE",
+        // 1.5 cost-control columns (idempotent backfill for older community DBs)
+        "ALTER TABLE IF EXISTS audit_events ADD COLUMN IF NOT EXISTS usage_json TEXT DEFAULT NULL",
+        "ALTER TABLE IF EXISTS audit_events ADD COLUMN IF NOT EXISTS cost_usd DOUBLE PRECISION DEFAULT NULL",
+        "ALTER TABLE IF EXISTS audit_events ADD COLUMN IF NOT EXISTS savings_usd DOUBLE PRECISION DEFAULT NULL",
+        "ALTER TABLE IF EXISTS audit_events ADD COLUMN IF NOT EXISTS total_tokens BIGINT DEFAULT NULL",
+        "ALTER TABLE IF EXISTS audit_events ADD COLUMN IF NOT EXISTS cache_hit BOOLEAN DEFAULT NULL",
+        "ALTER TABLE IF EXISTS audit_events ADD COLUMN IF NOT EXISTS provider TEXT DEFAULT NULL",
+        "ALTER TABLE IF EXISTS audit_events ADD COLUMN IF NOT EXISTS model TEXT DEFAULT NULL",
     ] {
         sqlx::query(ddl).execute(pool).await?;
     }

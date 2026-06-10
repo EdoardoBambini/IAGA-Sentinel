@@ -24,6 +24,50 @@ pub trait AuditStore: Send + Sync {
         &self,
         agent_id: Option<&str>,
     ) -> Result<Vec<AgentAnalytics>, SentinelError>;
+
+    // ── 1.5 cost-control aggregation ──
+    // Default impls return empty/zero so non-SQL stores keep compiling; the
+    // SQLite and Postgres backends override them with real queries over the
+    // denormalized cost columns. `from`/`to` are optional RFC3339 bounds.
+    async fn cost_summary(
+        &self,
+        _from: Option<&str>,
+        _to: Option<&str>,
+    ) -> Result<CostSummary, SentinelError> {
+        Ok(CostSummary::default())
+    }
+    async fn cost_by_agent(
+        &self,
+        _from: Option<&str>,
+        _to: Option<&str>,
+        _limit: u32,
+    ) -> Result<Vec<CostByKey>, SentinelError> {
+        Ok(Vec::new())
+    }
+    async fn cost_by_model(
+        &self,
+        _from: Option<&str>,
+        _to: Option<&str>,
+        _limit: u32,
+    ) -> Result<Vec<CostByKey>, SentinelError> {
+        Ok(Vec::new())
+    }
+    async fn cost_by_tool(
+        &self,
+        _from: Option<&str>,
+        _to: Option<&str>,
+        _limit: u32,
+    ) -> Result<Vec<CostByKey>, SentinelError> {
+        Ok(Vec::new())
+    }
+    async fn cost_over_time(
+        &self,
+        _from: Option<&str>,
+        _to: Option<&str>,
+        _bucket: &str,
+    ) -> Result<Vec<CostBucket>, SentinelError> {
+        Ok(Vec::new())
+    }
 }
 
 #[async_trait]

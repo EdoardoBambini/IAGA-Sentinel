@@ -45,6 +45,10 @@ pub use replay::{replay, verify_only, CurrentOutcome, DriftRecord, ReplayReport}
 pub use signer::{verify_receipt, LocalDiskSigner, ReceiptSigner, Signer};
 pub use store::ReceiptStore;
 
+// Cost/usage types embedded in `ReceiptBody`, re-exported so consumers can use
+// them without depending on `iaga-sentinel-cost` directly.
+pub use iaga_sentinel_cost::{CostSource, UsageData, UsageReport};
+
 #[cfg(feature = "sqlite")]
 pub use sqlite::SqliteReceiptStore;
 

@@ -55,9 +55,28 @@ impl AuditStore for SqliteStorage {
             .unwrap_or("not_required")
             .to_string();
 
+        let usage_json = event
+            .usage
+            .as_ref()
+            .map(|u| serde_json::to_string(u).unwrap_or_default());
+        let cost_usd = event.usage.as_ref().map(|u| u.cost_usd());
+        let savings_usd = event
+            .usage
+            .as_ref()
+            .and_then(|u| u.savings_micros)
+            .map(iaga_sentinel_cost::micros_to_usd);
+        let total_tokens = event
+            .usage
+            .as_ref()
+            .and_then(|u| u.total_tokens)
+            .map(|t| t as i64);
+        let cache_hit = event.usage.as_ref().map(|u| u.cache_hit as i64);
+        let provider = event.usage.as_ref().map(|u| u.provider.clone());
+        let model = event.usage.as_ref().map(|u| u.model.clone());
+
         sqlx::query(
-            "INSERT INTO audit_events (event_id, agent_id, tenant_id, framework, action_type, tool_name, decision, risk_score, review_status, reasons, timestamp)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            "INSERT INTO audit_events (event_id, agent_id, tenant_id, framework, action_type, tool_name, decision, risk_score, review_status, reasons, timestamp, usage_json, cost_usd, savings_usd, total_tokens, cache_hit, provider, model)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         )
         .bind(&event.event_id)
         .bind(&event.agent_id)
@@ -70,6 +89,13 @@ impl AuditStore for SqliteStorage {
         .bind(&review_status)
         .bind(&reasons)
         .bind(&event.timestamp)
+        .bind(&usage_json)
+        .bind(cost_usd)
+        .bind(savings_usd)
+        .bind(total_tokens)
+        .bind(cache_hit)
+        .bind(&provider)
+        .bind(&model)
         .execute(&self.pool)
         .await?;
 
@@ -78,7 +104,7 @@ impl AuditStore for SqliteStorage {
 
     async fn list(&self, limit: u32) -> Result<Vec<StoredAuditEvent>, SentinelError> {
         let rows = sqlx::query_as::<_, AuditRow>(
-            "SELECT event_id, agent_id, framework, action_type, tool_name, decision, risk_score, review_status, reasons, timestamp
+            "SELECT event_id, agent_id, framework, action_type, tool_name, decision, risk_score, review_status, reasons, timestamp, usage_json
              FROM audit_events ORDER BY created_at DESC LIMIT ?"
         )
         .bind(limit as i64)
@@ -99,7 +125,7 @@ impl AuditStore for SqliteStorage {
         let to = filter.to_date.clone().unwrap_or_default();
 
         let rows = sqlx::query_as::<_, AuditRow>(
-            "SELECT event_id, agent_id, framework, action_type, tool_name, decision, risk_score, review_status, reasons, timestamp
+            "SELECT event_id, agent_id, framework, action_type, tool_name, decision, risk_score, review_status, reasons, timestamp, usage_json
              FROM audit_events
              WHERE (? = '' OR agent_id = ?)
                AND (? = '' OR decision = ?)
@@ -258,6 +284,166 @@ impl AuditStore for SqliteStorage {
 
         Ok(results)
     }
+
+    async fn cost_summary(
+        &self,
+        from: Option<&str>,
+        to: Option<&str>,
+    ) -> Result<CostSummary, SentinelError> {
+        use sqlx::Row;
+        let from = from.unwrap_or("");
+        let to = to.unwrap_or("");
+        let row = sqlx::query(
+            "SELECT COALESCE(SUM(cost_usd), 0.0) AS net,
+                    COALESCE(SUM(savings_usd), 0.0) AS savings,
+                    COALESCE(SUM(total_tokens), 0) AS tokens,
+                    COALESCE(SUM(CASE WHEN cache_hit = 1 THEN 1 ELSE 0 END), 0) AS hits,
+                    COALESCE(SUM(CASE WHEN usage_json IS NOT NULL THEN 1 ELSE 0 END), 0) AS actions
+             FROM audit_events
+             WHERE (? = '' OR timestamp >= ?) AND (? = '' OR timestamp <= ?)",
+        )
+        .bind(from)
+        .bind(from)
+        .bind(to)
+        .bind(to)
+        .fetch_one(&self.pool)
+        .await?;
+        let net: f64 = row.try_get("net").unwrap_or(0.0);
+        let savings: f64 = row.try_get("savings").unwrap_or(0.0);
+        let tokens: i64 = row.try_get("tokens").unwrap_or(0);
+        let hits: i64 = row.try_get("hits").unwrap_or(0);
+        let actions: i64 = row.try_get("actions").unwrap_or(0);
+        Ok(CostSummary {
+            gross_cost_usd: net + savings,
+            net_cost_usd: net,
+            savings_usd: savings,
+            total_tokens: tokens.max(0) as u64,
+            cache_hits: hits.max(0) as u64,
+            total_actions: actions.max(0) as u64,
+        })
+    }
+
+    async fn cost_by_agent(
+        &self,
+        from: Option<&str>,
+        to: Option<&str>,
+        limit: u32,
+    ) -> Result<Vec<CostByKey>, SentinelError> {
+        self.cost_by_column("agent_id", from, to, limit).await
+    }
+
+    async fn cost_by_model(
+        &self,
+        from: Option<&str>,
+        to: Option<&str>,
+        limit: u32,
+    ) -> Result<Vec<CostByKey>, SentinelError> {
+        self.cost_by_column("model", from, to, limit).await
+    }
+
+    async fn cost_by_tool(
+        &self,
+        from: Option<&str>,
+        to: Option<&str>,
+        limit: u32,
+    ) -> Result<Vec<CostByKey>, SentinelError> {
+        self.cost_by_column("tool_name", from, to, limit).await
+    }
+
+    async fn cost_over_time(
+        &self,
+        from: Option<&str>,
+        to: Option<&str>,
+        bucket: &str,
+    ) -> Result<Vec<CostBucket>, SentinelError> {
+        use sqlx::Row;
+        let from = from.unwrap_or("");
+        let to = to.unwrap_or("");
+        // `fmt` is from a fixed allow-list, never user input.
+        let fmt = if bucket == "day" {
+            "%Y-%m-%d"
+        } else {
+            "%Y-%m-%dT%H:00:00Z"
+        };
+        let sql = format!(
+            "SELECT strftime('{fmt}', timestamp) AS bucket,
+                    COALESCE(SUM(cost_usd), 0.0) AS net,
+                    COALESCE(SUM(savings_usd), 0.0) AS savings,
+                    COALESCE(SUM(total_tokens), 0) AS tokens,
+                    COUNT(*) AS actions
+             FROM audit_events
+             WHERE usage_json IS NOT NULL
+               AND (? = '' OR timestamp >= ?) AND (? = '' OR timestamp <= ?)
+             GROUP BY bucket ORDER BY bucket ASC"
+        );
+        let rows = sqlx::query(&sql)
+            .bind(from)
+            .bind(from)
+            .bind(to)
+            .bind(to)
+            .fetch_all(&self.pool)
+            .await?;
+        let mut out = Vec::new();
+        for r in &rows {
+            out.push(CostBucket {
+                bucket: r.try_get("bucket").unwrap_or_default(),
+                net_cost_usd: r.try_get("net").unwrap_or(0.0),
+                savings_usd: r.try_get("savings").unwrap_or(0.0),
+                total_tokens: r.try_get::<i64, _>("tokens").unwrap_or(0).max(0) as u64,
+                actions: r.try_get::<i64, _>("actions").unwrap_or(0).max(0) as u64,
+            });
+        }
+        Ok(out)
+    }
+}
+
+impl SqliteStorage {
+    /// Spend grouped by a fixed internal column (`agent_id`, `model`, or
+    /// `tool_name` — never user input). Only rows carrying usage are counted.
+    async fn cost_by_column(
+        &self,
+        column: &str,
+        from: Option<&str>,
+        to: Option<&str>,
+        limit: u32,
+    ) -> Result<Vec<CostByKey>, SentinelError> {
+        use sqlx::Row;
+        let from = from.unwrap_or("");
+        let to = to.unwrap_or("");
+        let sql = format!(
+            "SELECT COALESCE({col}, '') AS k,
+                    COALESCE(SUM(cost_usd), 0.0) AS net,
+                    COALESCE(SUM(savings_usd), 0.0) AS savings,
+                    COALESCE(SUM(total_tokens), 0) AS tokens,
+                    COUNT(*) AS actions,
+                    COALESCE(SUM(CASE WHEN cache_hit = 1 THEN 1 ELSE 0 END), 0) AS hits
+             FROM audit_events
+             WHERE usage_json IS NOT NULL
+               AND (? = '' OR timestamp >= ?) AND (? = '' OR timestamp <= ?)
+             GROUP BY {col} ORDER BY net DESC LIMIT ?",
+            col = column
+        );
+        let rows = sqlx::query(&sql)
+            .bind(from)
+            .bind(from)
+            .bind(to)
+            .bind(to)
+            .bind(limit as i64)
+            .fetch_all(&self.pool)
+            .await?;
+        let mut out = Vec::new();
+        for r in &rows {
+            out.push(CostByKey {
+                key: r.try_get("k").unwrap_or_default(),
+                net_cost_usd: r.try_get("net").unwrap_or(0.0),
+                savings_usd: r.try_get("savings").unwrap_or(0.0),
+                total_tokens: r.try_get::<i64, _>("tokens").unwrap_or(0).max(0) as u64,
+                actions: r.try_get::<i64, _>("actions").unwrap_or(0).max(0) as u64,
+                cache_hits: r.try_get::<i64, _>("hits").unwrap_or(0).max(0) as u64,
+            });
+        }
+        Ok(out)
+    }
 }
 
 struct AuditRow {
@@ -272,6 +458,7 @@ struct AuditRow {
     review_status: String,
     reasons: String,
     timestamp: String,
+    usage_json: Option<String>,
 }
 
 impl<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow> for AuditRow {
@@ -289,6 +476,8 @@ impl<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow> for AuditRow {
             review_status: row.try_get("review_status")?,
             reasons: row.try_get("reasons")?,
             timestamp: row.try_get("timestamp")?,
+            // Tolerant: absent from SELECTs that don't project it (older callers).
+            usage_json: row.try_get("usage_json").unwrap_or(None),
         })
     }
 }
@@ -310,6 +499,10 @@ impl AuditRow {
                 .unwrap_or(ReviewStatus::NotRequired),
             reasons: serde_json::from_str(&self.reasons).unwrap_or_default(),
             timestamp: self.timestamp,
+            usage: self
+                .usage_json
+                .as_deref()
+                .and_then(|s| serde_json::from_str(s).ok()),
         }
     }
 }

@@ -62,6 +62,11 @@ otel-receipts = ["receipts"]
 # Sigstore/SBOM attestation. Default off. Implies `receipts` (for the
 # signer) and pulls ed25519-dalek for verification.
 plugin-manifest-signing = ["receipts", "dep:ed25519-dalek"]
+# 1.5 cost-control (ADR 0020): token/cost metering, the receipts + audit cost
+# ledger, the /v1/cost API, APL budget enforcement, and the response cache.
+# Default OFF, so the default build stays byte-identical to 1.4.0. Pure marker
+# feature: iaga-sentinel-cost is a non-optional leaf dependency.
+cost-control = []
 
 [dependencies]
 # workspace-inherited (shared with future crates)
@@ -72,6 +77,8 @@ chrono = { workspace = true }
 tracing = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true }
+# canonical cost/usage types (UsageData embedded in receipts; non-optional leaf)
+iaga-sentinel-cost = { path = "../iaga-sentinel-cost" }
 
 # crate-specific
 axum = { version = "0.8", features = ["default"] }

@@ -58,9 +58,28 @@ impl AuditStore for PostgresStorage {
             .unwrap_or("not_required")
             .to_string();
 
+        let usage_json = event
+            .usage
+            .as_ref()
+            .map(|u| serde_json::to_string(u).unwrap_or_default());
+        let cost_usd = event.usage.as_ref().map(|u| u.cost_usd());
+        let savings_usd = event
+            .usage
+            .as_ref()
+            .and_then(|u| u.savings_micros)
+            .map(iaga_sentinel_cost::micros_to_usd);
+        let total_tokens = event
+            .usage
+            .as_ref()
+            .and_then(|u| u.total_tokens)
+            .map(|t| t as i64);
+        let cache_hit = event.usage.as_ref().map(|u| u.cache_hit);
+        let provider = event.usage.as_ref().map(|u| u.provider.clone());
+        let model = event.usage.as_ref().map(|u| u.model.clone());
+
         sqlx::query(
-            "INSERT INTO audit_events (event_id, agent_id, tenant_id, framework, action_type, tool_name, decision, risk_score, review_status, reasons, timestamp)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11)"
+            "INSERT INTO audit_events (event_id, agent_id, tenant_id, framework, action_type, tool_name, decision, risk_score, review_status, reasons, timestamp, usage_json, cost_usd, savings_usd, total_tokens, cache_hit, provider, model)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12, $13, $14, $15, $16, $17, $18)"
         )
         .bind(&event.event_id)
         .bind(&event.agent_id)
@@ -73,6 +92,13 @@ impl AuditStore for PostgresStorage {
         .bind(&review_status)
         .bind(&reasons)
         .bind(&event.timestamp)
+        .bind(&usage_json)
+        .bind(cost_usd)
+        .bind(savings_usd)
+        .bind(total_tokens)
+        .bind(cache_hit)
+        .bind(&provider)
+        .bind(&model)
         .execute(&self.pool)
         .await?;
 
@@ -81,7 +107,7 @@ impl AuditStore for PostgresStorage {
 
     async fn list(&self, limit: u32) -> Result<Vec<StoredAuditEvent>, SentinelError> {
         let rows = sqlx::query(
-            "SELECT event_id, agent_id, tenant_id, framework, action_type, tool_name, decision, risk_score, review_status, reasons::text, timestamp
+            "SELECT event_id, agent_id, tenant_id, framework, action_type, tool_name, decision, risk_score, review_status, reasons::text, timestamp, usage_json
              FROM audit_events ORDER BY created_at DESC LIMIT $1"
         )
         .bind(limit as i64)
@@ -103,7 +129,7 @@ impl AuditStore for PostgresStorage {
         let tenant = filter.tenant_id.clone().unwrap_or_default();
 
         let rows = sqlx::query(
-            "SELECT event_id, agent_id, tenant_id, framework, action_type, tool_name, decision, risk_score, review_status, reasons::text, timestamp
+            "SELECT event_id, agent_id, tenant_id, framework, action_type, tool_name, decision, risk_score, review_status, reasons::text, timestamp, usage_json
              FROM audit_events
              WHERE ($1 = '' OR agent_id = $1)
                AND ($2 = '' OR decision = $2)
@@ -260,6 +286,155 @@ impl AuditStore for PostgresStorage {
         }
 
         Ok(results)
+    }
+
+    async fn cost_summary(
+        &self,
+        from: Option<&str>,
+        to: Option<&str>,
+    ) -> Result<CostSummary, SentinelError> {
+        use sqlx::Row;
+        let from = from.unwrap_or("");
+        let to = to.unwrap_or("");
+        let row = sqlx::query(
+            "SELECT COALESCE(SUM(cost_usd), 0.0)::double precision AS net,
+                    COALESCE(SUM(savings_usd), 0.0)::double precision AS savings,
+                    COALESCE(SUM(total_tokens), 0)::bigint AS tokens,
+                    COALESCE(SUM(CASE WHEN cache_hit THEN 1 ELSE 0 END), 0)::bigint AS hits,
+                    COALESCE(SUM(CASE WHEN usage_json IS NOT NULL THEN 1 ELSE 0 END), 0)::bigint AS actions
+             FROM audit_events
+             WHERE ($1 = '' OR timestamp >= $1) AND ($2 = '' OR timestamp <= $2)",
+        )
+        .bind(from)
+        .bind(to)
+        .fetch_one(&self.pool)
+        .await?;
+        let net: f64 = row.try_get("net").unwrap_or(0.0);
+        let savings: f64 = row.try_get("savings").unwrap_or(0.0);
+        let tokens: i64 = row.try_get("tokens").unwrap_or(0);
+        let hits: i64 = row.try_get("hits").unwrap_or(0);
+        let actions: i64 = row.try_get("actions").unwrap_or(0);
+        Ok(CostSummary {
+            gross_cost_usd: net + savings,
+            net_cost_usd: net,
+            savings_usd: savings,
+            total_tokens: tokens.max(0) as u64,
+            cache_hits: hits.max(0) as u64,
+            total_actions: actions.max(0) as u64,
+        })
+    }
+
+    async fn cost_by_agent(
+        &self,
+        from: Option<&str>,
+        to: Option<&str>,
+        limit: u32,
+    ) -> Result<Vec<CostByKey>, SentinelError> {
+        self.cost_by_column("agent_id", from, to, limit).await
+    }
+
+    async fn cost_by_model(
+        &self,
+        from: Option<&str>,
+        to: Option<&str>,
+        limit: u32,
+    ) -> Result<Vec<CostByKey>, SentinelError> {
+        self.cost_by_column("model", from, to, limit).await
+    }
+
+    async fn cost_by_tool(
+        &self,
+        from: Option<&str>,
+        to: Option<&str>,
+        limit: u32,
+    ) -> Result<Vec<CostByKey>, SentinelError> {
+        self.cost_by_column("tool_name", from, to, limit).await
+    }
+
+    async fn cost_over_time(
+        &self,
+        from: Option<&str>,
+        to: Option<&str>,
+        bucket: &str,
+    ) -> Result<Vec<CostBucket>, SentinelError> {
+        use sqlx::Row;
+        let from = from.unwrap_or("");
+        let to = to.unwrap_or("");
+        let unit = if bucket == "day" { "day" } else { "hour" };
+        let rows = sqlx::query(
+            "SELECT to_char(date_trunc($1::text, (timestamp)::timestamptz), 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"') AS bucket,
+                    COALESCE(SUM(cost_usd), 0.0)::double precision AS net,
+                    COALESCE(SUM(savings_usd), 0.0)::double precision AS savings,
+                    COALESCE(SUM(total_tokens), 0)::bigint AS tokens,
+                    COUNT(*)::bigint AS actions
+             FROM audit_events
+             WHERE usage_json IS NOT NULL
+               AND ($2 = '' OR timestamp >= $2) AND ($3 = '' OR timestamp <= $3)
+             GROUP BY bucket ORDER BY bucket ASC",
+        )
+        .bind(unit)
+        .bind(from)
+        .bind(to)
+        .fetch_all(&self.pool)
+        .await?;
+        let mut out = Vec::new();
+        for r in &rows {
+            out.push(CostBucket {
+                bucket: r.try_get("bucket").unwrap_or_default(),
+                net_cost_usd: r.try_get("net").unwrap_or(0.0),
+                savings_usd: r.try_get("savings").unwrap_or(0.0),
+                total_tokens: r.try_get::<i64, _>("tokens").unwrap_or(0).max(0) as u64,
+                actions: r.try_get::<i64, _>("actions").unwrap_or(0).max(0) as u64,
+            });
+        }
+        Ok(out)
+    }
+}
+
+impl PostgresStorage {
+    /// Spend grouped by a fixed internal column (`agent_id`, `model`, or
+    /// `tool_name` — never user input). Only rows carrying usage are counted.
+    async fn cost_by_column(
+        &self,
+        column: &str,
+        from: Option<&str>,
+        to: Option<&str>,
+        limit: u32,
+    ) -> Result<Vec<CostByKey>, SentinelError> {
+        use sqlx::Row;
+        let from = from.unwrap_or("");
+        let to = to.unwrap_or("");
+        let sql = format!(
+            "SELECT COALESCE({col}, '') AS k,
+                    COALESCE(SUM(cost_usd), 0.0)::double precision AS net,
+                    COALESCE(SUM(savings_usd), 0.0)::double precision AS savings,
+                    COALESCE(SUM(total_tokens), 0)::bigint AS tokens,
+                    COUNT(*)::bigint AS actions,
+                    COALESCE(SUM(CASE WHEN cache_hit THEN 1 ELSE 0 END), 0)::bigint AS hits
+             FROM audit_events
+             WHERE usage_json IS NOT NULL
+               AND ($1 = '' OR timestamp >= $1) AND ($2 = '' OR timestamp <= $2)
+             GROUP BY {col} ORDER BY net DESC LIMIT $3",
+            col = column
+        );
+        let rows = sqlx::query(&sql)
+            .bind(from)
+            .bind(to)
+            .bind(limit as i64)
+            .fetch_all(&self.pool)
+            .await?;
+        let mut out = Vec::new();
+        for r in &rows {
+            out.push(CostByKey {
+                key: r.try_get("k").unwrap_or_default(),
+                net_cost_usd: r.try_get("net").unwrap_or(0.0),
+                savings_usd: r.try_get("savings").unwrap_or(0.0),
+                total_tokens: r.try_get::<i64, _>("tokens").unwrap_or(0).max(0) as u64,
+                actions: r.try_get::<i64, _>("actions").unwrap_or(0).max(0) as u64,
+                cache_hits: r.try_get::<i64, _>("hits").unwrap_or(0).max(0) as u64,
+            });
+        }
+        Ok(out)
     }
 }
 
@@ -702,6 +877,10 @@ fn pg_row_to_audit(row: &sqlx::postgres::PgRow) -> StoredAuditEvent {
             serde_json::from_str(&s).unwrap_or_default()
         },
         timestamp: row.try_get("timestamp").unwrap_or_default(),
+        usage: {
+            let s: Option<String> = row.try_get("usage_json").unwrap_or(None);
+            s.and_then(|s| serde_json::from_str(&s).ok())
+        },
     }
 }
 

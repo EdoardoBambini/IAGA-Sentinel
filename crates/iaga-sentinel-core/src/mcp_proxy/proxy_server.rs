@@ -8,6 +8,8 @@ use crate::core::errors::SentinelError;
 use crate::server::app_state::AppState;
 
 use super::protocol::*;
+#[cfg(feature = "cost-control")]
+use super::tool_interceptor::infer_action_type;
 use super::tool_interceptor::{intercept_tool_call, InterceptResult};
 
 /// MCP Proxy Server configuration.
@@ -162,6 +164,36 @@ async fn handle_tool_call(
 
     match intercept {
         InterceptResult::Allow => {
+            // 1.5 cost-control (deterministic response cache): serve a prior
+            // result for an identical, safe, read-only call instead of paying
+            // for it again. Governance has already allowed this call above.
+            #[cfg(feature = "cost-control")]
+            {
+                use crate::modules::cost::cache;
+                let action_type = infer_action_type(&tool_call.name);
+                let tainted =
+                    !crate::modules::taint::taint_tracker::get_session_taint(&config.agent_id)
+                        .is_empty();
+                if cache::is_cacheable(action_type) && !tainted {
+                    let args = serde_json::to_value(&tool_call.arguments).unwrap_or_default();
+                    let key = cache::CacheKey {
+                        agent_id: config.agent_id.clone(),
+                        tool_name: tool_call.name.clone(),
+                        args_hash: cache::args_hash(&args),
+                    };
+                    if let Some(hit) = cache::get(&key) {
+                        tracing::info!(tool = %tool_call.name, "cache HIT, serving cached result without forwarding downstream");
+                        return JsonRpcResponse::success(request.id.clone(), hit.result_json);
+                    }
+                    let resp =
+                        forward_and_relay(request, downstream_writer, downstream_reader).await;
+                    if let Some(result) = resp.result.clone() {
+                        let cost = cache::estimate_cost_micros(&result);
+                        cache::put(key, result, cost);
+                    }
+                    return resp;
+                }
+            }
             tracing::info!(tool = %tool_call.name, "ALLOW, forwarding to downstream");
             // Forward original request to downstream
             forward_and_relay(request, downstream_writer, downstream_reader).await

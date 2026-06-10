@@ -1,0 +1,16 @@
+[package]
+name = "iaga-sentinel-cost"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "IAGA Sentinel, canonical cost/usage types + self-hosted pricing engine (token to USD) shared by receipts and core"
+
+[lib]
+name = "iaga_sentinel_cost"
+path = "src/lib.rs"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }

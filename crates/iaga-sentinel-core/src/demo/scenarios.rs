@@ -98,6 +98,7 @@ pub fn demo_scenarios() -> Vec<DemoScenario> {
                 },
                 requested_secrets: None,
                 metadata: None,
+                usage: None,
             },
         },
         DemoScenario {
@@ -123,6 +124,7 @@ pub fn demo_scenarios() -> Vec<DemoScenario> {
                 },
                 requested_secrets: Some(vec!["secretref://prod/github/token".into()]),
                 metadata: None,
+                usage: None,
             },
         },
         DemoScenario {
@@ -147,6 +149,7 @@ pub fn demo_scenarios() -> Vec<DemoScenario> {
                 },
                 requested_secrets: Some(vec!["secretref://prod/github/token".into()]),
                 metadata: None,
+                usage: None,
             },
         },
         DemoScenario {
@@ -169,6 +172,7 @@ pub fn demo_scenarios() -> Vec<DemoScenario> {
                 },
                 requested_secrets: Some(vec!["secretref://prod/root/aws-admin".into()]),
                 metadata: None,
+                usage: None,
             },
         },
     ]

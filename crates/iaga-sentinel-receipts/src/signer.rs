@@ -257,6 +257,7 @@ mod tests {
             apl_eval_trace: None,
             ml_inference_inputs: None,
             is_authoritative: None,
+            usage: None,
         }
     }
 

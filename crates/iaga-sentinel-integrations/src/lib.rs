@@ -94,6 +94,11 @@ pub struct InspectRequest {
     pub session_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<HashMap<String, Json>>,
+    /// 1.5 cost-control: optional usage (tokens/cost) reported alongside the
+    /// action, captured into the receipt + audit cost ledger server-side. A
+    /// caller-supplied `costUsd` overrides the server's pricing table.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub usage: Option<iaga_sentinel_cost::UsageReport>,
 }
 
 impl InspectRequest {
@@ -110,7 +115,14 @@ impl InspectRequest {
             workspace_id: None,
             session_id: None,
             metadata: None,
+            usage: None,
         }
+    }
+
+    /// Attach reported usage (tokens/cost) to be captured into the cost ledger.
+    pub fn with_usage(mut self, usage: iaga_sentinel_cost::UsageReport) -> Self {
+        self.usage = Some(usage);
+        self
     }
 }
 

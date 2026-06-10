@@ -461,6 +461,7 @@ mod receipt_span_tests {
             apl_eval_trace: None,
             ml_inference_inputs: None,
             is_authoritative: None,
+            usage: None,
         };
         let receipt = signer.sign(body).expect("sign ok");
         emit_receipt_span(&receipt);

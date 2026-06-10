@@ -6,6 +6,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use iaga_sentinel_cost::UsageData;
+
 use crate::errors::Result;
 
 /// Governance verdict recorded in the receipt. Mirrors the three terminal
@@ -176,6 +178,13 @@ pub struct ReceiptBody {
     /// stay byte-identical and verify unchanged.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub is_authoritative: Option<bool>,
+    /// 1.5 cost-control: optional usage + cost ledger for this verdict
+    /// (tokens, micro-USD, cache-hit/savings). Populated only when the host
+    /// enables `cost-control` and a caller reports usage. Elided from
+    /// `signing_bytes` when `None`, so receipts produced before 1.5 stay
+    /// byte-identical and verify unchanged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub usage: Option<UsageData>,
 }
 
 impl ReceiptBody {

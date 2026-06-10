@@ -707,6 +707,40 @@
         </div>
       </section>
 
+      <section class="panel" id="cost-panel">
+        <div class="section-head">
+          <div>
+            <div class="section-kicker">Cost Control</div>
+            <h2>LLM Spend</h2>
+            <p>Token and dollar spend from reported usage, priced locally. Net is what was actually paid; gross is before cache savings.</p>
+          </div>
+        </div>
+        <div class="cards">
+          <div class="card">
+            <div class="label">Net spend</div>
+            <div class="value live" id="card-cost-net">$0.0000</div>
+            <div class="sub" id="card-cost-actions">0 priced actions</div>
+          </div>
+          <div class="card">
+            <div class="label">Gross spend</div>
+            <div class="value" id="card-cost-gross">$0.0000</div>
+            <div class="sub">Before cache savings</div>
+          </div>
+          <div class="card">
+            <div class="label">Saved by cache</div>
+            <div class="value allow" id="card-cost-savings">$0.0000</div>
+            <div class="sub" id="card-cost-cachehit">0 cache hits</div>
+          </div>
+          <div class="card">
+            <div class="label">Total tokens</div>
+            <div class="value violet" id="card-cost-tokens">0</div>
+            <div class="sub">Across all priced actions</div>
+          </div>
+        </div>
+        <div id="cost-by-model" class="stack"></div>
+        <div class="hint" id="cost-meta"></div>
+      </section>
+
       <div class="split-2">
         <section class="panel">
           <div class="section-head">
@@ -924,6 +958,8 @@ const state = {
     dlq: [],
     rateConfig: null,
     workspaces: [],
+    cost: null,
+    costByModel: null,
     policyVerify: null,
     selectedAgent: {
       analytics: null,
@@ -1115,10 +1151,13 @@ async function refreshData() {
       fetchJson('/v1/receipts?limit=20'),
       fetchJson('/v1/policy/overlay'),
       fetchJson('/v1/reasoning/status'),
-      fetchJson('/v1/kernel/status')
+      fetchJson('/v1/kernel/status'),
+      // 1.5 cost-control surfaces
+      fetchJson('/v1/cost/summary'),
+      fetchJson('/v1/cost/by-model')
     ]);
 
-    const [audit, reviews, agents, sessions, firewall, threat, telemetryMetrics, telemetrySpans, dlq, rateConfig, workspaces, receipts, policyOverlay, reasoningStatus, kernelStatus] = responses;
+    const [audit, reviews, agents, sessions, firewall, threat, telemetryMetrics, telemetrySpans, dlq, rateConfig, workspaces, receipts, policyOverlay, reasoningStatus, kernelStatus, cost, costByModel] = responses;
 
     state.data.audit = Array.isArray(audit.data) ? audit.data : [];
     state.data.reviews = Array.isArray(reviews.data) ? reviews.data : [];
@@ -1135,6 +1174,8 @@ async function refreshData() {
     state.data.policyOverlay = policyOverlay.ok ? policyOverlay.data : null;
     state.data.reasoningStatus = reasoningStatus.ok ? reasoningStatus.data : null;
     state.data.kernelStatus = kernelStatus.ok ? kernelStatus.data : null;
+    state.data.cost = cost.ok ? cost.data : null;
+    state.data.costByModel = costByModel.ok ? costByModel.data : null;
 
     if (state.data.workspaces.length > 0) {
       const workspaceStillExists = state.data.workspaces.some((workspace) => workspace.workspaceId === state.selectedWorkspaceId);
@@ -1224,6 +1265,7 @@ function renderAll() {
   $('dashboard').classList.toggle('hidden', !state.connected);
   if (!state.connected) return;
   renderOverview();
+  renderCost();
   renderAudit();
   renderReviews();
   renderAgents();
@@ -1236,6 +1278,45 @@ function renderAll() {
   renderAplOverlay();
   renderReasoning();
   renderKernel();
+}
+
+function renderCost() {
+  const meta = $('cost-meta');
+  const byModel = $('cost-by-model');
+  if (!meta || !byModel) return;
+  const fmt = (n) => '$' + (Number(n) || 0).toFixed(4);
+  const num = (n) => (Number(n) || 0).toLocaleString();
+  const summary = state.data.cost;
+  if (!summary || summary.enabled === false) {
+    $('card-cost-net').textContent = '$0.0000';
+    $('card-cost-gross').textContent = '$0.0000';
+    $('card-cost-savings').textContent = '$0.0000';
+    $('card-cost-tokens').textContent = '0';
+    $('card-cost-actions').textContent = '0 priced actions';
+    byModel.innerHTML = '';
+    meta.innerHTML = '<div class="hint">Cost control is disabled on this build.</div>';
+    return;
+  }
+  const s = summary.summary || {};
+  $('card-cost-net').textContent = fmt(s.netCostUsd);
+  $('card-cost-gross').textContent = fmt(s.grossCostUsd);
+  $('card-cost-savings').textContent = fmt(s.savingsUsd);
+  $('card-cost-tokens').textContent = num(s.totalTokens);
+  $('card-cost-cachehit').textContent = `${num(s.cacheHits)} cache hits`;
+  $('card-cost-actions').textContent = `${num(s.totalActions)} priced actions`;
+
+  const rows = (state.data.costByModel && Array.isArray(state.data.costByModel.rows))
+    ? state.data.costByModel.rows : [];
+  if (rows.length === 0) {
+    byModel.innerHTML = '<div class="hint">No priced actions yet. Report usage on an inspect call to see spend here.</div>';
+  } else {
+    byModel.innerHTML = rows.map((r) => `
+      <div class="kv-row">
+        <span class="kv-key mono">${esc(r.key || '(none)')}</span>
+        <span class="kv-val">${fmt(r.netCostUsd)} · ${num(r.totalTokens)} tok · ${num(r.actions)} act</span>
+      </div>`).join('');
+  }
+  meta.innerHTML = '';
 }
 
 function renderReceipts() {

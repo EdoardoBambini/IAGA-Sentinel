@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.4.0-0f9d6b?style=flat-square" alt="version" />
+  <img src="https://img.shields.io/badge/version-1.5.0-0f9d6b?style=flat-square" alt="version" />
   <img src="https://img.shields.io/badge/license-BUSL--1.1-0f9d6b?style=flat-square" alt="license" />
   <img src="https://img.shields.io/badge/EU%20AI%20Act-Art.%2012%20and%20Annex%20IV-0B0F0E?style=flat-square" alt="EU AI Act Article 12 and Annex IV" />
   <img src="https://img.shields.io/badge/tests-275%20passing-0f9d6b?style=flat-square" alt="tests" />
@@ -54,7 +54,9 @@ All of it is driven by APL: a typed DSL with deterministic tree-walk evaluation 
 
 Also in the open build: a pluggable `Signer` trait with filesystem BYOK, optional drift-replay capture (`iaga replay --re-execute`), offline Sigstore and SBOM plugin attestation (`iaga plugins verify`), the APL Hindley-Milner type checker (`iaga policy check`) with an optional WASM codegen path (`iaga policy compile`), a standalone offline receipt verifier (`iaga-verify`), optional OpenTelemetry receipt export (`otel-receipts`), and Ed25519-signed plugin manifests (`iaga plugins sign-manifest`). Optional capabilities are feature-flagged off by default; the binary behaves identically until you opt in.
 
-The 1.4.0 release expands the public integration surface in a serious way: the repo now ships first-class adapter examples for Claude Code, Claude Agent SDK, OpenAI, OpenAI Agents, Vercel AI, LangChain, LangGraph, CrewAI, AutoGen, LlamaIndex, MCP, Microsoft Agent Framework, and PydanticAI, plus a lightweight Rust integrations crate (`iaga-sentinel-integrations`) that mirrors the public `POST /v1/inspect` contract over async HTTP. The earlier hardening stays part of that same public surface: open-build receipts carry `is_authoritative: false`, receipt OpenTelemetry spans expose `iaga.receipt.id` / `iaga.chain.head` / `iaga.policy.verdict`, and `iaga run` scrubs 23 known secret-bearing environment variables (cloud and model-provider credentials, registry tokens, the signing-key path) from every governed child process, extendable via a TOML denylist at `IAGA_SENTINEL_ENV_DENYLIST`. Existing receipt chains still verify unchanged.
+The 1.5.0 release adds **cost control**: LLM token/dollar spend is priced locally (no external billing API), captured into the signed receipt and the audit ledger, and surfaced through a `/v1/cost/*` API, a dashboard panel, and an `iaga cost` CLI — with per-session budget enforcement expressible in APL (`when usage.session_cost_usd > budget.limit then block`) and a deterministic response cache that cuts spend on repeated safe read-only tool calls. It is behind a default-off `cost-control` feature, so the default build stays byte-identical to 1.4.0 and pre-1.5 receipts verify unchanged.
+
+The 1.4.0 release expanded the public integration surface in a serious way: the repo ships first-class adapter examples for Claude Code, Claude Agent SDK, OpenAI, OpenAI Agents, Vercel AI, LangChain, LangGraph, CrewAI, AutoGen, LlamaIndex, MCP, Microsoft Agent Framework, and PydanticAI, plus a lightweight Rust integrations crate (`iaga-sentinel-integrations`) that mirrors the public `POST /v1/inspect` contract over async HTTP. The earlier hardening stays part of that same public surface: open-build receipts carry `is_authoritative: false`, receipt OpenTelemetry spans expose `iaga.receipt.id` / `iaga.chain.head` / `iaga.policy.verdict`, and `iaga run` scrubs 23 known secret-bearing environment variables (cloud and model-provider credentials, registry tokens, the signing-key path) from every governed child process, extendable via a TOML denylist at `IAGA_SENTINEL_ENV_DENYLIST`. Existing receipt chains still verify unchanged.
 
 ---
 
@@ -404,7 +406,7 @@ matrix and per-framework guides in
 
 ## Status
 
-The open build is shipped and tested: 275/275 default tests pass, clippy `--all-targets -D warnings` clean. The current release is 1.4.0; release notes are in [`CHANGELOG.md`](CHANGELOG.md).
+The open build is shipped and tested: 294/294 default tests pass, clippy `--all-targets -D warnings` clean. The current release is 1.5.0; release notes are in [`CHANGELOG.md`](CHANGELOG.md).
 
 What is intentionally honest about the posture:
 

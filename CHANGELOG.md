@@ -14,6 +14,44 @@ Enterprise overview.
 
 ---
 
+## [1.5.0], 2026-06-09
+
+Cost control: meter, attribute, and cap LLM spend from the open build, fully
+self-hosted (no external billing API), plus a deterministic response cache that
+reduces spend on safe, repeated read-only tool calls. All additive and behind a
+default-off `cost-control` feature — the default build is byte-identical to 1.4.0
+and pre-1.5 signed receipts verify unchanged.
+
+### Added
+
+- **`iaga-sentinel-cost` crate**: canonical cost/usage types + a self-hosted
+  pricing engine. `UsageReport` (wire, human USD) resolves to `UsageData` (the
+  signed form; money is an integer micro-USD ledger). Local `PricingTable` (dated
+  built-in, overridable via `IAGA_SENTINEL_PRICING_FILE`); a caller-supplied cost
+  always wins (ADR 0020).
+- **Cost on receipts + audit**: optional `usage` on the signed `ReceiptBody`
+  (elided when absent, so pre-1.5 receipts stay byte-identical) and on audit
+  events, with denormalized columns for fast aggregation (migration 0004).
+- **Capture** of usage from `POST /v1/inspect` and the agent SDKs — a new optional
+  `usage` field on the public wire contract, plus `with_usage` on the Rust client.
+- **Observability**: `/v1/cost/{summary,by-agent,by-model,by-tool,over-time,budget,pricing}`,
+  a "Cost Control" dashboard panel, and an `iaga cost` CLI.
+- **Budget enforcement**: per-session cumulative spend (`IAGA_SENTINEL_SESSION_BUDGET_USD`)
+  injected into the APL context as `usage.session_cost_usd` / `budget.limit`, so a
+  policy can `when usage.session_cost_usd > budget.limit then block`; a non-APL
+  fallback enforces the same cap. Stricter-wins: cost can only tighten a verdict
+  (ADR 0020).
+- **Deterministic response cache**: the MCP proxy serves an identical, safe,
+  read-only tool call from cache instead of forwarding it; savings surface in the
+  cost summary. Semantic caching is an Enterprise feature (ADR 0021).
+
+### Notes
+
+- The default build is unchanged; enable cost control with `--features cost-control`.
+- Cost is reported by instrumented callers and priced locally — indicative, not an
+  invoice. Session budgets are in-memory; durable spend, time-windowed budgets, and
+  network/eBPF cost interception are Enterprise / follow-up work (ADR 0010).
+
 ## [1.4.0], 2026-06-09
 
 Agent & framework integrations: put IAGA Sentinel in the loop of any agent stack,

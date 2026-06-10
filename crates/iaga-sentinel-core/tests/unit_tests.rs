@@ -596,6 +596,7 @@ fn make_request(
         },
         requested_secrets: None,
         metadata: None,
+        usage: None,
     }
 }
 
@@ -1261,6 +1262,7 @@ fn test_detect_protocol_mcp_by_tool_name() {
         },
         requested_secrets: None,
         metadata: None,
+        usage: None,
     };
     assert_eq!(detect_protocol(&req), ProtocolKind::Mcp);
 }
@@ -1282,6 +1284,7 @@ fn test_detect_protocol_a2a_by_payload() {
         },
         requested_secrets: None,
         metadata: None,
+        usage: None,
     };
     assert_eq!(detect_protocol(&req), ProtocolKind::A2a);
 }
@@ -1313,6 +1316,7 @@ fn test_detect_protocol_a2a_by_jsonrpc_method() {
         },
         requested_secrets: None,
         metadata: None,
+        usage: None,
     };
 
     assert_eq!(detect_protocol(&req), ProtocolKind::A2a);
@@ -1344,6 +1348,7 @@ fn test_detect_protocol_acp_by_run_shape() {
         },
         requested_secrets: None,
         metadata: None,
+        usage: None,
     };
 
     assert_eq!(detect_protocol(&req), ProtocolKind::Acp);
@@ -1378,6 +1383,7 @@ fn test_validate_a2a_payload_and_normalize_message_text() {
         },
         requested_secrets: None,
         metadata: None,
+        usage: None,
     };
 
     let validation = validate_protocol_payload(&request, ProtocolKind::A2a);
@@ -1430,6 +1436,7 @@ fn test_validate_acp_run_payload() {
         },
         requested_secrets: None,
         metadata: None,
+        usage: None,
     };
 
     let validation = validate_protocol_payload(&request, ProtocolKind::Acp);
@@ -1474,6 +1481,7 @@ fn test_validate_acp_rejects_invalid_part_shape() {
         },
         requested_secrets: None,
         metadata: None,
+        usage: None,
     };
 
     let validation = validate_protocol_payload(&request, ProtocolKind::Acp);
@@ -1498,6 +1506,7 @@ fn test_detect_protocol_http_function_fallback() {
         },
         requested_secrets: None,
         metadata: None,
+        usage: None,
     };
     assert_eq!(detect_protocol(&req), ProtocolKind::HttpFunction);
 }
@@ -1517,6 +1526,7 @@ fn test_detect_protocol_unknown_empty_framework() {
         },
         requested_secrets: None,
         metadata: None,
+        usage: None,
     };
     assert_eq!(detect_protocol(&req), ProtocolKind::Unknown);
 }

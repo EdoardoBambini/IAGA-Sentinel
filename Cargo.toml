@@ -13,6 +13,7 @@ resolver = "2"
 members = [
     "crates/iaga-sentinel-core",
     "crates/iaga-sentinel-receipts",
+    "crates/iaga-sentinel-cost",
     "crates/iaga-sentinel-apl",
     "crates/iaga-sentinel-reasoning",
     "crates/iaga-sentinel-kernel",
@@ -21,7 +22,7 @@ members = [
 ]
 
 [workspace.package]
-version = "1.4.0"
+version = "1.5.0"
 edition = "2021"
 license = "BUSL-1.1"
 repository = "https://github.com/EdoardoBambini/IAGA-Sentinel"

@@ -235,6 +235,7 @@ mod tests {
             },
             requested_secrets: None,
             metadata: None,
+            usage: None,
         }
     }
 

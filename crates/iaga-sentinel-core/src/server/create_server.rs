@@ -206,6 +206,15 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         // M2, Signed receipts read API
         .route("/v1/receipts", get(receipts_list_handler))
         .route("/v1/receipts/{run_id}", get(receipts_run_handler))
+        // 1.5 cost-control: spend observability (always mounted; handlers report
+        // `enabled: false` when the cost-control feature is compiled out).
+        .route("/v1/cost/summary", get(cost_summary_handler))
+        .route("/v1/cost/by-agent", get(cost_by_agent_handler))
+        .route("/v1/cost/by-model", get(cost_by_model_handler))
+        .route("/v1/cost/by-tool", get(cost_by_tool_handler))
+        .route("/v1/cost/over-time", get(cost_over_time_handler))
+        .route("/v1/cost/budget", get(cost_budget_handler))
+        .route("/v1/cost/pricing", get(cost_pricing_handler))
         // M3 / M6, APL live overlay status
         .route("/v1/policy/overlay", get(policy_overlay_handler))
         // M3.5, Reasoning plane status
@@ -1305,4 +1314,131 @@ async fn kernel_status_handler() -> Json<serde_json::Value> {
             "linuxBpfScaffold": false,
         }))
     }
+}
+
+// ── 1.5 cost-control: /v1/cost/* (ADR 0020) ──
+
+#[cfg(feature = "cost-control")]
+async fn cost_summary_handler(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Query(q): axum::extract::Query<CostQuery>,
+) -> Result<Json<serde_json::Value>, SentinelError> {
+    let mut summary = state
+        .audit_store
+        .cost_summary(q.from_date.as_deref(), q.to_date.as_deref())
+        .await?;
+    // Fold in deterministic-cache savings: cost reduction is surfaced here, not
+    // as audit rows, so it never double-counts the per-call governance event.
+    let cache = crate::modules::cost::cache::stats();
+    summary.savings_usd += iaga_sentinel_cost::micros_to_usd(cache.savings_micros);
+    summary.cache_hits += cache.hits;
+    summary.gross_cost_usd = summary.net_cost_usd + summary.savings_usd;
+    Ok(Json(
+        serde_json::json!({ "enabled": true, "summary": summary }),
+    ))
+}
+#[cfg(not(feature = "cost-control"))]
+async fn cost_summary_handler() -> Json<serde_json::Value> {
+    Json(serde_json::json!({ "enabled": false }))
+}
+
+#[cfg(feature = "cost-control")]
+async fn cost_by_agent_handler(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Query(q): axum::extract::Query<CostQuery>,
+) -> Result<Json<serde_json::Value>, SentinelError> {
+    let rows = state
+        .audit_store
+        .cost_by_agent(
+            q.from_date.as_deref(),
+            q.to_date.as_deref(),
+            q.limit.unwrap_or(20),
+        )
+        .await?;
+    Ok(Json(serde_json::json!({ "enabled": true, "rows": rows })))
+}
+#[cfg(not(feature = "cost-control"))]
+async fn cost_by_agent_handler() -> Json<serde_json::Value> {
+    Json(serde_json::json!({ "enabled": false }))
+}
+
+#[cfg(feature = "cost-control")]
+async fn cost_by_model_handler(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Query(q): axum::extract::Query<CostQuery>,
+) -> Result<Json<serde_json::Value>, SentinelError> {
+    let rows = state
+        .audit_store
+        .cost_by_model(
+            q.from_date.as_deref(),
+            q.to_date.as_deref(),
+            q.limit.unwrap_or(20),
+        )
+        .await?;
+    Ok(Json(serde_json::json!({ "enabled": true, "rows": rows })))
+}
+#[cfg(not(feature = "cost-control"))]
+async fn cost_by_model_handler() -> Json<serde_json::Value> {
+    Json(serde_json::json!({ "enabled": false }))
+}
+
+#[cfg(feature = "cost-control")]
+async fn cost_by_tool_handler(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Query(q): axum::extract::Query<CostQuery>,
+) -> Result<Json<serde_json::Value>, SentinelError> {
+    let rows = state
+        .audit_store
+        .cost_by_tool(
+            q.from_date.as_deref(),
+            q.to_date.as_deref(),
+            q.limit.unwrap_or(20),
+        )
+        .await?;
+    Ok(Json(serde_json::json!({ "enabled": true, "rows": rows })))
+}
+#[cfg(not(feature = "cost-control"))]
+async fn cost_by_tool_handler() -> Json<serde_json::Value> {
+    Json(serde_json::json!({ "enabled": false }))
+}
+
+#[cfg(feature = "cost-control")]
+async fn cost_over_time_handler(
+    State(state): State<Arc<AppState>>,
+    axum::extract::Query(q): axum::extract::Query<CostQuery>,
+) -> Result<Json<serde_json::Value>, SentinelError> {
+    let bucket = q.bucket.as_deref().unwrap_or("hour").to_string();
+    let rows = state
+        .audit_store
+        .cost_over_time(q.from_date.as_deref(), q.to_date.as_deref(), &bucket)
+        .await?;
+    Ok(Json(
+        serde_json::json!({ "enabled": true, "bucket": bucket, "rows": rows }),
+    ))
+}
+#[cfg(not(feature = "cost-control"))]
+async fn cost_over_time_handler() -> Json<serde_json::Value> {
+    Json(serde_json::json!({ "enabled": false }))
+}
+
+#[cfg(feature = "cost-control")]
+async fn cost_budget_handler() -> Json<serde_json::Value> {
+    Json(serde_json::json!({
+        "enabled": true,
+        "sessionLimitUsd": crate::pipeline::cost::session_budget_usd(),
+    }))
+}
+#[cfg(not(feature = "cost-control"))]
+async fn cost_budget_handler() -> Json<serde_json::Value> {
+    Json(serde_json::json!({ "enabled": false }))
+}
+
+#[cfg(feature = "cost-control")]
+async fn cost_pricing_handler() -> Json<serde_json::Value> {
+    let table = serde_json::to_value(crate::pipeline::cost::pricing()).unwrap_or_default();
+    Json(serde_json::json!({ "enabled": true, "pricing": table }))
+}
+#[cfg(not(feature = "cost-control"))]
+async fn cost_pricing_handler() -> Json<serde_json::Value> {
+    Json(serde_json::json!({ "enabled": false }))
 }
