@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.5.0-0f9d6b?style=flat-square" alt="version" />
+  <img src="https://img.shields.io/badge/version-1.5.1-0f9d6b?style=flat-square" alt="version" />
   <img src="https://img.shields.io/badge/license-BUSL--1.1-0f9d6b?style=flat-square" alt="license" />
   <img src="https://img.shields.io/badge/EU%20AI%20Act-Art.%2012%20and%20Annex%20IV-0B0F0E?style=flat-square" alt="EU AI Act Article 12 and Annex IV" />
   <img src="https://img.shields.io/badge/tests-275%20passing-0f9d6b?style=flat-square" alt="tests" />
@@ -406,7 +406,7 @@ matrix and per-framework guides in
 
 ## Status
 
-The open build is shipped and tested: 294/294 default tests pass, clippy `--all-targets -D warnings` clean. The current release is 1.5.0; release notes are in [`CHANGELOG.md`](CHANGELOG.md).
+The open build is shipped and tested: 294/294 default tests pass, clippy `--all-targets -D warnings` clean. The current release is 1.5.1; release notes are in [`CHANGELOG.md`](CHANGELOG.md).
 
 What is intentionally honest about the posture:
 

@@ -14,6 +14,20 @@ Enterprise overview.
 
 ---
 
+## [1.5.1], 2026-06-10
+
+Patch release: a test-determinism fix only — no change to the open build's
+runtime behavior, the public wire contract, or the receipt/cost schema.
+
+### Fixed
+
+- Deterministic adaptive-risk weight tests. The adaptive-risk weights are a
+  process-global that `apply_feedback` mutates and `calculate_adaptive_risk`
+  reads; in the test binary a parallel feedback test could lower the weight
+  feeding a borderline assertion (`test_risk_high_risk_shell_rm_rf`) and fail CI
+  nondeterministically. The risk-weight tests now serialize and reset to default
+  weights via a new `reset_weights()` helper. Production behavior unchanged.
+
 ## [1.5.0], 2026-06-09
 
 Cost control: meter, attribute, and cap LLM spend from the open build, fully
