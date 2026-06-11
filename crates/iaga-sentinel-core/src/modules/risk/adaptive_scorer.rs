@@ -389,6 +389,14 @@ pub fn get_current_weights() -> WeightsInfo {
     }
 }
 
+/// Reset the adaptive risk weights to their defaults, discarding any
+/// feedback-learned adjustments. Useful operationally (drop learned weights)
+/// and for deterministic tests that share this process-global state.
+pub fn reset_weights() {
+    let mut w = WEIGHTS.lock().unwrap_or_else(|e| e.into_inner());
+    *w = Weights::default();
+}
+
 pub fn apply_feedback(feedback: &str) {
     let mut w = WEIGHTS.lock().unwrap_or_else(|e| e.into_inner());
     let lr = 0.02;

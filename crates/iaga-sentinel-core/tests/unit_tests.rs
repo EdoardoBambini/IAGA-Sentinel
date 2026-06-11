@@ -395,8 +395,20 @@ fn test_taint_propagation_inherited_merge() {
 // 3. Adaptive Risk Scorer Tests
 // ============================================================================
 
+/// Serialize + reset the process-global adaptive-risk weights so the risk tests
+/// below are deterministic regardless of order/parallelism: `apply_feedback`
+/// mutates a shared global (`WEIGHTS`), which would otherwise shift a borderline
+/// score in a sibling test. Hold the returned guard for the whole test.
+fn risk_test_guard() -> std::sync::MutexGuard<'static, ()> {
+    static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    let guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    iaga_sentinel::modules::risk::adaptive_scorer::reset_weights();
+    guard
+}
+
 #[test]
 fn test_risk_low_risk_file_read() {
+    let _risk_guard = risk_test_guard();
     let input = AdaptiveScoreInput {
         agent_id: "agent-file-test",
         action_type: "file_read",
@@ -419,6 +431,7 @@ fn test_risk_low_risk_file_read() {
 
 #[test]
 fn test_risk_high_risk_shell_rm_rf() {
+    let _risk_guard = risk_test_guard();
     let input = AdaptiveScoreInput {
         agent_id: "agent-shell-test",
         action_type: "shell",
@@ -440,6 +453,7 @@ fn test_risk_high_risk_shell_rm_rf() {
 
 #[test]
 fn test_risk_exfiltration_taint_blocks() {
+    let _risk_guard = risk_test_guard();
     // Build a TaintAnalysisResult with exfiltration_detected = true
     let taint = iaga_sentinel::modules::taint::taint_tracker::TaintAnalysisResult {
         source_taints: vec![SECRET.to_string()],
@@ -482,6 +496,7 @@ fn test_risk_exfiltration_taint_blocks() {
 
 #[test]
 fn test_risk_weights_start_at_defaults() {
+    let _risk_guard = risk_test_guard();
     let weights = get_current_weights();
     // Weights may have been adjusted by other tests via apply_feedback,
     // but we can at least check they sum to ~1.0
@@ -496,6 +511,7 @@ fn test_risk_weights_start_at_defaults() {
 
 #[test]
 fn test_risk_apply_feedback_false_positive_reduces_weights() {
+    let _risk_guard = risk_test_guard();
     let before = get_current_weights();
     apply_feedback("false_positive");
     let after = get_current_weights();
@@ -519,6 +535,7 @@ fn test_risk_apply_feedback_false_positive_reduces_weights() {
 
 #[test]
 fn test_risk_apply_feedback_false_negative_increases_weights() {
+    let _risk_guard = risk_test_guard();
     let before = get_current_weights();
     apply_feedback("false_negative");
     let after = get_current_weights();
@@ -538,6 +555,7 @@ fn test_risk_apply_feedback_false_negative_increases_weights() {
 
 #[test]
 fn test_risk_update_baseline_then_novel_tool() {
+    let _risk_guard = risk_test_guard();
     let agent = "agent-baseline-test-001";
     // Establish a baseline with known tools
     update_baseline(agent, "read_tool", "file_read", 5);
