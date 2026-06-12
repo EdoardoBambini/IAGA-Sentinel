@@ -24,7 +24,7 @@
 </p>
 
 <p align="center">
-  <img src="media/iaga-sentinel-promo.gif" alt="IAGA Sentinel, signed tamper-evident audit for AI agents" width="760" />
+  <img src="media/iaga-sentinel-hero-v2.gif" alt="An agent action gets blocked, a signed receipt is minted and chained, the chain verifies offline: CHAIN OK" width="760" />
 </p>
 
 ---
