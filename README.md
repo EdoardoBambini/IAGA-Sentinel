@@ -71,7 +71,7 @@ iaga-verify chain.json                      # -> CHAIN OK
 The operator dashboard is at <http://localhost:4010/> the moment the server is up. Docker (`docker compose up -d`) and Postgres (`--features postgres` + `DATABASE_URL`) are covered in the docs.
 
 <p align="center">
-  <img src="media/iaga-sentinel-chain-v2.png" alt="A Merkle chain of Ed25519-signed receipts, verified offline: CHAIN OK" width="700" />
+  <img src="media/iaga-sentinel-receipt-anatomy-v1.png" alt="Exploded technical drawing of a signed receipt: recorded action, hash grid, verdict stamp, Ed25519 signature layer, base plate" width="660" />
 </p>
 
 ---
