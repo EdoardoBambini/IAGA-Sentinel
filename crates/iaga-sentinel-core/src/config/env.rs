@@ -42,8 +42,14 @@ impl std::fmt::Display for ServiceMode {
 #[derive(Debug, Clone)]
 pub struct AppEnv {
     pub port: u16,
+    /// Interface the HTTP server binds to (`IAGA_SENTINEL_HOST`).
+    /// Defaults to `0.0.0.0` (all interfaces), the pre-1.5.2 behavior.
+    pub host: String,
     pub node_env: NodeEnv,
     pub default_mode: ServiceMode,
+    /// Allowed CORS origins (`IAGA_SENTINEL_CORS_ORIGINS`, comma-separated).
+    /// `None` keeps the permissive `Any` origin of previous releases.
+    pub cors_origins: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone)]
@@ -52,11 +58,46 @@ pub struct LoggingEnv {
     pub filter_directive: String,
 }
 
+/// Parse an env var into `T`, falling back to `default` when the var is
+/// unset, empty, or unparseable. Tunables read through this helper keep
+/// their pre-1.5.2 hardcoded values as defaults.
+pub fn env_parse<T: std::str::FromStr>(name: &str, default: T) -> T {
+    parse_or(env::var(name).ok(), default)
+}
+
+fn parse_or<T: std::str::FromStr>(raw: Option<String>, default: T) -> T {
+    raw.as_deref()
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(default)
+}
+
+fn parse_origin_list(raw: Option<String>) -> Option<Vec<String>> {
+    let list: Vec<String> = raw?
+        .split(',')
+        .map(str::trim)
+        .filter(|o| !o.is_empty())
+        .map(str::to_string)
+        .collect();
+    if list.is_empty() {
+        None
+    } else {
+        Some(list)
+    }
+}
+
 pub fn load_env() -> AppEnv {
     let port = env::var("PORT")
         .ok()
         .and_then(|v| v.parse().ok())
         .unwrap_or(4010);
+
+    let host = env::var("IAGA_SENTINEL_HOST")
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| "0.0.0.0".to_string());
 
     let node_env = match env::var("NODE_ENV").unwrap_or_default().as_str() {
         "production" => NodeEnv::Production,
@@ -72,10 +113,14 @@ pub fn load_env() -> AppEnv {
         _ => ServiceMode::Gateway,
     };
 
+    let cors_origins = parse_origin_list(env::var("IAGA_SENTINEL_CORS_ORIGINS").ok());
+
     AppEnv {
         port,
+        host,
         node_env,
         default_mode,
+        cors_origins,
     }
 }
 
@@ -110,5 +155,34 @@ pub fn load_logging_env(node_env: NodeEnv) -> LoggingEnv {
     LoggingEnv {
         format,
         filter_directive,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_or_falls_back_on_unset_empty_or_garbage() {
+        assert_eq!(parse_or::<u64>(None, 42), 42);
+        assert_eq!(parse_or::<u64>(Some("".into()), 42), 42);
+        assert_eq!(parse_or::<u64>(Some("  ".into()), 42), 42);
+        assert_eq!(parse_or::<u64>(Some("nope".into()), 42), 42);
+        assert_eq!(parse_or::<u64>(Some("7".into()), 42), 7);
+        assert_eq!(parse_or::<u64>(Some(" 7 ".into()), 42), 7);
+    }
+
+    #[test]
+    fn origin_list_parses_and_normalizes() {
+        assert_eq!(parse_origin_list(None), None);
+        assert_eq!(parse_origin_list(Some("".into())), None);
+        assert_eq!(parse_origin_list(Some(" , ,".into())), None);
+        assert_eq!(
+            parse_origin_list(Some("https://a.example, https://b.example ,".into())),
+            Some(vec![
+                "https://a.example".to_string(),
+                "https://b.example".to_string()
+            ])
+        );
     }
 }

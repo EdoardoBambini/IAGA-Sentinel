@@ -92,8 +92,15 @@ impl LocalDiskSigner {
     /// Load a signer from a 32-byte seed file. If the file does not exist,
     /// generate a fresh key, write it with 0600 permissions on Unix, and
     /// return the new signer.
+    ///
+    /// 1.5.2 permission posture: on Unix a freshly written key is re-checked
+    /// post-write and creation fails if it is group/world accessible; loading
+    /// a pre-existing loose seed only warns (hard-failing would lock existing
+    /// deployments out of their own ledger). On Windows the key relies on
+    /// default NTFS ACLs and a warning reminds the operator to restrict them.
     pub fn load_or_create(path: &Path) -> Result<Self> {
         if path.exists() {
+            warn_if_key_permissions_loose(path);
             let bytes = std::fs::read(path)?;
             if bytes.len() != 32 {
                 return Err(ReceiptError::Key(format!(
@@ -118,6 +125,7 @@ impl LocalDiskSigner {
             let signing_key = SigningKey::generate(&mut OsRng);
             let seed = signing_key.to_bytes();
             write_private_key(path, &seed)?;
+            verify_created_key_permissions(path)?;
             let key_id = Self::derive_key_id(&signing_key.verifying_key());
             Ok(Self {
                 signing_key,
@@ -232,6 +240,54 @@ fn write_private_key(path: &Path, seed: &[u8; 32]) -> Result<()> {
     Ok(())
 }
 
+/// Post-write check for a key this process just created: the requested mode
+/// could have been widened by umask quirks or an exotic filesystem, so trust
+/// the filesystem's answer, not the request (1.5.2).
+#[cfg(unix)]
+fn verify_created_key_permissions(path: &Path) -> Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+    let mode = std::fs::metadata(path)?.permissions().mode();
+    if mode & 0o077 != 0 {
+        return Err(ReceiptError::Key(format!(
+            "signing key {} was created group/world accessible (mode {:o}); \
+             refusing to use it — fix the filesystem and retry",
+            path.display(),
+            mode & 0o777
+        )));
+    }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn verify_created_key_permissions(path: &Path) -> Result<()> {
+    tracing::warn!(
+        path = %path.display(),
+        "receipt signing key relies on default NTFS ACLs; restrict access to this file"
+    );
+    Ok(())
+}
+
+/// Loading a pre-existing seed with loose permissions warns instead of
+/// failing: operators upgrading from older releases must not be locked out
+/// of their own receipt ledger.
+#[cfg(unix)]
+fn warn_if_key_permissions_loose(path: &Path) {
+    use std::os::unix::fs::PermissionsExt;
+    if let Ok(meta) = std::fs::metadata(path) {
+        let mode = meta.permissions().mode();
+        if mode & 0o077 != 0 {
+            tracing::warn!(
+                path = %path.display(),
+                mode = format!("{:o}", mode & 0o777),
+                "receipt signing key is group/world accessible; chmod 600 it"
+            );
+        }
+    }
+}
+
+#[cfg(not(unix))]
+fn warn_if_key_permissions_loose(_path: &Path) {}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -325,5 +381,31 @@ mod tests {
         let hex = &kid["ed25519-".len()..];
         assert_eq!(hex.len(), 32);
         assert!(hex.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    /// 1.5.2: a freshly created key file must be owner-only on Unix; the
+    /// post-write verification rejects anything group/world accessible.
+    #[cfg(unix)]
+    #[test]
+    fn created_key_file_is_owner_only() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("receipt-signing.key");
+        let signer = LocalDiskSigner::load_or_create(&path).expect("create signer");
+        assert_eq!(signer.source_path(), Some(path.as_path()));
+
+        let mode = std::fs::metadata(&path)
+            .expect("stat key file")
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o077, 0, "key must not be group/world accessible");
+
+        // Loading a deliberately loosened seed must still succeed (warn-only
+        // posture for pre-existing deployments).
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644))
+            .expect("loosen perms");
+        let reloaded = LocalDiskSigner::load_or_create(&path).expect("reload signer");
+        assert_eq!(reloaded.key_id(), signer.key_id());
     }
 }

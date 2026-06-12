@@ -2,10 +2,14 @@
 name = "iaga-sentinel-core"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
 description = "IAGA Sentinel: EU AI Act conformity evidence layer for AI agents (open build, source available)"
+
+[lints]
+workspace = true
 
 [lib]
 name = "iaga_sentinel"
@@ -100,7 +104,7 @@ hex = "0.4"
 futures-core = "0.3"
 
 # optional features
-wasmtime = { version = "36.0.8", optional = true }
+wasmtime = { workspace = true, optional = true }
 iaga-sentinel-receipts = { path = "../iaga-sentinel-receipts", optional = true }
 iaga-sentinel-apl = { path = "../iaga-sentinel-apl", optional = true }
 iaga-sentinel-reasoning = { path = "../iaga-sentinel-reasoning", optional = true }
@@ -110,6 +114,6 @@ ed25519-dalek = { workspace = true, optional = true }
 
 [dev-dependencies]
 proptest = "1.6"
-tokio = { version = "1", features = ["full", "test-util"] }
+tokio = { workspace = true, features = ["test-util"] }
 wat = "1"
 tempfile = "3"

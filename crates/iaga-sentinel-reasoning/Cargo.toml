@@ -2,10 +2,14 @@
 name = "iaga-sentinel-reasoning"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
 description = "IAGA Sentinel, Probabilistic Reasoning Plane (ML evidence producer; pure Rust ONNX backend, opt-in)"
+
+[lints]
+workspace = true
 
 [lib]
 name = "iaga_sentinel_reasoning"
@@ -24,10 +28,11 @@ async-trait = { workspace = true }
 thiserror = { workspace = true }
 sha2 = { workspace = true }
 hex = { workspace = true }
+tracing = { workspace = true }
 
 # Optional: pure-Rust ONNX inference. Pinned to a stable 0.21.x line.
 tract-onnx = { version = "0.21", optional = true, default-features = false }
 
 [dev-dependencies]
-tokio = { version = "1", features = ["full", "test-util"] }
+tokio = { workspace = true, features = ["test-util"] }
 tempfile = "3"

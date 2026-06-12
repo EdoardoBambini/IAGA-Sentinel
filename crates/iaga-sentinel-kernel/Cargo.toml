@@ -2,10 +2,14 @@
 name = "iaga-sentinel-kernel"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
 description = "IAGA Sentinel, Enforcement kernel: cross-platform userspace launcher + eBPF LSM scaffold (Linux)"
+
+[lints]
+workspace = true
 
 [lib]
 name = "iaga_sentinel_kernel"
@@ -31,5 +35,5 @@ tracing = { workspace = true }
 toml = "0.8"
 
 [dev-dependencies]
-tokio = { version = "1", features = ["full", "test-util"] }
+tokio = { workspace = true, features = ["test-util"] }
 tempfile = "3"

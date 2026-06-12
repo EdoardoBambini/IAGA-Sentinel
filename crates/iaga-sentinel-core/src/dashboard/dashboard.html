@@ -6,164 +6,343 @@
 <title>IAGA Sentinel Operator Console</title>
 <style>
   :root {
-    --bg: #ffffff;
-    --panel: #ffffff;
-    --panel-2: #f4f6f5;
-    --panel-3: #ffffff;
-    --border: #0B0F0E;
-    --border-strong: #0B0F0E;
-    --text: #0B0F0E;
-    --muted: #5b6b66;
-    --green: #0f9d6b;
-    --amber: #9a6b00;
-    --red: #d23b3b;
-    --cyan: #0f9d6b;
-    --violet: #586072;
-    --mint: #5BE0B4;
+    --bg: #fbfdfc;
+    --panel: #fefffe;
+    --panel-2: #f2f5f4;
     --ink: #0B0F0E;
-    --hair: #e3e6e5;
+    --muted: #5b6b66;
+    --mint: #5BE0B4;
     --mint-weak: #e3f7ee;
-    --shadow: none;
-    --radius: 0;
-    --radius-sm: 0;
-    --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-    --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --green: #0f7a54;
+    --green-weak: #e3f7ee;
+    --amber: #8a5f00;
+    --amber-weak: #faf1d8;
+    --red: #c22f2f;
+    --red-weak: #fbe5e5;
+    --violet: #4d5a74;
+    --violet-weak: #eaedf3;
+    --hair: #dde4e1;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
+
   body {
     margin: 0;
     min-height: 100vh;
-    background:
-      radial-gradient(circle at top left, rgba(88, 200, 255, 0.15), transparent 24%),
-      radial-gradient(circle at top right, rgba(49, 211, 139, 0.11), transparent 18%),
-      linear-gradient(180deg, #071018 0%, #0b1420 100%);
-    color: var(--text);
+    background: var(--bg);
+    color: var(--ink);
     font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
   }
 
-  button, input, select {
-    font: inherit;
-  }
+  button, input, select { font: inherit; color: inherit; }
+  code, pre, .mono { font-family: var(--mono); }
 
-  code, pre, .mono {
-    font-family: var(--mono);
+  :focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
   }
 
   .shell {
-    max-width: 1540px;
+    max-width: 1560px;
     margin: 0 auto;
     padding: 24px;
   }
 
+  /* ── Header ── */
+
   .topbar {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-    gap: 16px;
-    margin-bottom: 18px;
+    align-items: flex-end;
+    gap: 16px 24px;
+    flex-wrap: wrap;
+    padding-bottom: 18px;
+    border-bottom: 2px solid var(--ink);
+  }
+
+  .brand .kicker {
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-size: 11px;
+    font-family: var(--mono);
   }
 
   .brand h1 {
-    margin: 0;
+    margin: 4px 0 0;
     font-size: 32px;
-    line-height: 1;
-    letter-spacing: -0.03em;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
   }
 
   .brand p {
     margin: 8px 0 0;
     color: var(--muted);
-    max-width: 760px;
+    max-width: 70ch;
+    font-size: 13px;
   }
 
   .pill-row {
     display: flex;
     flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 10px;
+    gap: 8px;
   }
 
   .pill {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 14px;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    background: rgba(13, 21, 30, 0.72);
-    color: var(--text);
-    font-size: 13px;
+    padding: 8px 12px;
+    border: 1px solid var(--ink);
+    background: var(--panel);
+    font-size: 12px;
+    font-family: var(--mono);
     white-space: nowrap;
   }
 
   .pill::before {
     content: "";
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    background: var(--cyan);
-    box-shadow: 0 0 0 4px rgba(88, 200, 255, 0.12);
+    width: 8px;
+    height: 8px;
+    background: var(--muted);
+    flex: none;
   }
 
-  .pill.success::before { background: var(--green); box-shadow: 0 0 0 4px rgba(49, 211, 139, 0.12); }
-  .pill.warn::before { background: var(--amber); box-shadow: 0 0 0 4px rgba(255, 191, 71, 0.12); }
-  .pill.error::before { background: var(--red); box-shadow: 0 0 0 4px rgba(255, 107, 107, 0.12); }
+  .pill.success::before { background: var(--mint); }
+  .pill.warn::before { background: var(--amber); }
+  .pill.error::before { background: var(--red); }
+
+  /* ── Section nav ── */
+
+  .section-nav {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    background: var(--bg);
+    border-bottom: 1px solid var(--ink);
+    margin: 0 -24px;
+    padding: 0 24px;
+    display: flex;
+    gap: 2px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  .section-nav a {
+    flex: none;
+    padding: 12px 12px;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 12px;
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    border-bottom: 3px solid transparent;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .section-nav a:hover { color: var(--ink); background: var(--mint-weak); }
+  .section-nav a.active { color: var(--ink); border-bottom-color: var(--mint); }
+
+  section[id] { scroll-margin-top: 56px; }
+
+  /* ── Panels ── */
 
   .panel {
-    background: linear-gradient(180deg, rgba(21, 34, 50, 0.96) 0%, rgba(12, 21, 31, 0.96) 100%);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
+    background: var(--panel);
+    border: 1px solid var(--ink);
     padding: 20px;
-  }
-
-  .panel + .panel {
     margin-top: 16px;
   }
 
   .section-head {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 12px;
+    flex-wrap: wrap;
     margin-bottom: 16px;
   }
 
-  .section-head h2,
-  .section-head h3 {
-    margin: 0;
-    font-size: 18px;
-    line-height: 1.1;
-  }
+  .section-head h2 { margin: 0; font-size: 19px; line-height: 1.15; }
+  .section-head h3 { margin: 0; font-size: 16px; line-height: 1.15; }
 
   .section-head p {
     margin: 6px 0 0;
     color: var(--muted);
     font-size: 13px;
+    max-width: 72ch;
   }
 
   .section-kicker {
-    color: var(--cyan);
+    color: var(--muted);
     text-transform: uppercase;
     letter-spacing: 0.12em;
     font-size: 11px;
     font-family: var(--mono);
   }
 
-  .auth-grid {
+  .grid-2 {
     display: grid;
-    grid-template-columns: minmax(280px, 1.3fr) auto auto;
-    gap: 12px;
-    align-items: end;
+    grid-template-columns: repeat(auto-fit, minmax(min(460px, 100%), 1fr));
+    gap: 16px;
+    align-items: start;
   }
+
+  .grid-3 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr));
+    gap: 16px;
+    align-items: start;
+  }
+
+  .grid-2 > .panel, .grid-3 > .panel { margin-top: 0; }
+  .grid-2, .grid-3 { margin-top: 16px; }
+
+  /* ── Stat strip (ledger) ── */
+
+  .stat-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    border: 1px solid var(--ink);
+    background: var(--hair);
+    gap: 1px;
+  }
+
+  .stat {
+    padding: 14px 16px;
+    background: var(--panel);
+    min-width: 0;
+  }
+
+  .stat .label {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-family: var(--mono);
+    white-space: nowrap;
+  }
+
+  .stat .value {
+    margin-top: 6px;
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+
+  .stat .sub {
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: 12px;
+    overflow-wrap: anywhere;
+  }
+
+  .value.allow { color: var(--green); }
+  .value.review { color: var(--amber); }
+  .value.block { color: var(--red); }
+
+  /* ── Meters ── */
+
+  .meter {
+    display: flex;
+    height: 10px;
+    border: 1px solid var(--ink);
+    background: var(--panel-2);
+    overflow: hidden;
+  }
+
+  .meter span { display: block; height: 100%; }
+  .meter .seg-allow { background: var(--mint); }
+  .meter .seg-review { background: var(--amber); }
+  .meter .seg-block { background: var(--red); }
+
+  .meter-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+
+  .meter-legend b { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+  .weight-row { margin-top: 10px; }
+  .weight-row .weight-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 12px;
+    font-family: var(--mono);
+    color: var(--muted);
+  }
+  .weight-row .weight-head b { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .weight-row .track {
+    margin-top: 4px;
+    height: 8px;
+    border: 1px solid var(--ink);
+    background: var(--panel-2);
+  }
+  .weight-row .fill { height: 100%; background: var(--mint); }
+
+  /* ── Trend bars ── */
+
+  .trend {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 96px;
+    border-bottom: 1px solid var(--ink);
+    margin-top: 12px;
+  }
+
+  .trend .bar {
+    flex: 1;
+    min-width: 4px;
+    background: var(--mint);
+    border: 1px solid var(--ink);
+    border-bottom: none;
+  }
+
+  .trend-note {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 6px;
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--muted);
+  }
+
+  /* ── Forms + buttons ── */
+
+  .auth-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-end;
+  }
+
+  .auth-grid .field { flex: 1 1 280px; }
 
   .field label {
     display: block;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     color: var(--muted);
-    font-size: 12px;
+    font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     font-family: var(--mono);
@@ -172,153 +351,59 @@
   .field input,
   .field select {
     width: 100%;
-    padding: 12px 14px;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border-strong);
-    background: var(--panel-3);
-    color: var(--text);
+    padding: 10px 12px;
+    border: 1px solid var(--ink);
+    background: var(--panel);
+    min-height: 42px;
   }
 
-  .field input::placeholder {
-    color: #69829a;
-  }
+  .field input::placeholder { color: var(--muted); }
 
   .button-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 8px;
   }
 
   .btn {
     appearance: none;
-    border: 1px solid var(--border-strong);
-    border-radius: 999px;
-    padding: 12px 16px;
-    background: var(--panel-3);
-    color: var(--text);
+    border: 1px solid var(--ink);
+    padding: 10px 16px;
+    background: var(--panel);
+    color: var(--ink);
     cursor: pointer;
     font-weight: 600;
+    min-height: 42px;
+    transition: background-color 150ms var(--ease);
   }
 
-  .btn:hover {
-    border-color: var(--cyan);
-  }
+  .btn:hover { background: var(--mint-weak); }
+  .btn.primary { background: var(--mint); }
+  .btn.primary:hover { background: #4ccfa4; }
+  .btn.danger { background: var(--red-weak); color: #8f1f1f; }
+  .btn.danger:hover { background: #f6d3d3; }
+  .btn.ghost { background: transparent; }
+  .btn.ghost:hover { background: var(--mint-weak); }
+  .btn.small { padding: 6px 12px; min-height: 36px; font-size: 13px; }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
-  .btn.primary {
-    background: linear-gradient(180deg, #1c6db0 0%, #154f82 100%);
-    border-color: #2478bc;
-  }
-
-  .btn.success {
-    background: linear-gradient(180deg, #1f7a58 0%, #155a42 100%);
-    border-color: #2f9f73;
-  }
-
-  .btn.danger {
-    background: linear-gradient(180deg, #7c2d37 0%, #5d1f27 100%);
-    border-color: #9a4752;
-  }
-
-  .btn.ghost {
-    background: transparent;
-  }
-
-  .btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  .auth-help {
-    margin-top: 12px;
-    color: var(--muted);
-    font-size: 13px;
-  }
+  .auth-help { margin-top: 12px; color: var(--muted); font-size: 13px; }
 
   .banner {
-    border-radius: var(--radius-sm);
-    padding: 14px 16px;
-    border: 1px solid var(--border);
-    margin: 16px 0;
+    padding: 13px 16px;
+    border: 1px solid var(--ink);
+    margin-top: 16px;
     font-size: 14px;
   }
 
-  .banner.info {
-    background: rgba(88, 200, 255, 0.08);
-    border-color: rgba(88, 200, 255, 0.28);
-  }
+  .banner.info { background: var(--panel-2); }
+  .banner.success { background: var(--mint-weak); border-color: var(--green); }
+  .banner.warn { background: var(--amber-weak); border-color: var(--amber); }
+  .banner.error { background: var(--red-weak); border-color: var(--red); }
 
-  .banner.success {
-    background: rgba(49, 211, 139, 0.08);
-    border-color: rgba(49, 211, 139, 0.28);
-  }
+  .hidden { display: none !important; }
 
-  .banner.warn {
-    background: rgba(255, 191, 71, 0.08);
-    border-color: rgba(255, 191, 71, 0.28);
-  }
-
-  .banner.error {
-    background: rgba(255, 107, 107, 0.08);
-    border-color: rgba(255, 107, 107, 0.28);
-  }
-
-  .hidden {
-    display: none !important;
-  }
-
-  .cards {
-    display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: 14px;
-  }
-
-  .card {
-    padding: 18px;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border);
-    background: rgba(8, 16, 24, 0.42);
-  }
-
-  .card .label {
-    font-size: 11px;
-    letter-spacing: 0.11em;
-    text-transform: uppercase;
-    color: var(--muted);
-    font-family: var(--mono);
-  }
-
-  .card .value {
-    margin-top: 8px;
-    font-size: 32px;
-    font-weight: 700;
-    line-height: 1;
-  }
-
-  .card .sub {
-    margin-top: 8px;
-    color: var(--muted);
-    font-size: 13px;
-  }
-
-  .value.allow { color: var(--green); }
-  .value.review { color: var(--amber); }
-  .value.block { color: var(--red); }
-  .value.live { color: var(--cyan); }
-  .value.violet { color: var(--violet); }
-
-  .split-2 {
-    display: grid;
-    grid-template-columns: 1.5fr 1fr;
-    gap: 16px;
-    margin-top: 16px;
-  }
-
-  .split-3 {
-    display: grid;
-    grid-template-columns: 1.15fr 1fr 1fr;
-    gap: 16px;
-    margin-top: 16px;
-  }
+  /* ── Controls row ── */
 
   .controls {
     display: flex;
@@ -327,98 +412,96 @@
     margin-bottom: 14px;
   }
 
-  .controls .field {
-    min-width: 180px;
-    flex: 1;
-  }
+  .controls .field { flex: 1 1 180px; min-width: 0; }
+
+  /* ── Tables ── */
 
   .table-wrap {
-    overflow: auto;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border: 1px solid var(--ink);
+    background: var(--panel);
+  }
+
+  .table-wrap.scroll-y {
+    max-height: 420px;
+    overflow-y: auto;
   }
 
   table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 760px;
+    min-width: 560px;
   }
 
-  th,
-  td {
-    padding: 12px 14px;
+  th, td {
+    padding: 10px 12px;
     text-align: left;
-    border-bottom: 1px solid rgba(35, 53, 72, 0.72);
+    border-bottom: 1px solid var(--hair);
     vertical-align: top;
     font-size: 13px;
   }
 
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
   th {
     color: var(--muted);
-    font-size: 12px;
+    font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.07em;
     font-family: var(--mono);
-    background: rgba(6, 11, 16, 0.5);
+    font-weight: 600;
+    background: var(--panel-2);
     position: sticky;
     top: 0;
+    white-space: nowrap;
   }
 
-  tbody tr {
-    cursor: pointer;
-  }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr.row-click { cursor: pointer; }
+  tbody tr.row-click:hover { background: var(--mint-weak); }
+  tbody tr.selected { background: var(--mint-weak); }
 
-  tbody tr:hover {
-    background: rgba(88, 200, 255, 0.06);
-  }
-
-  tbody tr.selected {
-    background: rgba(88, 200, 255, 0.11);
-  }
+  /* ── Badges ── */
 
   .badge {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 10px;
-    border-radius: 999px;
+    padding: 4px 8px;
     font-size: 11px;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.07em;
     font-family: var(--mono);
-    border: 1px solid transparent;
+    border: 1px solid currentColor;
+    white-space: nowrap;
   }
 
-  .badge.allow { background: rgba(49, 211, 139, 0.12); color: var(--green); border-color: rgba(49, 211, 139, 0.22); }
-  .badge.review { background: rgba(255, 191, 71, 0.12); color: var(--amber); border-color: rgba(255, 191, 71, 0.22); }
-  .badge.block { background: rgba(255, 107, 107, 0.12); color: var(--red); border-color: rgba(255, 107, 107, 0.22); }
-  .badge.pending { background: rgba(154, 140, 255, 0.12); color: var(--violet); border-color: rgba(154, 140, 255, 0.22); }
-  .badge.neutral { background: rgba(143, 164, 184, 0.12); color: var(--muted); border-color: rgba(143, 164, 184, 0.22); }
+  .badge.allow { background: var(--green-weak); color: var(--green); }
+  .badge.review { background: var(--amber-weak); color: var(--amber); }
+  .badge.block { background: var(--red-weak); color: var(--red); }
+  .badge.pending { background: var(--violet-weak); color: var(--violet); }
+  .badge.neutral { background: var(--panel-2); color: var(--muted); }
+
+  /* ── Detail + lists ── */
 
   .detail {
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: rgba(6, 11, 16, 0.38);
+    border: 1px solid var(--ink);
+    background: var(--panel);
     padding: 16px;
   }
 
-  .detail h4 {
-    margin: 0 0 14px;
-    font-size: 15px;
-  }
+  .detail h4 { margin: 0 0 12px; font-size: 14px; overflow-wrap: anywhere; }
 
   .kv {
     display: grid;
-    grid-template-columns: 140px 1fr;
+    grid-template-columns: 150px 1fr;
     gap: 10px;
     font-size: 13px;
     padding: 7px 0;
-    border-bottom: 1px solid rgba(35, 53, 72, 0.5);
+    border-bottom: 1px solid var(--hair);
   }
 
-  .kv:last-child {
-    border-bottom: 0;
-  }
+  .kv:last-child { border-bottom: 0; }
 
   .kv .k {
     color: var(--muted);
@@ -426,38 +509,33 @@
     font-size: 12px;
   }
 
-  .stack {
+  .kv > div:last-child { min-width: 0; overflow-wrap: anywhere; }
+
+  .kv-row {
     display: flex;
-    flex-direction: column;
+    justify-content: space-between;
+    align-items: baseline;
     gap: 12px;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--hair);
   }
 
-  .review-item,
-  .runtime-item,
-  .agent-item {
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: rgba(6, 11, 16, 0.38);
+  .kv-row:last-child { border-bottom: none; }
+  .kv-key { color: var(--muted); font-size: 12px; font-family: var(--mono); flex: none; }
+  .kv-val { font-size: 13px; text-align: right; min-width: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+
+  .stack { display: flex; flex-direction: column; gap: 12px; }
+
+  .queue-item {
+    border: 1px solid var(--ink);
+    background: var(--panel);
     padding: 14px;
   }
 
-  .review-item h4,
-  .runtime-item h4,
-  .agent-item h4 {
-    margin: 0 0 8px;
-    font-size: 14px;
-  }
+  .queue-item h4 { margin: 0 0 6px; font-size: 14px; overflow-wrap: anywhere; }
+  .queue-item p { margin: 0; color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
 
-  .review-item p,
-  .runtime-item p,
-  .agent-item p {
-    margin: 0;
-    color: var(--muted);
-    font-size: 13px;
-  }
-
-  .review-actions,
-  .inline-actions {
+  .queue-actions {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
@@ -465,42 +543,37 @@
   }
 
   .empty {
-    border: 1px dashed var(--border-strong);
-    border-radius: var(--radius-sm);
-    padding: 18px;
+    border: 1px dashed var(--ink);
+    padding: 16px;
     color: var(--muted);
-    background: rgba(6, 11, 16, 0.25);
-    font-size: 14px;
+    background: var(--panel);
+    font-size: 13px;
+    overflow-wrap: anywhere;
   }
 
-  .list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
+  .empty code { background: var(--panel-2); padding: 1px 5px; }
+
+  .list { display: flex; flex-direction: column; gap: 8px; }
 
   .list-item {
     display: flex;
     justify-content: space-between;
+    align-items: flex-start;
     gap: 10px;
     padding: 10px 12px;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    background: rgba(6, 11, 16, 0.28);
+    border: 1px solid var(--ink);
+    background: var(--panel);
     font-size: 13px;
   }
 
-  .list-item .right {
-    color: var(--muted);
-    text-align: right;
-  }
+  .list-item > div:first-child { min-width: 0; overflow-wrap: anywhere; }
+  .list-item .right { color: var(--muted); text-align: right; flex: none; }
 
   .json {
     margin: 0;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    background: #071018;
-    color: #d8e5f2;
+    border: 1px solid var(--ink);
+    background: var(--panel-2);
+    color: var(--ink);
     padding: 14px;
     overflow: auto;
     font-size: 12px;
@@ -510,125 +583,175 @@
 
   .spark {
     display: flex;
-    align-items: end;
-    gap: 3px;
-    height: 80px;
-    margin-top: 12px;
+    align-items: flex-end;
+    gap: 2px;
+    height: 64px;
+    margin-top: 10px;
+    border-bottom: 1px solid var(--ink);
   }
 
   .spark-bar {
     flex: 1;
-    min-width: 6px;
-    border-radius: 999px 999px 0 0;
-    background: linear-gradient(180deg, var(--cyan), #1e4e70);
+    min-width: 4px;
+    background: var(--mint);
+    border: 1px solid var(--ink);
+    border-bottom: none;
   }
 
-  .small {
-    font-size: 12px;
-    color: var(--muted);
-  }
-
+  .small { font-size: 12px; color: var(--muted); }
   .muted { color: var(--muted); }
 
   .hint {
     font-size: 12px;
     color: var(--muted);
-    background: rgba(88, 200, 255, 0.05);
-    border: 1px solid rgba(88, 200, 255, 0.18);
-    border-radius: 8px;
+    background: var(--panel-2);
+    border: 1px solid var(--hair);
     padding: 8px 10px;
+    overflow-wrap: anywhere;
   }
 
-  .kv-row {
+  .hint code { background: var(--panel); border: 1px solid var(--hair); padding: 0 4px; }
+
+  /* ── Tabs ── */
+
+  .tab-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+    border: 1px solid var(--ink);
+    width: fit-content;
+    max-width: 100%;
+  }
+
+  .tab {
+    appearance: none;
+    border: none;
+    border-right: 1px solid var(--ink);
+    background: var(--panel);
+    padding: 8px 14px;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    min-height: 38px;
+  }
+
+  .tab:last-child { border-right: none; }
+  .tab:hover { background: var(--mint-weak); }
+  .tab.active { background: var(--mint); font-weight: 700; }
+
+  /* ── Live feed ── */
+
+  .live-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .live-dot {
+    width: 10px;
+    height: 10px;
+    background: var(--muted);
+    flex: none;
+  }
+
+  .live-dot.on {
+    background: var(--mint);
+    animation: livePulse 1.6s ease-in-out infinite;
+  }
+
+  @keyframes livePulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+
+  .feed {
+    margin-top: 14px;
+    border: 1px solid var(--ink);
+    background: var(--panel);
+    max-height: 380px;
+    overflow-y: auto;
+  }
+
+  .feed-row {
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--hair);
+    font-size: 12px;
+    font-family: var(--mono);
+  }
+
+  .feed-row:last-child { border-bottom: none; }
+  .feed-row .t { color: var(--muted); flex: none; }
+  .feed-row .body { min-width: 0; overflow-wrap: anywhere; }
+
+  footer.console-foot {
+    margin-top: 24px;
+    padding-top: 14px;
+    border-top: 2px solid var(--ink);
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    gap: 12px;
-    padding: 6px 0;
-    border-bottom: 1px solid rgba(35, 53, 72, 0.4);
-  }
-  .kv-row:last-child { border-bottom: none; }
-  .kv-key { color: var(--muted); font-size: 13px; }
-  .kv-val { color: var(--text); font-size: 13px; text-align: right; }
-
-  @media (max-width: 1240px) {
-    .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .split-2,
-    .split-3 { grid-template-columns: 1fr; }
+    gap: 10px;
+    flex-wrap: wrap;
+    color: var(--muted);
+    font-size: 12px;
+    font-family: var(--mono);
   }
 
-  @media (max-width: 820px) {
+  /* ── Responsive ── */
+
+  @media (max-width: 1100px) {
+    .brand h1 { font-size: 28px; }
+  }
+
+  @media (max-width: 720px) {
     .shell { padding: 16px; }
-    .topbar { flex-direction: column; }
-    .pill-row { justify-content: flex-start; }
-    .auth-grid { grid-template-columns: 1fr; }
-    .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .controls { flex-direction: column; }
-    .kv { grid-template-columns: 1fr; gap: 4px; }
+    .section-nav { margin: 0 -16px; padding: 0 16px; }
+    .panel { padding: 16px; }
+    .topbar { align-items: flex-start; flex-direction: column; }
+    .stat .value { font-size: 21px; }
+    .kv { grid-template-columns: 1fr; gap: 2px; }
+    .kv .k { font-size: 11px; }
+    .controls .field { flex-basis: 100%; }
+    .auth-grid .field { flex-basis: 100%; }
+    .button-row .btn { flex: 1 1 auto; }
+    .queue-actions .btn { flex: 1 1 auto; }
+    th, td { padding: 9px 10px; }
   }
 
-  @media (max-width: 560px) {
-    .cards { grid-template-columns: 1fr; }
-    .button-row,
-    .review-actions,
-    .inline-actions { flex-direction: column; }
-    .btn { width: 100%; }
+  @media (max-width: 480px) {
+    .brand h1 { font-size: 24px; }
+    .pill { font-size: 11px; padding: 7px 10px; }
+    .tab-row { width: 100%; }
+    .tab { flex: 1 1 auto; text-align: center; }
   }
 
-  /* White and mint brutalist theme: flat surfaces, hard borders, no shadows. */
-  body { background: var(--bg); }
-  .pill { border-radius: 0; background: var(--panel-2); }
-  .pill::before,
-  .pill.success::before,
-  .pill.warn::before,
-  .pill.error::before { box-shadow: none; }
-  .panel { background: var(--panel); }
-  .btn { border-radius: 0; }
-  .btn:hover { border-color: var(--ink); background: var(--mint-weak); }
-  .btn.primary,
-  .btn.success { background: var(--mint); border-color: var(--ink); color: var(--ink); }
-  .btn.danger { background: #fbe3e3; border-color: var(--ink); color: #8f1f1f; }
-  .field input,
-  .field select { background: var(--panel); }
-  .field input::placeholder { color: var(--muted); }
-  .banner { border-radius: 0; }
-  .banner.info { background: var(--panel-2); border-color: var(--ink); }
-  .banner.success { background: var(--mint-weak); border-color: var(--green); }
-  .banner.warn { background: #fbf1da; border-color: var(--amber); }
-  .banner.error { background: #fbe3e3; border-color: var(--red); }
-  .card { background: var(--panel); }
-  .table-wrap { border-radius: 0; }
-  th, td { border-bottom: 1px solid var(--hair); }
-  th { background: var(--panel-2); }
-  tbody tr:hover { background: var(--mint-weak); }
-  tbody tr.selected { background: var(--mint-weak); }
-  .badge { border-radius: 0; }
-  .badge.allow { background: var(--mint-weak); color: var(--green); border-color: var(--green); }
-  .badge.review { background: #fbf1da; color: var(--amber); border-color: var(--amber); }
-  .badge.block { background: #fbe3e3; color: var(--red); border-color: var(--red); }
-  .badge.pending { background: var(--panel-2); color: var(--violet); border-color: var(--violet); }
-  .badge.neutral { background: var(--panel-2); color: var(--muted); border-color: var(--hair); }
-  .detail,
-  .review-item,
-  .runtime-item,
-  .agent-item,
-  .empty { background: var(--panel); }
-  .list-item { border-radius: 0; background: var(--panel); }
-  .json { border-radius: 0; background: var(--panel-2); color: var(--ink); }
-  .hint { border-radius: 0; background: var(--panel-2); border-color: var(--hair); color: var(--muted); }
-  .spark-bar { border-radius: 0; background: var(--mint); }
-  .kv, .kv-row { border-bottom-color: var(--hair); }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .btn, .section-nav a { transition: none; }
+    .live-dot.on { animation: none; }
+  }
+
+  @media print {
+    .section-nav, .auth-panel, .banner, .btn, .controls, .live-controls { display: none !important; }
+    .panel, .stat-strip, .table-wrap, .detail { border-color: #000; }
+    body { background: #fff; }
+  }
 </style>
 </head>
 <body>
   <div class="shell">
     <header class="topbar">
       <div class="brand">
-        <div class="section-kicker">IAGA Sentinel Community</div>
+        <div class="kicker">IAGA Sentinel · Community build</div>
         <h1>Operator Console</h1>
         <p>
-          This dashboard is wired to the running runtime. It does not render decorative counters or demo fallback data.
-          If the runtime is protected, paste a valid API key and the page will load live state from the real endpoints.
+          Wired to the running runtime: every value on this page comes from a live endpoint.
+          No decorative counters, no demo fallback data.
         </p>
       </div>
       <div class="pill-row">
@@ -638,25 +761,38 @@
       </div>
     </header>
 
-    <section class="panel">
+    <nav class="section-nav" id="section-nav" aria-label="Console sections">
+      <a href="#overview">Overview</a>
+      <a href="#cost">Cost</a>
+      <a href="#audit">Audit</a>
+      <a href="#queues">Queues</a>
+      <a href="#agents">Agents</a>
+      <a href="#evidence">Evidence</a>
+      <a href="#policy">Policy</a>
+      <a href="#runtime">Runtime</a>
+      <a href="#plugins">Plugins</a>
+      <a href="#webhooks">Webhooks</a>
+      <a href="#identities">Identities</a>
+      <a href="#live">Live feed</a>
+    </nav>
+
+    <section class="panel auth-panel">
       <div class="section-head">
         <div>
           <div class="section-kicker">Connection</div>
-          <h2>Live Runtime Access</h2>
-          <p>Use the same Bearer token you use for the protected HTTP API. The token is stored in local browser storage for this origin only.</p>
+          <h2>Runtime access</h2>
+          <p>Use the same Bearer token as the HTTP API. The token stays in this browser's local storage for this origin only.</p>
         </div>
       </div>
       <div class="auth-grid">
         <div class="field">
-          <label for="api-token">API Key</label>
-          <input id="api-token" type="password" placeholder="Paste Bearer token here" autocomplete="off">
+          <label for="api-token">API key</label>
+          <input id="api-token" type="password" placeholder="Paste Bearer token" autocomplete="off">
         </div>
         <div class="button-row">
           <button type="button" class="btn primary" id="connect-button">Connect</button>
           <button type="button" class="btn ghost" id="refresh-button">Refresh</button>
-        </div>
-        <div class="button-row">
-          <button type="button" class="btn danger" id="clear-button">Clear Token</button>
+          <button type="button" class="btn danger" id="clear-button">Clear token</button>
         </div>
       </div>
       <div class="auth-help" id="auth-help">Loading runtime context.</div>
@@ -665,156 +801,223 @@
     <div class="banner info" id="connection-banner">Checking runtime status.</div>
 
     <main id="dashboard" class="hidden">
-      <section class="panel">
+
+      <!-- ── Overview ── -->
+      <section class="panel" id="overview">
         <div class="section-head">
           <div>
             <div class="section-kicker">Overview</div>
-            <h2>Current Posture</h2>
-            <p>Every number below comes from live API responses.</p>
+            <h2>Current posture</h2>
           </div>
         </div>
-        <div class="cards">
-          <div class="card">
+        <div class="stat-strip">
+          <div class="stat">
             <div class="label">Total events</div>
-            <div class="value live" id="card-total-events">0</div>
-            <div class="sub" id="card-total-events-sub">No audit events yet</div>
+            <div class="value" id="stat-total">0</div>
+            <div class="sub" id="stat-total-sub">No audit events yet</div>
           </div>
-          <div class="card">
+          <div class="stat">
             <div class="label">Allow</div>
-            <div class="value allow" id="card-allow">0</div>
-            <div class="sub">Allowed governance decisions</div>
+            <div class="value allow" id="stat-allow">0</div>
+            <div class="sub">Allowed decisions</div>
           </div>
-          <div class="card">
+          <div class="stat">
             <div class="label">Review</div>
-            <div class="value review" id="card-review">0</div>
-            <div class="sub">Pending operator attention</div>
+            <div class="value review" id="stat-review">0</div>
+            <div class="sub">Routed to operators</div>
           </div>
-          <div class="card">
+          <div class="stat">
             <div class="label">Block</div>
-            <div class="value block" id="card-block">0</div>
-            <div class="sub">Blocked high-risk actions</div>
+            <div class="value block" id="stat-block">0</div>
+            <div class="sub">High-risk actions stopped</div>
           </div>
-          <div class="card">
-            <div class="label">Active sessions</div>
-            <div class="value violet" id="card-sessions">0</div>
-            <div class="sub">Current session graph entries</div>
+          <div class="stat">
+            <div class="label">Sessions</div>
+            <div class="value" id="stat-sessions">0</div>
+            <div class="sub">Active session graphs</div>
           </div>
-          <div class="card">
-            <div class="label">Tracked agents</div>
-            <div class="value live" id="card-agents">0</div>
-            <div class="sub" id="card-risk-sub">Average risk 0.0</div>
+          <div class="stat">
+            <div class="label">Agents</div>
+            <div class="value" id="stat-agents">0</div>
+            <div class="sub" id="stat-agents-sub">Average risk 0.0</div>
           </div>
+        </div>
+        <div style="margin-top:16px;">
+          <div class="meter" id="decision-meter" role="img" aria-label="Decision mix"></div>
+          <div class="meter-legend" id="decision-meter-legend"></div>
         </div>
       </section>
 
-      <section class="panel" id="cost-panel">
+      <!-- ── Cost ── -->
+      <section class="panel" id="cost">
         <div class="section-head">
           <div>
-            <div class="section-kicker">Cost Control</div>
-            <h2>LLM Spend</h2>
-            <p>Token and dollar spend from reported usage, priced locally. Net is what was actually paid; gross is before cache savings.</p>
+            <div class="section-kicker">Cost control</div>
+            <h2>LLM spend</h2>
+            <p>Reported usage priced locally, no external billing API. Net is what was paid; gross is before cache savings.</p>
           </div>
         </div>
-        <div class="cards">
-          <div class="card">
-            <div class="label">Net spend</div>
-            <div class="value live" id="card-cost-net">$0.0000</div>
-            <div class="sub" id="card-cost-actions">0 priced actions</div>
+        <div id="cost-disabled" class="hidden"></div>
+        <div id="cost-enabled">
+          <div class="stat-strip">
+            <div class="stat">
+              <div class="label">Net spend</div>
+              <div class="value" id="cost-net">$0.0000</div>
+              <div class="sub" id="cost-actions-sub">0 priced actions</div>
+            </div>
+            <div class="stat">
+              <div class="label">Gross spend</div>
+              <div class="value" id="cost-gross">$0.0000</div>
+              <div class="sub">Before cache savings</div>
+            </div>
+            <div class="stat">
+              <div class="label">Saved by cache</div>
+              <div class="value allow" id="cost-saved">$0.0000</div>
+              <div class="sub" id="cost-cache-sub">0 cache hits</div>
+            </div>
+            <div class="stat">
+              <div class="label">Total tokens</div>
+              <div class="value" id="cost-tokens">0</div>
+              <div class="sub">Across priced actions</div>
+            </div>
+            <div class="stat">
+              <div class="label">Session budget</div>
+              <div class="value" id="cost-budget">—</div>
+              <div class="sub" id="cost-budget-sub">No session budget set</div>
+            </div>
           </div>
-          <div class="card">
-            <div class="label">Gross spend</div>
-            <div class="value" id="card-cost-gross">$0.0000</div>
-            <div class="sub">Before cache savings</div>
-          </div>
-          <div class="card">
-            <div class="label">Saved by cache</div>
-            <div class="value allow" id="card-cost-savings">$0.0000</div>
-            <div class="sub" id="card-cost-cachehit">0 cache hits</div>
-          </div>
-          <div class="card">
-            <div class="label">Total tokens</div>
-            <div class="value violet" id="card-cost-tokens">0</div>
-            <div class="sub">Across all priced actions</div>
+
+          <div class="grid-2">
+            <div>
+              <div class="section-head" style="margin-bottom:10px;">
+                <h3>Spend breakdown</h3>
+                <div class="tab-row" aria-label="Cost breakdown dimension">
+                  <button type="button" class="tab active" aria-pressed="true" data-cost-tab="model">By model</button>
+                  <button type="button" class="tab" aria-pressed="false" data-cost-tab="agent">By agent</button>
+                  <button type="button" class="tab" aria-pressed="false" data-cost-tab="tool">By tool</button>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th id="cost-breakdown-key-head">Model</th>
+                      <th class="num">Net</th>
+                      <th class="num">Saved</th>
+                      <th class="num">Tokens</th>
+                      <th class="num">Actions</th>
+                      <th>Share</th>
+                    </tr>
+                  </thead>
+                  <tbody id="cost-breakdown-body"></tbody>
+                </table>
+              </div>
+            </div>
+            <div>
+              <div class="section-head" style="margin-bottom:10px;">
+                <h3>Spend over time</h3>
+                <span class="small" id="cost-trend-meta"></span>
+              </div>
+              <div id="cost-trend-wrap">
+                <div class="trend" id="cost-trend"></div>
+                <div class="trend-note" id="cost-trend-note"></div>
+              </div>
+              <div class="hint" style="margin-top:14px;" id="cost-pricing-hint"></div>
+            </div>
           </div>
         </div>
-        <div id="cost-by-model" class="stack"></div>
-        <div class="hint" id="cost-meta"></div>
       </section>
 
-      <div class="split-2">
-        <section class="panel">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Audit Explorer</div>
-              <h2>Governed Actions</h2>
-              <p>Filter and inspect the actual audit rows currently stored by the runtime.</p>
-            </div>
-            <div class="button-row">
-              <button type="button" class="btn ghost" id="export-audit-button">Export Visible CSV</button>
-            </div>
+      <!-- ── Audit ── -->
+      <section class="panel" id="audit">
+        <div class="section-head">
+          <div>
+            <div class="section-kicker">Audit explorer</div>
+            <h2>Governed actions</h2>
+            <p>The audit rows currently stored by the runtime. Click a row to inspect the full record.</p>
           </div>
-          <div class="controls">
-            <div class="field">
-              <label for="audit-search">Search</label>
-              <input id="audit-search" type="text" placeholder="agent, tool, framework, reason">
-            </div>
-            <div class="field">
-              <label for="audit-decision">Decision</label>
-              <select id="audit-decision">
-                <option value="all">All</option>
-                <option value="allow">Allow</option>
-                <option value="review">Review</option>
-                <option value="block">Block</option>
-              </select>
-            </div>
+          <div class="button-row">
+            <button type="button" class="btn ghost" id="export-audit-button">Export visible CSV</button>
           </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Time</th>
-                  <th>Agent</th>
-                  <th>Tool</th>
-                  <th>Decision</th>
-                  <th>Risk</th>
-                  <th>Review</th>
-                </tr>
-              </thead>
-              <tbody id="audit-body"></tbody>
-            </table>
+        </div>
+        <div class="controls">
+          <div class="field">
+            <label for="audit-search">Search</label>
+            <input id="audit-search" type="text" placeholder="agent, tool, framework, reason">
           </div>
-          <div style="margin-top: 14px;" id="audit-detail-container"></div>
-        </section>
+          <div class="field">
+            <label for="audit-decision">Decision</label>
+            <select id="audit-decision">
+              <option value="all">All</option>
+              <option value="allow">Allow</option>
+              <option value="review">Review</option>
+              <option value="block">Block</option>
+            </select>
+          </div>
+        </div>
+        <div class="small" id="audit-count" style="margin-bottom:8px;"></div>
+        <div class="table-wrap scroll-y">
+          <table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Agent</th>
+                <th>Tool</th>
+                <th>Decision</th>
+                <th class="num">Risk</th>
+                <th>Review</th>
+              </tr>
+            </thead>
+            <tbody id="audit-body"></tbody>
+          </table>
+        </div>
+        <div style="margin-top: 14px;" id="audit-detail-container"></div>
+      </section>
 
+      <!-- ── Queues ── -->
+      <div class="grid-2" id="queues">
         <section class="panel">
           <div class="section-head">
             <div>
-              <div class="section-kicker">Review Queue</div>
-              <h2>Pending Decisions</h2>
-              <p>Approve or reject the real pending review items stored in the review queue.</p>
+              <div class="section-kicker">Review queue</div>
+              <h2>Pending decisions</h2>
+              <p>Approve or reject the pending review items stored in the runtime.</p>
             </div>
           </div>
           <div class="stack" id="review-list"></div>
         </section>
+
+        <section class="panel">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Sandbox</div>
+              <h2>Dry-run approvals</h2>
+              <p>Side-effect actions executed in the sandbox first; their impact analysis waits here for an operator.</p>
+            </div>
+          </div>
+          <div class="stack" id="sandbox-list"></div>
+        </section>
       </div>
 
-      <div class="split-2">
+      <!-- ── Agents ── -->
+      <div class="grid-2" id="agents">
         <section class="panel">
           <div class="section-head">
             <div>
               <div class="section-kicker">Agents</div>
-              <h2>Agent Activity</h2>
-              <p>Analytics are sourced from the audit store. Selecting an agent loads fingerprint and rate-limit state.</p>
+              <h2>Agent activity</h2>
+              <p>Sourced from the audit store. Click an agent to load fingerprint and rate-limit state.</p>
             </div>
           </div>
-          <div class="table-wrap">
+          <div class="small" id="agents-count" style="margin-bottom:8px;"></div>
+          <div class="table-wrap scroll-y">
             <table>
               <thead>
                 <tr>
                   <th>Agent</th>
-                  <th>Requests</th>
-                  <th>Avg risk</th>
-                  <th>Trust</th>
+                  <th class="num">Requests</th>
+                  <th class="num">Avg risk</th>
+                  <th class="num">Trust</th>
                   <th>Top tool</th>
                 </tr>
               </thead>
@@ -826,8 +1029,8 @@
         <section class="panel">
           <div class="section-head">
             <div>
-              <div class="section-kicker">Agent Detail</div>
-              <h2>Selected Agent</h2>
+              <div class="section-kicker">Agent detail</div>
+              <h2>Selected agent</h2>
               <p>Joined from analytics, fingerprint, and rate-limit endpoints.</p>
             </div>
           </div>
@@ -835,50 +1038,14 @@
         </section>
       </div>
 
-      <div class="split-3">
+      <!-- ── Evidence ── -->
+      <div class="grid-2" id="evidence">
         <section class="panel">
           <div class="section-head">
             <div>
-              <div class="section-kicker">Runtime Controls</div>
-              <h3>Security Systems</h3>
-            </div>
-          </div>
-          <div class="stack" id="runtime-controls"></div>
-        </section>
-
-        <section class="panel">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Sessions</div>
-              <h3>Active Session Graph</h3>
-            </div>
-          </div>
-          <div class="stack" id="session-list"></div>
-        </section>
-
-        <section class="panel">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Policy Verification</div>
-              <h3>Workspace Policy State</h3>
-            </div>
-          </div>
-          <div class="field" style="margin-bottom: 12px;">
-            <label for="workspace-select">Workspace</label>
-            <select id="workspace-select"></select>
-          </div>
-          <div class="inline-actions">
-            <button type="button" class="btn ghost" id="policy-refresh-button">Refresh Policy Verification</button>
-          </div>
-          <div style="margin-top: 14px;" id="policy-panel"></div>
-        </section>
-
-        <section class="panel">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">M2: Signed Action Receipts</div>
-              <h3>Receipt Chain</h3>
-              <p>Ed25519-signed Merkle log per run. Each row is a verifiable chain.</p>
+              <div class="section-kicker">Signed receipts</div>
+              <h2>Receipt chains</h2>
+              <p>Ed25519-signed Merkle log per run. Verify any run offline: <code class="mono">iaga replay &lt;run_id&gt; --export chain.json</code> then <code class="mono">iaga-verify chain.json</code>.</p>
             </div>
           </div>
           <div id="receipts-meta" class="stack"></div>
@@ -888,7 +1055,7 @@
                 <tr>
                   <th>Run</th>
                   <th>Verdict</th>
-                  <th>Receipts</th>
+                  <th class="num">Receipts</th>
                   <th>Last</th>
                 </tr>
               </thead>
@@ -900,9 +1067,23 @@
         <section class="panel">
           <div class="section-head">
             <div>
-              <div class="section-kicker">M6: APL Live Overlay</div>
-              <h3>Policy Language</h3>
-              <p>Typed DSL evaluator merged stricter-wins with the YAML profile system.</p>
+              <div class="section-kicker">Telemetry</div>
+              <h2>Spans & metrics</h2>
+              <p>In-process OpenTelemetry feed. Build with <code class="mono">--features otel-receipts</code> to emit one span per signed receipt.</p>
+            </div>
+          </div>
+          <div id="telemetry-panel" class="stack"></div>
+        </section>
+      </div>
+
+      <!-- ── Policy ── -->
+      <div class="grid-2" id="policy">
+        <section class="panel">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">APL overlay</div>
+              <h2>Policy language</h2>
+              <p>Typed DSL merged stricter-wins over the YAML profile system: APL can tighten a verdict, never relax it.</p>
             </div>
           </div>
           <div id="apl-overlay-panel" class="stack"></div>
@@ -911,25 +1092,181 @@
         <section class="panel">
           <div class="section-head">
             <div>
-              <div class="section-kicker">M3.5: Reasoning Plane</div>
-              <h3>ML Evidence Engine</h3>
-              <p>Probabilistic engine producing evidence; deterministic policy still decides.</p>
+              <div class="section-kicker">Policy verification</div>
+              <h2>Workspace policy state</h2>
             </div>
           </div>
-          <div id="reasoning-panel" class="stack"></div>
+          <div class="controls">
+            <div class="field">
+              <label for="workspace-select">Workspace</label>
+              <select id="workspace-select"></select>
+            </div>
+            <div class="field" style="flex:0 0 auto; align-self:flex-end;">
+              <button type="button" class="btn ghost" id="policy-refresh-button">Re-verify</button>
+            </div>
+          </div>
+          <div id="policy-panel"></div>
+        </section>
+      </div>
+
+      <!-- ── Runtime ── -->
+      <section class="panel" id="runtime">
+        <div class="section-head">
+          <div>
+            <div class="section-kicker">Runtime</div>
+            <h2>Security systems</h2>
+            <p>Kernel, reasoning, firewall, threat intel, adaptive risk, rate limits, and session state, straight from the runtime.</p>
+          </div>
+        </div>
+        <div class="grid-3" style="margin-top:0;">
+          <div class="detail">
+            <h4>Enforcement kernel</h4>
+            <div id="kernel-panel" class="stack"></div>
+          </div>
+          <div class="detail">
+            <h4>Reasoning plane</h4>
+            <div id="reasoning-panel" class="stack"></div>
+          </div>
+          <div class="detail">
+            <h4>Adaptive risk weights</h4>
+            <div id="risk-weights-panel"></div>
+          </div>
+          <div class="detail">
+            <h4>Injection firewall</h4>
+            <div id="firewall-panel" class="stack"></div>
+          </div>
+          <div class="detail">
+            <h4>Threat intel</h4>
+            <div id="threat-panel" class="stack"></div>
+          </div>
+          <div class="detail">
+            <h4>Rate limits & templates</h4>
+            <div id="rate-panel" class="stack"></div>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="detail">
+            <h4>Active sessions</h4>
+            <div class="stack" id="session-list"></div>
+          </div>
+          <div class="detail">
+            <h4>Runtime health</h4>
+            <div id="health-panel" class="stack"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Plugins ── -->
+      <section class="panel" id="plugins">
+        <div class="section-head">
+          <div>
+            <div class="section-kicker">Plugins</div>
+            <h2>WASM plugins</h2>
+            <p>Loaded from the plugin directory; findings merge into the policy verdict. Validate with <code class="mono">iaga plugins validate &lt;file.wasm&gt;</code>.</p>
+          </div>
+          <div class="button-row">
+            <button type="button" class="btn ghost" id="plugins-reload-button">Reload plugins</button>
+          </div>
+        </div>
+        <div id="plugins-meta" class="stack" style="margin-bottom:12px;"></div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Version</th>
+                <th>Status</th>
+                <th>Path</th>
+              </tr>
+            </thead>
+            <tbody id="plugins-body"></tbody>
+          </table>
+        </div>
+        <div id="plugin-errors" style="margin-top:12px;"></div>
+      </section>
+
+      <!-- ── Webhooks ── -->
+      <div class="grid-2" id="webhooks">
+        <section class="panel">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Webhooks</div>
+              <h2>Registered endpoints</h2>
+              <p>Governance events are delivered to these URLs, HMAC-signed when a secret is set.</p>
+            </div>
+          </div>
+          <div class="controls">
+            <div class="field">
+              <label for="webhook-url-input">Endpoint URL</label>
+              <input id="webhook-url-input" type="url" placeholder="https://example.org/hooks/iaga">
+            </div>
+            <div class="field" style="flex:0 0 auto; align-self:flex-end;">
+              <button type="button" class="btn primary" id="webhook-create-button">Register</button>
+            </div>
+          </div>
+          <div class="stack" id="webhook-list"></div>
         </section>
 
         <section class="panel">
           <div class="section-head">
             <div>
-              <div class="section-kicker">M4: Enforcement Kernel</div>
-              <h3>Kernel Backend</h3>
-              <p>Userspace launcher today; eBPF/LSM loader ships in 1.0.1.</p>
+              <div class="section-kicker">Dead letter queue</div>
+              <h2>Failed deliveries</h2>
+              <p>Deliveries that exhausted retries. Retry or drop them here.</p>
             </div>
           </div>
-          <div id="kernel-panel" class="stack"></div>
+          <div class="stack" id="dlq-list"></div>
         </section>
       </div>
+
+      <!-- ── Identities ── -->
+      <section class="panel" id="identities">
+        <div class="section-head">
+          <div>
+            <div class="section-kicker">Non-human identities</div>
+            <h2>Agent identities</h2>
+            <p>Registered NHI identities with SPIFFE IDs, attestation state, and capability grants.</p>
+          </div>
+        </div>
+        <div class="small" id="identities-count" style="margin-bottom:8px;"></div>
+        <div class="table-wrap scroll-y">
+          <table>
+            <thead>
+              <tr>
+                <th>Agent</th>
+                <th>SPIFFE ID</th>
+                <th>Attestation</th>
+                <th class="num">Trust</th>
+                <th>Capabilities</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody id="identities-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ── Live feed ── -->
+      <section class="panel" id="live">
+        <div class="section-head">
+          <div>
+            <div class="section-kicker">Live feed</div>
+            <h2 class="live-head"><span class="live-dot" id="live-dot"></span> Governance events</h2>
+            <p>Streamed from <code class="mono">/v1/events/stream</code> over server-sent events: one row per verdict, review, and resolution.</p>
+          </div>
+          <div class="button-row live-controls">
+            <button type="button" class="btn ghost small" id="live-toggle-button">Pause</button>
+            <button type="button" class="btn ghost small" id="live-clear-button">Clear</button>
+          </div>
+        </div>
+        <div class="small" id="live-status">Stream idle.</div>
+        <div class="feed" id="live-feed"></div>
+      </section>
+
+      <footer class="console-foot">
+        <span>IAGA Sentinel · evidence, not testimony</span>
+        <span id="foot-version"></span>
+      </footer>
     </main>
   </div>
 
@@ -945,10 +1282,18 @@ const state = {
   selectedWorkspaceId: '',
   refreshTimer: null,
   refreshing: false,
+  costTab: 'model',
+  live: {
+    enabled: true,
+    running: false,
+    abort: null,
+    events: []
+  },
   data: {
     auditStats: null,
     audit: [],
     reviews: [],
+    sandbox: [],
     agents: [],
     sessions: [],
     firewall: null,
@@ -956,20 +1301,31 @@ const state = {
     telemetryMetrics: [],
     telemetrySpans: [],
     dlq: [],
+    webhooks: [],
     rateConfig: null,
+    templates: null,
     workspaces: [],
+    riskWeights: null,
+    plugins: null,
+    identities: [],
+    receipts: null,
+    policyOverlay: null,
+    reasoningStatus: null,
+    kernelStatus: null,
     cost: null,
     costByModel: null,
+    costByAgent: null,
+    costByTool: null,
+    costOverTime: null,
+    costBudget: null,
+    costPricing: null,
     policyVerify: null,
-    selectedAgent: {
-      analytics: null,
-      fingerprint: null,
-      rate: null
-    }
+    selectedAgent: { analytics: null, fingerprint: null, rate: null }
   }
 };
 
 const REFRESH_MS = 15000;
+const FEED_MAX = 100;
 
 function $(id) {
   return document.getElementById(id);
@@ -988,14 +1344,31 @@ function formatNumber(value, digits = 0) {
     : '--';
 }
 
+function formatUsd(value, digits = 4) {
+  const number = Number(value || 0);
+  return '$' + (Number.isFinite(number) ? number.toFixed(digits) : '0.0000');
+}
+
 function formatTimestamp(value) {
   if (!value) return '--';
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
 }
 
+function formatEpoch(value) {
+  const n = Number(value || 0);
+  if (!n) return '--';
+  const ms = n > 1e12 ? n : n * 1000;
+  const date = new Date(ms);
+  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
+}
+
 function formatDecisionBadge(decision) {
-  const tone = decision === 'allow' ? 'allow' : decision === 'review' ? 'review' : decision === 'block' ? 'block' : 'neutral';
+  const d = String(decision || 'unknown').toLowerCase();
+  const tone = d === 'allow' || d === 'approved' ? 'allow'
+    : d === 'review' || d === 'pending' ? 'review'
+    : d === 'block' || d === 'rejected' ? 'block'
+    : 'neutral';
   return `<span class="badge ${tone}">${esc(decision || 'unknown')}</span>`;
 }
 
@@ -1080,16 +1453,17 @@ function renderContext() {
     `${context.service} ${context.version} · ${context.mode}`,
     context.ok ? 'success' : 'error'
   );
+  $('foot-version').textContent = `${context.service} ${context.version}`;
 
   if (context.openMode) {
-    updatePill('auth-pill', 'Open mode enabled', 'success');
-    $('auth-help').textContent = 'Open mode is enabled. The dashboard can load live data without an API key.';
+    updatePill('auth-pill', 'Open mode', 'success');
+    $('auth-help').textContent = 'Open mode is enabled. The console loads live data without an API key.';
   } else if (context.apiKeysConfigured) {
     updatePill('auth-pill', 'API key required', 'warn');
-    $('auth-help').innerHTML = 'Protected runtime. Paste a valid API key, then click <code>Connect</code> to load live data.';
+    $('auth-help').innerHTML = 'Protected runtime. Paste a valid API key, then <code>Connect</code> to load live data.';
   } else {
     updatePill('auth-pill', 'No API key configured', 'warn');
-    $('auth-help').innerHTML = 'The runtime is protected and no key is available in the browser. Run <code>iaga gen-key</code>, then paste the generated key here.';
+    $('auth-help').innerHTML = 'The runtime is protected and no key exists yet. Run <code>iaga gen-key</code>, then paste the generated key here.';
   }
 }
 
@@ -1118,6 +1492,7 @@ async function refreshData() {
       state.connected = false;
       state.unauthorized = true;
       state.lastError = '';
+      stopLiveFeed();
       renderAll();
       return;
     }
@@ -1126,6 +1501,7 @@ async function refreshData() {
       state.connected = false;
       state.unauthorized = false;
       state.lastError = auditStatsResponse.error || `Failed to load dashboard data (${auditStatsResponse.status || 'network error'})`;
+      stopLiveFeed();
       renderAll();
       return;
     }
@@ -1138,51 +1514,76 @@ async function refreshData() {
     const responses = await Promise.all([
       fetchJson('/v1/audit'),
       fetchJson('/v1/reviews'),
+      fetchJson('/v1/sandbox/pending'),
       fetchJson('/v1/analytics/agents'),
       fetchJson('/v1/sessions'),
       fetchJson('/v1/firewall/stats'),
       fetchJson('/v1/threat-intel/stats'),
       fetchJson('/v1/telemetry/metrics'),
       fetchJson('/v1/telemetry/spans'),
+      fetchJson('/v1/webhooks'),
       fetchJson('/v1/webhooks/dlq'),
       fetchJson('/v1/rate-limit/config'),
+      fetchJson('/v1/templates'),
       fetchJson('/v1/workspaces'),
-      // 1.0 pillar surfaces
+      fetchJson('/v1/risk/weights'),
+      fetchJson('/v1/plugins'),
+      fetchJson('/v1/nhi/identities'),
       fetchJson('/v1/receipts?limit=20'),
       fetchJson('/v1/policy/overlay'),
       fetchJson('/v1/reasoning/status'),
       fetchJson('/v1/kernel/status'),
-      // 1.5 cost-control surfaces
       fetchJson('/v1/cost/summary'),
-      fetchJson('/v1/cost/by-model')
+      fetchJson('/v1/cost/by-model'),
+      fetchJson('/v1/cost/by-agent'),
+      fetchJson('/v1/cost/by-tool'),
+      fetchJson('/v1/cost/over-time?bucket=hour'),
+      fetchJson('/v1/cost/budget'),
+      fetchJson('/v1/cost/pricing')
     ]);
 
-    const [audit, reviews, agents, sessions, firewall, threat, telemetryMetrics, telemetrySpans, dlq, rateConfig, workspaces, receipts, policyOverlay, reasoningStatus, kernelStatus, cost, costByModel] = responses;
+    const [
+      audit, reviews, sandbox, agents, sessions, firewall, threat,
+      telemetryMetrics, telemetrySpans, webhooks, dlq, rateConfig, templates,
+      workspaces, riskWeights, plugins, identities, receipts, policyOverlay,
+      reasoningStatus, kernelStatus, cost, costByModel, costByAgent,
+      costByTool, costOverTime, costBudget, costPricing
+    ] = responses;
 
     state.data.audit = Array.isArray(audit.data) ? audit.data : [];
     state.data.reviews = Array.isArray(reviews.data) ? reviews.data : [];
+    state.data.sandbox = Array.isArray(sandbox.data) ? sandbox.data : [];
     state.data.agents = Array.isArray(agents.data) ? agents.data : [];
     state.data.sessions = Array.isArray(sessions.data) ? sessions.data : [];
     state.data.firewall = firewall.ok ? firewall.data : null;
     state.data.threat = threat.ok ? threat.data : null;
     state.data.telemetryMetrics = Array.isArray(telemetryMetrics.data) ? telemetryMetrics.data : [];
     state.data.telemetrySpans = Array.isArray(telemetrySpans.data) ? telemetrySpans.data : [];
+    state.data.webhooks = Array.isArray(webhooks.data) ? webhooks.data : [];
     state.data.dlq = Array.isArray(dlq.data) ? dlq.data : [];
     state.data.rateConfig = rateConfig.ok ? rateConfig.data : null;
+    state.data.templates = templates.ok ? templates.data : null;
     state.data.workspaces = Array.isArray(workspaces.data) ? workspaces.data : [];
+    state.data.riskWeights = riskWeights.ok ? riskWeights.data : null;
+    state.data.plugins = plugins.ok ? plugins.data : null;
+    state.data.identities = Array.isArray(identities.data) ? identities.data : [];
     state.data.receipts = receipts.ok ? receipts.data : null;
     state.data.policyOverlay = policyOverlay.ok ? policyOverlay.data : null;
     state.data.reasoningStatus = reasoningStatus.ok ? reasoningStatus.data : null;
     state.data.kernelStatus = kernelStatus.ok ? kernelStatus.data : null;
     state.data.cost = cost.ok ? cost.data : null;
     state.data.costByModel = costByModel.ok ? costByModel.data : null;
+    state.data.costByAgent = costByAgent.ok ? costByAgent.data : null;
+    state.data.costByTool = costByTool.ok ? costByTool.data : null;
+    state.data.costOverTime = costOverTime.ok ? costOverTime.data : null;
+    state.data.costBudget = costBudget.ok ? costBudget.data : null;
+    state.data.costPricing = costPricing.ok ? costPricing.data : null;
 
     if (state.data.workspaces.length > 0) {
-      const workspaceStillExists = state.data.workspaces.some((workspace) => workspace.workspaceId === state.selectedWorkspaceId);
-      if (!state.selectedWorkspaceId || !workspaceStillExists) {
+      const stillThere = state.data.workspaces.some((w) => w.workspaceId === state.selectedWorkspaceId);
+      if (!state.selectedWorkspaceId || !stillThere) {
         state.selectedWorkspaceId = state.data.workspaces[0].workspaceId;
       }
-      $('workspace-select').value = state.selectedWorkspaceId;
       await loadPolicyVerification();
     } else {
       state.selectedWorkspaceId = '';
@@ -1201,6 +1602,10 @@ async function refreshData() {
 
     updatePill('refresh-pill', `Last refresh: ${new Date().toLocaleTimeString()}`, 'success');
     renderAll();
+
+    if (state.live.enabled && !state.live.running) {
+      startLiveFeed();
+    }
   } finally {
     state.refreshing = false;
     $('refresh-button').disabled = false;
@@ -1268,171 +1673,30 @@ function renderAll() {
   renderCost();
   renderAudit();
   renderReviews();
+  renderSandbox();
   renderAgents();
   renderAgentDetail();
-  renderRuntime();
-  renderSessions();
-  renderPolicyPanel();
-  // 1.0 pillar surfaces
   renderReceipts();
+  renderTelemetry();
   renderAplOverlay();
-  renderReasoning();
+  renderPolicyPanel();
   renderKernel();
-}
-
-function renderCost() {
-  const meta = $('cost-meta');
-  const byModel = $('cost-by-model');
-  if (!meta || !byModel) return;
-  const fmt = (n) => '$' + (Number(n) || 0).toFixed(4);
-  const num = (n) => (Number(n) || 0).toLocaleString();
-  const summary = state.data.cost;
-  if (!summary || summary.enabled === false) {
-    $('card-cost-net').textContent = '$0.0000';
-    $('card-cost-gross').textContent = '$0.0000';
-    $('card-cost-savings').textContent = '$0.0000';
-    $('card-cost-tokens').textContent = '0';
-    $('card-cost-actions').textContent = '0 priced actions';
-    byModel.innerHTML = '';
-    meta.innerHTML = '<div class="hint">Cost control is disabled on this build.</div>';
-    return;
-  }
-  const s = summary.summary || {};
-  $('card-cost-net').textContent = fmt(s.netCostUsd);
-  $('card-cost-gross').textContent = fmt(s.grossCostUsd);
-  $('card-cost-savings').textContent = fmt(s.savingsUsd);
-  $('card-cost-tokens').textContent = num(s.totalTokens);
-  $('card-cost-cachehit').textContent = `${num(s.cacheHits)} cache hits`;
-  $('card-cost-actions').textContent = `${num(s.totalActions)} priced actions`;
-
-  const rows = (state.data.costByModel && Array.isArray(state.data.costByModel.rows))
-    ? state.data.costByModel.rows : [];
-  if (rows.length === 0) {
-    byModel.innerHTML = '<div class="hint">No priced actions yet. Report usage on an inspect call to see spend here.</div>';
-  } else {
-    byModel.innerHTML = rows.map((r) => `
-      <div class="kv-row">
-        <span class="kv-key mono">${esc(r.key || '(none)')}</span>
-        <span class="kv-val">${fmt(r.netCostUsd)} · ${num(r.totalTokens)} tok · ${num(r.actions)} act</span>
-      </div>`).join('');
-  }
-  meta.innerHTML = '';
-}
-
-function renderReceipts() {
-  const meta = $('receipts-meta');
-  const body = $('receipts-body');
-  if (!meta || !body) return;
-  const r = state.data.receipts;
-  if (!r || !r.enabled) {
-    meta.innerHTML = '<div class="hint">Signed receipts disabled on this build.</div>';
-    body.innerHTML = '';
-    return;
-  }
-  const signer = esc(r.signerKeyId || '(unknown)');
-  const policyHash = esc((r.policyHash || '').slice(0, 32) + '…');
-  meta.innerHTML = `
-    <div class="kv-row"><span class="kv-key">Signer</span><span class="kv-val mono">${signer}</span></div>
-    <div class="kv-row"><span class="kv-key">Policy hash</span><span class="kv-val mono">${policyHash}</span></div>
-  `;
-  const runs = Array.isArray(r.runs) ? r.runs : [];
-  if (runs.length === 0) {
-    body.innerHTML = '<tr><td colspan="4" class="muted">No signed runs yet. Trigger an inspection to see one here.</td></tr>';
-    return;
-  }
-  body.innerHTML = runs.slice(0, 12).map((run) => {
-    const verdict = (run.terminalVerdict || run.terminal_verdict || 'unknown').toString().toLowerCase();
-    const verdictClass = verdict === 'block' ? 'block' : verdict === 'review' ? 'review' : 'allow';
-    const last = run.lastTimestamp || run.last_timestamp || '';
-    const count = run.receiptCount || run.receipt_count || 0;
-    const runId = run.runId || run.run_id || '';
-    return `<tr>
-      <td class="mono">${esc(runId.slice(0, 12))}…</td>
-      <td><span class="badge ${verdictClass}">${esc(verdict)}</span></td>
-      <td>${count}</td>
-      <td class="muted small">${esc(last.slice(0, 19))}</td>
-    </tr>`;
-  }).join('');
-}
-
-function renderAplOverlay() {
-  const panel = $('apl-overlay-panel');
-  if (!panel) return;
-  const o = state.data.policyOverlay;
-  if (!o) {
-    panel.innerHTML = '<div class="hint">No data.</div>';
-    return;
-  }
-  if (!o.enabled) {
-    panel.innerHTML = '<div class="hint">APL feature not compiled in this build.</div>';
-    return;
-  }
-  if (!o.loaded) {
-    panel.innerHTML = '<div class="hint">No APL overlay loaded. Start with <code>iaga serve --policy &lt;file.apl&gt;</code> to enable.</div>';
-    return;
-  }
-  const hash = esc((o.policyHash || '').slice(0, 32) + '…');
-  panel.innerHTML = `
-    <div class="kv-row"><span class="kv-key">Status</span><span class="kv-val"><span class="badge allow">loaded</span></span></div>
-    <div class="kv-row"><span class="kv-key">Policies</span><span class="kv-val">${o.policyCount}</span></div>
-    <div class="kv-row"><span class="kv-key">Bundle hash</span><span class="kv-val mono">${hash}</span></div>
-    <div class="kv-row"><span class="kv-key">Source</span><span class="kv-val mono small">${esc(o.source || '')}</span></div>
-  `;
-}
-
-function renderReasoning() {
-  const panel = $('reasoning-panel');
-  if (!panel) return;
-  const r = state.data.reasoningStatus;
-  if (!r) {
-    panel.innerHTML = '<div class="hint">No data.</div>';
-    return;
-  }
-  if (!r.enabled) {
-    panel.innerHTML = '<div class="hint">Reasoning plane disabled.</div>';
-    return;
-  }
-  const engineBadge = r.engine === 'noop' ? 'review' : 'allow';
-  const mlBadge = r.mlFeatureCompiled ? 'allow' : 'review';
-  let modelsHtml = '<span class="muted small">no models loaded</span>';
-  if (Array.isArray(r.models) && r.models.length > 0) {
-    modelsHtml = r.models.map((m) =>
-      `<div class="kv-row"><span class="kv-key">${esc(m.name)}</span><span class="kv-val mono small">${esc((m.sha256 || '').slice(0, 16))}…</span></div>`
-    ).join('');
-  }
-  panel.innerHTML = `
-    <div class="kv-row"><span class="kv-key">Engine</span><span class="kv-val"><span class="badge ${engineBadge}">${esc(r.engine)}</span></span></div>
-    <div class="kv-row"><span class="kv-key">ML feature compiled</span><span class="kv-val"><span class="badge ${mlBadge}">${r.mlFeatureCompiled ? 'yes' : 'no'}</span></span></div>
-    <div class="kv-row"><span class="kv-key">Models</span><span class="kv-val">${Array.isArray(r.models) ? r.models.length : 0}</span></div>
-    ${modelsHtml}
-  `;
-}
-
-function renderKernel() {
-  const panel = $('kernel-panel');
-  if (!panel) return;
-  const k = state.data.kernelStatus;
-  if (!k) {
-    panel.innerHTML = '<div class="hint">No data.</div>';
-    return;
-  }
-  if (!k.enabled) {
-    panel.innerHTML = '<div class="hint">Kernel feature not compiled.</div>';
-    return;
-  }
-  const authBadge = k.authoritative ? 'allow' : 'review';
-  const bpfBadge = k.linuxBpfScaffold ? 'allow' : 'review';
-  panel.innerHTML = `
-    <div class="kv-row"><span class="kv-key">Backend</span><span class="kv-val"><span class="badge allow">${esc(k.backend)}</span></span></div>
-    <div class="kv-row"><span class="kv-key">Authoritative</span><span class="kv-val"><span class="badge ${authBadge}">${k.authoritative ? 'yes' : 'soft enforcement'}</span></span></div>
-    <div class="kv-row"><span class="kv-key">linux-bpf scaffold</span><span class="kv-val"><span class="badge ${bpfBadge}">${k.linuxBpfScaffold ? 'compiled' : 'not active'}</span></span></div>
-    <div class="hint" style="margin-top: 8px;">Real eBPF/LSM loader ships in 1.0.1.</div>
-  `;
+  renderReasoning();
+  renderRiskWeights();
+  renderFirewall();
+  renderThreat();
+  renderRateAndTemplates();
+  renderSessions();
+  renderHealth();
+  renderPlugins();
+  renderWebhooks();
+  renderDlq();
+  renderIdentities();
 }
 
 function renderConnectionState() {
   if (state.connected) {
-    setBanner('success', 'Connected to the live runtime. Cards, tables, and actions are backed by the actual HTTP API state.');
+    setBanner('success', 'Connected. Every panel below is backed by the live HTTP API state.');
     return;
   }
 
@@ -1440,7 +1704,7 @@ function renderConnectionState() {
     if (state.context && !state.context.apiKeysConfigured && !state.context.openMode) {
       setBanner('warn', 'This runtime is protected and no API key is configured for browser access yet. Run <code>iaga gen-key</code>, then paste the key above and reconnect.');
     } else {
-      setBanner('warn', 'This dashboard only renders live data. Paste a valid API key above to access the protected runtime endpoints.');
+      setBanner('warn', 'This console only renders live data. Paste a valid API key above to access the protected runtime endpoints.');
     }
     return;
   }
@@ -1453,22 +1717,163 @@ function renderConnectionState() {
   setBanner('info', 'Waiting for a live runtime connection.');
 }
 
+/* ── Overview ── */
+
 function renderOverview() {
   const stats = state.data.auditStats || {};
   const pendingReviews = state.data.reviews.filter((review) => review.status === 'pending').length;
-  $('card-total-events').textContent = formatNumber(stats.totalEvents || 0);
-  $('card-total-events-sub').textContent = `${pendingReviews} pending review${pendingReviews === 1 ? '' : 's'}`;
-  $('card-allow').textContent = formatNumber(decisionCount(stats, 'allow'));
-  $('card-review').textContent = formatNumber(decisionCount(stats, 'review'));
-  $('card-block').textContent = formatNumber(decisionCount(stats, 'block'));
-  $('card-sessions').textContent = formatNumber(state.data.sessions.length);
-  $('card-agents').textContent = formatNumber(state.data.agents.length);
-  $('card-risk-sub').textContent = `Average risk ${formatNumber(stats.avgRiskScore || 0, 1)}`;
+  const allow = decisionCount(stats, 'allow');
+  const review = decisionCount(stats, 'review');
+  const block = decisionCount(stats, 'block');
+  const total = Number(stats.totalEvents || 0);
+
+  $('stat-total').textContent = formatNumber(total);
+  $('stat-total-sub').textContent = `${pendingReviews} pending review${pendingReviews === 1 ? '' : 's'}`;
+  $('stat-allow').textContent = formatNumber(allow);
+  $('stat-review').textContent = formatNumber(review);
+  $('stat-block').textContent = formatNumber(block);
+  $('stat-sessions').textContent = formatNumber(state.data.sessions.length);
+  $('stat-agents').textContent = formatNumber(state.data.agents.length);
+  $('stat-agents-sub').textContent = `Average risk ${formatNumber(stats.avgRiskScore || 0, 1)}`;
+
+  const meter = $('decision-meter');
+  const legend = $('decision-meter-legend');
+  const sum = allow + review + block;
+  if (sum === 0) {
+    meter.innerHTML = '';
+    legend.innerHTML = '<span>No decisions recorded yet · POST an action to <b>/v1/inspect</b> to see the mix here</span>';
+    return;
+  }
+  const pct = (n) => ((n / sum) * 100).toFixed(2);
+  meter.innerHTML = `
+    <span class="seg-allow" style="width:${pct(allow)}%"></span>
+    <span class="seg-review" style="width:${pct(review)}%"></span>
+    <span class="seg-block" style="width:${pct(block)}%"></span>
+  `;
+  legend.innerHTML = `
+    <span>allow <b>${formatNumber(allow)}</b> (${pct(allow)}%)</span>
+    <span>review <b>${formatNumber(review)}</b> (${pct(review)}%)</span>
+    <span>block <b>${formatNumber(block)}</b> (${pct(block)}%)</span>
+  `;
 }
+
+/* ── Cost ── */
+
+function costRowsFor(tab) {
+  const source = tab === 'agent' ? state.data.costByAgent
+    : tab === 'tool' ? state.data.costByTool
+    : state.data.costByModel;
+  return source && Array.isArray(source.rows) ? source.rows : [];
+}
+
+function renderCost() {
+  const summary = state.data.cost;
+  const disabled = $('cost-disabled');
+  const enabled = $('cost-enabled');
+
+  if (!summary || summary.enabled === false) {
+    disabled.className = 'empty';
+    disabled.innerHTML = 'Cost control is not compiled into this build. Rebuild with <code>cargo install --path crates/iaga-sentinel-core --features cost-control</code> to meter LLM spend, enforce session budgets, and cache safe repeated calls.';
+    enabled.classList.add('hidden');
+    return;
+  }
+
+  disabled.className = 'hidden';
+  disabled.innerHTML = '';
+  enabled.classList.remove('hidden');
+
+  const s = summary.summary || {};
+  $('cost-net').textContent = formatUsd(s.netCostUsd);
+  $('cost-gross').textContent = formatUsd(s.grossCostUsd);
+  $('cost-saved').textContent = formatUsd(s.savingsUsd);
+  $('cost-tokens').textContent = formatNumber(s.totalTokens);
+  $('cost-cache-sub').textContent = `${formatNumber(s.cacheHits)} cache hits`;
+  $('cost-actions-sub').textContent = `${formatNumber(s.totalActions)} priced actions`;
+
+  const budget = state.data.costBudget;
+  const limit = budget && budget.enabled !== false ? budget.sessionLimitUsd : null;
+  if (limit != null) {
+    $('cost-budget').textContent = formatUsd(limit, 2);
+    $('cost-budget-sub').textContent = 'Per-session cap, stricter-wins';
+  } else {
+    $('cost-budget').textContent = '—';
+    $('cost-budget-sub').textContent = 'Set IAGA_SENTINEL_SESSION_BUDGET_USD';
+  }
+
+  // Breakdown table
+  const headLabel = state.costTab === 'agent' ? 'Agent' : state.costTab === 'tool' ? 'Tool' : 'Model';
+  $('cost-breakdown-key-head').textContent = headLabel;
+  const rows = costRowsFor(state.costTab);
+  const body = $('cost-breakdown-body');
+  if (rows.length === 0) {
+    body.innerHTML = `<tr><td colspan="6"><div class="empty">No priced actions yet. Include a <code>usage</code> object on a <code>/v1/inspect</code> call to see spend attributed by ${esc(headLabel.toLowerCase())}.</div></td></tr>`;
+  } else {
+    const maxNet = Math.max(...rows.map((r) => Number(r.netCostUsd) || 0), 0.000001);
+    body.innerHTML = rows.map((r) => {
+      const share = Math.max(2, Math.round(((Number(r.netCostUsd) || 0) / maxNet) * 100));
+      return `<tr>
+        <td class="mono">${esc(r.key || '(none)')}</td>
+        <td class="num">${formatUsd(r.netCostUsd)}</td>
+        <td class="num">${formatUsd(r.savingsUsd)}</td>
+        <td class="num">${formatNumber(r.totalTokens)}</td>
+        <td class="num">${formatNumber(r.actions)}</td>
+        <td style="min-width:90px;"><div class="meter" style="height:8px;"><span class="seg-allow" style="width:${share}%"></span></div></td>
+      </tr>`;
+    }).join('');
+  }
+
+  // Over time
+  const trend = $('cost-trend');
+  const note = $('cost-trend-note');
+  const meta = $('cost-trend-meta');
+  const overTime = state.data.costOverTime;
+  const buckets = overTime && Array.isArray(overTime.rows) ? overTime.rows.slice(-36) : [];
+  if (buckets.length === 0) {
+    trend.innerHTML = '';
+    trend.style.borderBottom = 'none';
+    note.innerHTML = '<span>No spend buckets yet</span>';
+    meta.textContent = '';
+  } else {
+    trend.style.borderBottom = '';
+    const maxNet = Math.max(...buckets.map((b) => Number(b.netCostUsd) || 0), 0.000001);
+    trend.innerHTML = buckets.map((b) => {
+      const h = Math.max(3, Math.round(((Number(b.netCostUsd) || 0) / maxNet) * 100));
+      return `<div class="bar" style="height:${h}%" title="${esc(b.bucket)} · ${formatUsd(b.netCostUsd)} · ${formatNumber(b.totalTokens)} tok"></div>`;
+    }).join('');
+    note.innerHTML = `<span>${esc(buckets[0].bucket)}</span><span>${esc(buckets[buckets.length - 1].bucket)}</span>`;
+    meta.textContent = `${buckets.length} ${esc((overTime && overTime.bucket) || 'hour')} buckets`;
+  }
+
+  // Pricing
+  const pricing = state.data.costPricing;
+  const hint = $('cost-pricing-hint');
+  if (pricing && pricing.enabled !== false && pricing.pricing && pricing.pricing.providers) {
+    const providers = pricing.pricing.providers;
+    let models = 0;
+    Object.keys(providers).forEach((p) => { models += Object.keys(providers[p] || {}).length; });
+    hint.innerHTML = `Local pricing table: <b>${Object.keys(providers).length}</b> providers · <b>${models}</b> model rates. Override with <code>IAGA_SENTINEL_PRICING_FILE</code>; a caller-supplied cost always wins.`;
+  } else {
+    hint.innerHTML = 'Pricing table unavailable.';
+  }
+}
+
+function setCostTab(tab) {
+  state.costTab = tab;
+  document.querySelectorAll('[data-cost-tab]').forEach((b) => {
+    const active = b.getAttribute('data-cost-tab') === tab;
+    b.classList.toggle('active', active);
+    b.setAttribute('aria-pressed', String(active));
+  });
+  renderCost();
+}
+
+/* ── Audit ── */
 
 function renderAudit() {
   const tbody = $('audit-body');
   const rows = filteredAuditRows();
+
+  $('audit-count').textContent = `${rows.length} of ${state.data.audit.length} stored events match`;
 
   if (!state.selectedAuditId && rows.length > 0) {
     state.selectedAuditId = rows[0].eventId;
@@ -1483,12 +1888,12 @@ function renderAudit() {
   tbody.innerHTML = rows.map((event) => {
     const selected = event.eventId === state.selectedAuditId ? 'selected' : '';
     return `
-      <tr class="${selected}" data-event-id="${esc(event.eventId)}">
+      <tr class="row-click ${selected}" data-event-id="${esc(event.eventId)}">
         <td>${esc(formatTimestamp(event.timestamp))}</td>
         <td>${esc(event.agentId)}</td>
-        <td>${esc(event.toolName)}</td>
+        <td class="mono">${esc(event.toolName)}</td>
         <td>${formatDecisionBadge(event.decision)}</td>
-        <td>${esc(formatNumber(event.riskScore || 0))}</td>
+        <td class="num">${esc(formatNumber(event.riskScore || 0))}</td>
         <td>${formatDecisionBadge(event.reviewStatus || 'not_required')}</td>
       </tr>
     `;
@@ -1507,7 +1912,7 @@ function renderAudit() {
     $('audit-detail-container').innerHTML = `
       <div class="detail">
         <h4>Selected audit record</h4>
-        <div class="kv"><div class="k">Event ID</div><div>${esc(selected.eventId)}</div></div>
+        <div class="kv"><div class="k">Event ID</div><div class="mono">${esc(selected.eventId)}</div></div>
         <div class="kv"><div class="k">Framework</div><div>${esc(selected.framework)}</div></div>
         <div class="kv"><div class="k">Action</div><div>${esc(selected.actionType)}</div></div>
         <div class="kv"><div class="k">Decision</div><div>${formatDecisionBadge(selected.decision)}</div></div>
@@ -1520,28 +1925,57 @@ function renderAudit() {
   }
 }
 
+function exportVisibleAudit() {
+  const rows = filteredAuditRows();
+  const header = ['eventId', 'timestamp', 'agentId', 'framework', 'toolName', 'actionType', 'decision', 'reviewStatus', 'riskScore', 'reasons'];
+  const csv = [header.join(',')]
+    .concat(rows.map((event) => [
+      event.eventId,
+      event.timestamp,
+      event.agentId,
+      event.framework,
+      event.toolName,
+      event.actionType,
+      event.decision,
+      event.reviewStatus,
+      event.riskScore,
+      (event.reasons || []).join(' | ')
+    ].map((value) => `"${String(value == null ? '' : value).replace(/"/g, '""')}"`).join(',')))
+    .join('\n');
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'iaga-sentinel-audit-visible.csv';
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ── Queues ── */
+
 function renderReviews() {
   const pending = state.data.reviews.filter((review) => review.status === 'pending');
   const container = $('review-list');
 
   if (pending.length === 0) {
-    container.innerHTML = '<div class="empty">No pending reviews in the queue.</div>';
+    container.innerHTML = '<div class="empty">No pending reviews. Actions whose verdict is <code>review</code> appear here for approval.</div>';
     return;
   }
 
   container.innerHTML = pending.map((review) => `
-    <div class="review-item">
-      <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">
-        <div>
-          <h4>${esc(review.agentId)} · ${esc(review.toolName)}</h4>
+    <div class="queue-item">
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap;">
+        <div style="min-width:0;">
+          <h4>${esc(review.agentId)} · <span class="mono">${esc(review.toolName)}</span></h4>
           <p>${esc(listOrFallback(review.reasons || [], 'No reasons recorded'))}</p>
         </div>
         ${formatDecisionBadge(review.decision)}
       </div>
       <div class="small" style="margin-top:10px;">Workspace ${esc(review.workspaceId)} · risk ${esc(review.riskScore)} · created ${esc(formatTimestamp(review.createdAt))}</div>
-      <div class="review-actions">
-        <button type="button" class="btn success" data-review-id="${esc(review.id)}" data-review-action="approved">Approve</button>
-        <button type="button" class="btn danger" data-review-id="${esc(review.id)}" data-review-action="rejected">Reject</button>
+      <div class="queue-actions">
+        <button type="button" class="btn primary small" data-review-id="${esc(review.id)}" data-review-action="approved">Approve</button>
+        <button type="button" class="btn danger small" data-review-id="${esc(review.id)}" data-review-action="rejected">Reject</button>
       </div>
     </div>
   `).join('');
@@ -1560,26 +1994,80 @@ function renderReviews() {
   });
 }
 
+function renderSandbox() {
+  const container = $('sandbox-list');
+  const pending = state.data.sandbox || [];
+
+  if (pending.length === 0) {
+    container.innerHTML = '<div class="empty">No sandboxed executions awaiting approval. Side-effect actions are dry-run first; their impact report lands here.</div>';
+    return;
+  }
+
+  container.innerHTML = pending.map((item) => {
+    const impact = item.impact || {};
+    const severity = String(impact.severity || 'unknown').toLowerCase();
+    const tone = severity === 'high' || severity === 'critical' ? 'block' : severity === 'medium' ? 'review' : 'neutral';
+    return `
+      <div class="queue-item">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap;">
+          <div style="min-width:0;">
+            <h4><span class="mono">${esc(item.toolName)}</span></h4>
+            <p>${esc(impact.summary || 'No impact summary')}</p>
+          </div>
+          <span class="badge ${tone}">${esc(impact.severity || 'unknown')}</span>
+        </div>
+        <div class="small" style="margin-top:10px;">
+          ${esc(formatEpoch(item.timestamp))} · ${esc(formatNumber(item.durationMs))} ms
+          · ${impact.reversible ? 'reversible' : 'NOT reversible'}
+          ${impact.estimatedRowsAffected != null ? ` · ~${esc(formatNumber(impact.estimatedRowsAffected))} rows` : ''}
+        </div>
+        ${Array.isArray(impact.details) && impact.details.length ? `<div class="small" style="margin-top:6px;">${esc(impact.details.join(' · '))}</div>` : ''}
+        <div class="queue-actions">
+          <button type="button" class="btn primary small" data-sandbox-id="${esc(item.executionId)}" data-sandbox-action="approve">Approve</button>
+          <button type="button" class="btn danger small" data-sandbox-id="${esc(item.executionId)}" data-sandbox-action="reject">Reject</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  container.querySelectorAll('[data-sandbox-action]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const id = button.getAttribute('data-sandbox-id');
+      const action = button.getAttribute('data-sandbox-action');
+      button.disabled = true;
+      await fetchJson(`/v1/sandbox/${encodeURIComponent(id)}/${action}`, { method: 'POST' });
+      await refreshData();
+    });
+  });
+}
+
+/* ── Agents ── */
+
 function renderAgents() {
   const tbody = $('agents-body');
-  const agents = [...state.data.agents].sort((left, right) => (right.avgRiskScore || 0) - (left.avgRiskScore || 0));
+  const all = [...state.data.agents].sort((left, right) => (right.avgRiskScore || 0) - (left.avgRiskScore || 0));
+  const agents = all.slice(0, 100);
 
   if (!state.selectedAgentId && agents.length > 0) {
     state.selectedAgentId = agents[0].agentId;
   }
 
+  $('agents-count').textContent = all.length > agents.length
+    ? `Showing the ${agents.length} riskiest of ${all.length} agents`
+    : `${all.length} agents`;
+
   if (agents.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5"><div class="empty">No agent analytics recorded yet.</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5"><div class="empty">No agent analytics yet. Each governed action attributes activity to its agent.</div></td></tr>';
     return;
   }
 
   tbody.innerHTML = agents.map((agent) => `
-    <tr class="${agent.agentId === state.selectedAgentId ? 'selected' : ''}" data-agent-id="${esc(agent.agentId)}">
+    <tr class="row-click ${agent.agentId === state.selectedAgentId ? 'selected' : ''}" data-agent-id="${esc(agent.agentId)}">
       <td>${esc(agent.agentId)}</td>
-      <td>${esc(formatNumber(agent.totalRequests || 0))}</td>
-      <td>${esc(formatNumber(agent.avgRiskScore || 0, 1))}</td>
-      <td>${esc(formatNumber(agent.trustScore || 0, 2))}</td>
-      <td>${esc(topToolName(agent.topTools || []))}</td>
+      <td class="num">${esc(formatNumber(agent.totalRequests || 0))}</td>
+      <td class="num">${esc(formatNumber(agent.avgRiskScore || 0, 1))}</td>
+      <td class="num">${esc(formatNumber(agent.trustScore || 0, 2))}</td>
+      <td class="mono">${esc(topToolName(agent.topTools || []))}</td>
     </tr>
   `).join('');
 
@@ -1628,56 +2116,91 @@ function renderAgentDetail() {
       <div class="kv"><div class="k">Top tools</div><div>${esc(toolList.length ? toolList.map((entry) => `${tupleName(entry)} (${tupleCount(entry)})`).join(', ') : 'No top tools recorded')}</div></div>
       <div class="kv"><div class="k">Decision mix</div><div>${esc(decisionMap.length ? decisionMap.map(([key, value]) => `${key}:${value}`).join(', ') : 'No decisions recorded')}</div></div>
       <div class="kv"><div class="k">Flags</div><div>${esc(flags.length ? flags.join(', ') : 'No anomaly flags')}</div></div>
-      ${hourlyPattern.length ? `<div style="margin-top:14px;"><div class="small">Hourly fingerprint activity</div><div class="spark">${hourlyPattern.map((value) => `<div class="spark-bar" style="height:${Math.max(8, (value / maxHourly) * 80)}px" title="${esc(String(value))}"></div>`).join('')}</div></div>` : ''}
+      ${hourlyPattern.length ? `<div style="margin-top:14px;"><div class="small">Hourly fingerprint activity</div><div class="spark">${hourlyPattern.map((value) => `<div class="spark-bar" style="height:${Math.max(6, (value / maxHourly) * 100)}%" title="${esc(String(value))}"></div>`).join('')}</div></div>` : ''}
     </div>
   `;
 }
 
-function renderRuntime() {
-  const container = $('runtime-controls');
-  const firewall = state.data.firewall || {};
-  const threat = state.data.threat || {};
-  const telemetryMetrics = state.data.telemetryMetrics || [];
-  const telemetrySpans = state.data.telemetrySpans || [];
-  const rateConfig = state.data.rateConfig || {};
-  const dlqCount = state.data.dlq.length;
+/* ── Evidence ── */
 
-  const perType = threat.perType ? Object.entries(threat.perType) : [];
-
-  container.innerHTML = [
-    `<div class="runtime-item"><h4>Runtime health</h4><p>Service ${esc(state.context?.service || '--')} ${esc(state.context?.version || '')} · mode ${esc(state.context?.mode || '--')}</p><div class="small" style="margin-top:10px;">Open mode: ${esc(String(state.context?.openMode || false))} · API keys configured: ${esc(String(state.context?.apiKeysConfigured || false))}</div></div>`,
-    `<div class="runtime-item"><h4>Injection firewall</h4><p>Total scanned ${esc(formatNumber(firewall.totalScanned || 0))} · blocked ${esc(formatNumber(firewall.totalBlocked || 0))}</p><div class="small" style="margin-top:10px;">Stage catches ${esc([firewall.stage1Catches || 0, firewall.stage2Catches || 0, firewall.stage3Catches || 0].join(' / '))} · false positives ${esc(formatNumber(firewall.falsePositivesReported || 0))}</div></div>`,
-    `<div class="runtime-item"><h4>Threat intel</h4><p>Total indicators ${esc(formatNumber(threat.totalIndicators || 0))} · active ${esc(formatNumber(threat.activeIndicators || 0))}</p><div class="small" style="margin-top:10px;">${esc(perType.length ? perType.map(([key, value]) => `${key}:${value}`).join(' · ') : 'No per-type stats available')}</div></div>`,
-    `<div class="runtime-item"><h4>Telemetry</h4><p>${esc(formatNumber(telemetrySpans.length))} spans · ${esc(formatNumber(telemetryMetrics.length))} metrics</p><div class="small" style="margin-top:10px;">Webhook DLQ entries ${esc(formatNumber(dlqCount))}</div></div>`,
-    `<div class="runtime-item"><h4>Rate limits</h4><p>Burst ${esc(formatNumber(rateConfig.burstLimit || 0))} · minute ${esc(formatNumber(rateConfig.maxPerMinute || 0))} · hour ${esc(formatNumber(rateConfig.maxPerHour || 0))}</p></div>`
-  ].join('');
-}
-
-function renderSessions() {
-  const container = $('session-list');
-  const sessions = state.data.sessions || [];
-
-  if (sessions.length === 0) {
-    container.innerHTML = '<div class="empty">No active sessions are currently tracked.</div>';
+function renderReceipts() {
+  const meta = $('receipts-meta');
+  const body = $('receipts-body');
+  const r = state.data.receipts;
+  if (!r || !r.enabled) {
+    meta.innerHTML = '<div class="empty">Signed receipts are disabled on this build.</div>';
+    body.innerHTML = '';
     return;
   }
+  const signer = esc(r.signerKeyId || '(unknown)');
+  const policyHash = esc((r.policyHash || '').slice(0, 32) + '…');
+  meta.innerHTML = `
+    <div class="kv-row"><span class="kv-key">Signer</span><span class="kv-val mono">${signer}</span></div>
+    <div class="kv-row"><span class="kv-key">Policy hash</span><span class="kv-val mono">${policyHash}</span></div>
+    <div class="kv-row"><span class="kv-key">Authoritative</span><span class="kv-val"><span class="badge review">no · soft enforcement</span></span></div>
+  `;
+  const runs = Array.isArray(r.runs) ? r.runs : [];
+  if (runs.length === 0) {
+    body.innerHTML = '<tr><td colspan="4"><div class="empty">No signed runs yet. Trigger an inspection to mint the first receipt.</div></td></tr>';
+    return;
+  }
+  body.innerHTML = runs.slice(0, 12).map((run) => {
+    const verdict = (run.terminalVerdict || run.terminal_verdict || 'unknown').toString().toLowerCase();
+    const verdictClass = verdict === 'block' ? 'block' : verdict === 'review' ? 'review' : 'allow';
+    const last = run.lastTimestamp || run.last_timestamp || '';
+    const count = run.receiptCount || run.receipt_count || 0;
+    const runId = run.runId || run.run_id || '';
+    return `<tr>
+      <td class="mono">${esc(runId.slice(0, 12))}…</td>
+      <td><span class="badge ${verdictClass}">${esc(verdict)}</span></td>
+      <td class="num">${count}</td>
+      <td class="muted small">${esc(last.slice(0, 19))}</td>
+    </tr>`;
+  }).join('');
+}
 
-  container.innerHTML = sessions
-    .slice()
-    .sort((left, right) => (right.nodeCount || 0) - (left.nodeCount || 0))
-    .map((session) => `
-      <div class="list-item">
-        <div>
-          <div style="font-weight:600;">${esc(session.agentId || 'unknown agent')}</div>
-          <div class="small mono">${esc(session.sessionId || '')}</div>
-        </div>
-        <div class="right">
-          <div>${esc(session.state || 'unknown')}</div>
-          <div class="small">nodes ${esc(formatNumber(session.nodeCount || 0))}</div>
-        </div>
-      </div>
-    `)
-    .join('');
+function renderTelemetry() {
+  const panel = $('telemetry-panel');
+  const spans = state.data.telemetrySpans || [];
+  const metrics = state.data.telemetryMetrics || [];
+  const recent = spans.slice(-6).reverse();
+  panel.innerHTML = `
+    <div class="kv-row"><span class="kv-key">Spans buffered</span><span class="kv-val">${formatNumber(spans.length)}</span></div>
+    <div class="kv-row"><span class="kv-key">Metrics</span><span class="kv-val">${formatNumber(metrics.length)}</span></div>
+    ${recent.length
+      ? `<div class="list" style="margin-top:8px;">${recent.map((s) => `
+          <div class="list-item">
+            <div class="mono small">${esc(s.name || s.spanName || 'span')}</div>
+            <div class="right small">${esc(((s.attributes && (s.attributes['iaga.policy.verdict'] || s.attributes['receipt.verdict'])) || ''))}</div>
+          </div>`).join('')}</div>`
+      : '<div class="empty">No spans buffered yet.</div>'}
+  `;
+}
+
+/* ── Policy ── */
+
+function renderAplOverlay() {
+  const panel = $('apl-overlay-panel');
+  const o = state.data.policyOverlay;
+  if (!o) {
+    panel.innerHTML = '<div class="empty">No data.</div>';
+    return;
+  }
+  if (!o.enabled) {
+    panel.innerHTML = '<div class="empty">APL feature not compiled in this build.</div>';
+    return;
+  }
+  if (!o.loaded) {
+    panel.innerHTML = '<div class="empty">No APL overlay loaded. Start with <code>iaga serve --policy &lt;file.apl&gt;</code> to enable.</div>';
+    return;
+  }
+  const hash = esc((o.policyHash || '').slice(0, 32) + '…');
+  panel.innerHTML = `
+    <div class="kv-row"><span class="kv-key">Status</span><span class="kv-val"><span class="badge allow">loaded</span></span></div>
+    <div class="kv-row"><span class="kv-key">Policies</span><span class="kv-val">${o.policyCount}</span></div>
+    <div class="kv-row"><span class="kv-key">Bundle hash</span><span class="kv-val mono">${hash}</span></div>
+    <div class="kv-row"><span class="kv-key">Source</span><span class="kv-val mono small">${esc(o.source || '')}</span></div>
+  `;
 }
 
 function renderWorkspaceOptions() {
@@ -1721,38 +2244,479 @@ function renderPolicyPanel() {
   `;
 }
 
-function exportVisibleAudit() {
-  const rows = filteredAuditRows();
-  const header = ['eventId', 'timestamp', 'agentId', 'framework', 'toolName', 'actionType', 'decision', 'reviewStatus', 'riskScore', 'reasons'];
-  const csv = [header.join(',')]
-    .concat(rows.map((event) => [
-      event.eventId,
-      event.timestamp,
-      event.agentId,
-      event.framework,
-      event.toolName,
-      event.actionType,
-      event.decision,
-      event.reviewStatus,
-      event.riskScore,
-      (event.reasons || []).join(' | ')
-    ].map((value) => `"${String(value == null ? '' : value).replace(/"/g, '""')}"`).join(',')))
-    .join('\n');
-
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = 'iaga-sentinel-audit-visible.csv';
-  link.click();
-  URL.revokeObjectURL(url);
-}
-
 async function refreshPolicyFromSelection() {
   state.selectedWorkspaceId = $('workspace-select').value;
   await loadPolicyVerification();
   renderPolicyPanel();
 }
+
+/* ── Runtime ── */
+
+function renderKernel() {
+  const panel = $('kernel-panel');
+  const k = state.data.kernelStatus;
+  if (!k) {
+    panel.innerHTML = '<div class="empty">No data.</div>';
+    return;
+  }
+  if (!k.enabled) {
+    panel.innerHTML = '<div class="empty">Kernel feature not compiled.</div>';
+    return;
+  }
+  const authBadge = k.authoritative ? 'allow' : 'review';
+  const bpfBadge = k.linuxBpfScaffold ? 'allow' : 'neutral';
+  panel.innerHTML = `
+    <div class="kv-row"><span class="kv-key">Backend</span><span class="kv-val"><span class="badge allow">${esc(k.backend)}</span></span></div>
+    <div class="kv-row"><span class="kv-key">Authoritative</span><span class="kv-val"><span class="badge ${authBadge}">${k.authoritative ? 'yes' : 'soft enforcement'}</span></span></div>
+    <div class="kv-row"><span class="kv-key">linux-bpf scaffold</span><span class="kv-val"><span class="badge ${bpfBadge}">${k.linuxBpfScaffold ? 'compiled' : 'not active'}</span></span></div>
+    <div class="hint">Authoritative kernel enforcement (eBPF/LSM) is Enterprise roadmap; receipts record <code>is_authoritative: false</code>.</div>
+  `;
+}
+
+function renderReasoning() {
+  const panel = $('reasoning-panel');
+  const r = state.data.reasoningStatus;
+  if (!r) {
+    panel.innerHTML = '<div class="empty">No data.</div>';
+    return;
+  }
+  if (!r.enabled) {
+    panel.innerHTML = '<div class="empty">Reasoning plane disabled.</div>';
+    return;
+  }
+  const engineBadge = r.engine === 'noop' ? 'neutral' : 'allow';
+  const mlBadge = r.mlFeatureCompiled ? 'allow' : 'neutral';
+  let modelsHtml = '';
+  if (Array.isArray(r.models) && r.models.length > 0) {
+    modelsHtml = r.models.map((m) =>
+      `<div class="kv-row"><span class="kv-key">${esc(m.name)}</span><span class="kv-val mono small">${esc((m.sha256 || '').slice(0, 16))}…</span></div>`
+    ).join('');
+  }
+  panel.innerHTML = `
+    <div class="kv-row"><span class="kv-key">Engine</span><span class="kv-val"><span class="badge ${engineBadge}">${esc(r.engine)}</span></span></div>
+    <div class="kv-row"><span class="kv-key">ML feature compiled</span><span class="kv-val"><span class="badge ${mlBadge}">${r.mlFeatureCompiled ? 'yes' : 'no'}</span></span></div>
+    <div class="kv-row"><span class="kv-key">Models</span><span class="kv-val">${Array.isArray(r.models) ? r.models.length : 0}</span></div>
+    ${modelsHtml || '<div class="small">ML emits evidence, never verdicts; the deterministic policy decides.</div>'}
+  `;
+}
+
+function renderRiskWeights() {
+  const panel = $('risk-weights-panel');
+  const w = state.data.riskWeights;
+  if (!w) {
+    panel.innerHTML = '<div class="empty">Risk weights unavailable.</div>';
+    return;
+  }
+  const entries = ['stat', 'context', 'behavioral', 'temporal', 'reputation']
+    .filter((k) => typeof w[k] === 'number');
+  if (entries.length === 0) {
+    panel.innerHTML = '<div class="empty">Risk weights unavailable.</div>';
+    return;
+  }
+  const max = Math.max(...entries.map((k) => w[k]), 0.0001);
+  panel.innerHTML = entries.map((k) => `
+    <div class="weight-row">
+      <div class="weight-head"><span>${esc(k)}</span><b>${(w[k] * 100).toFixed(1)}%</b></div>
+      <div class="track"><div class="fill" style="width:${Math.max(2, (w[k] / max) * 100)}%"></div></div>
+    </div>
+  `).join('') + '<div class="small" style="margin-top:10px;">Adaptive blend across the five scorers; tune with <span class="mono">POST /v1/risk/feedback</span>.</div>';
+}
+
+function renderFirewall() {
+  const panel = $('firewall-panel');
+  const firewall = state.data.firewall;
+  if (!firewall) {
+    panel.innerHTML = '<div class="empty">Firewall stats unavailable.</div>';
+    return;
+  }
+  panel.innerHTML = `
+    <div class="kv-row"><span class="kv-key">Scanned</span><span class="kv-val">${formatNumber(firewall.totalScanned || 0)}</span></div>
+    <div class="kv-row"><span class="kv-key">Blocked</span><span class="kv-val">${formatNumber(firewall.totalBlocked || 0)}</span></div>
+    <div class="kv-row"><span class="kv-key">Stage catches</span><span class="kv-val mono">${esc([firewall.stage1Catches || 0, firewall.stage2Catches || 0, firewall.stage3Catches || 0].join(' / '))}</span></div>
+    <div class="kv-row"><span class="kv-key">False positives reported</span><span class="kv-val">${formatNumber(firewall.falsePositivesReported || 0)}</span></div>
+  `;
+}
+
+function renderThreat() {
+  const panel = $('threat-panel');
+  const threat = state.data.threat;
+  if (!threat) {
+    panel.innerHTML = '<div class="empty">Threat intel stats unavailable.</div>';
+    return;
+  }
+  const perType = threat.perType ? Object.entries(threat.perType) : [];
+  panel.innerHTML = `
+    <div class="kv-row"><span class="kv-key">Total indicators</span><span class="kv-val">${formatNumber(threat.totalIndicators || 0)}</span></div>
+    <div class="kv-row"><span class="kv-key">Active</span><span class="kv-val">${formatNumber(threat.activeIndicators || 0)}</span></div>
+    ${perType.length
+      ? perType.map(([key, value]) => `<div class="kv-row"><span class="kv-key">${esc(key)}</span><span class="kv-val">${formatNumber(value)}</span></div>`).join('')
+      : '<div class="small">No per-type stats available.</div>'}
+  `;
+}
+
+function renderRateAndTemplates() {
+  const panel = $('rate-panel');
+  const rateConfig = state.data.rateConfig;
+  const templates = state.data.templates;
+  const dlqCount = state.data.dlq.length;
+  const parts = [];
+  if (rateConfig) {
+    parts.push(`<div class="kv-row"><span class="kv-key">Burst limit</span><span class="kv-val">${formatNumber(rateConfig.burstLimit || 0)}</span></div>`);
+    parts.push(`<div class="kv-row"><span class="kv-key">Per minute</span><span class="kv-val">${formatNumber(rateConfig.maxPerMinute || 0)}</span></div>`);
+    parts.push(`<div class="kv-row"><span class="kv-key">Per hour</span><span class="kv-val">${formatNumber(rateConfig.maxPerHour || 0)}</span></div>`);
+  } else {
+    parts.push('<div class="small">Rate-limit config unavailable.</div>');
+  }
+  parts.push(`<div class="kv-row"><span class="kv-key">Policy templates</span><span class="kv-val">${formatNumber((templates && templates.count) || 0)}</span></div>`);
+  parts.push(`<div class="kv-row"><span class="kv-key">Webhook DLQ entries</span><span class="kv-val">${formatNumber(dlqCount)}</span></div>`);
+  panel.innerHTML = parts.join('');
+}
+
+function renderSessions() {
+  const container = $('session-list');
+  const sessions = state.data.sessions || [];
+
+  if (sessions.length === 0) {
+    container.innerHTML = '<div class="empty">No active sessions are currently tracked.</div>';
+    return;
+  }
+
+  container.innerHTML = sessions
+    .slice()
+    .sort((left, right) => (right.nodeCount || 0) - (left.nodeCount || 0))
+    .map((session) => `
+      <div class="list-item">
+        <div>
+          <div style="font-weight:600;">${esc(session.agentId || 'unknown agent')}</div>
+          <div class="small mono">${esc(session.sessionId || '')}</div>
+        </div>
+        <div class="right">
+          <div>${esc(session.state || 'unknown')}</div>
+          <div class="small">nodes ${esc(formatNumber(session.nodeCount || 0))}</div>
+        </div>
+      </div>
+    `)
+    .join('');
+}
+
+function renderHealth() {
+  const panel = $('health-panel');
+  const c = state.context || {};
+  panel.innerHTML = `
+    <div class="kv-row"><span class="kv-key">Service</span><span class="kv-val mono">${esc(c.service || '--')} ${esc(c.version || '')}</span></div>
+    <div class="kv-row"><span class="kv-key">Mode</span><span class="kv-val">${esc(c.mode || '--')}</span></div>
+    <div class="kv-row"><span class="kv-key">Open mode</span><span class="kv-val">${esc(String(c.openMode || false))}</span></div>
+    <div class="kv-row"><span class="kv-key">API keys configured</span><span class="kv-val">${esc(String(c.apiKeysConfigured || false))}</span></div>
+  `;
+}
+
+/* ── Plugins ── */
+
+function renderPlugins() {
+  const meta = $('plugins-meta');
+  const body = $('plugins-body');
+  const errors = $('plugin-errors');
+  const snapshot = state.data.plugins;
+
+  if (!snapshot) {
+    meta.innerHTML = '<div class="empty">Plugin registry unavailable.</div>';
+    body.innerHTML = '';
+    errors.innerHTML = '';
+    return;
+  }
+
+  meta.innerHTML = `
+    <div class="kv-row"><span class="kv-key">Plugin directory</span><span class="kv-val mono">${esc(snapshot.pluginDir || '')}</span></div>
+    <div class="kv-row"><span class="kv-key">Loaded</span><span class="kv-val">${formatNumber(snapshot.loadedCount || 0)}</span></div>
+  `;
+
+  const plugins = Array.isArray(snapshot.plugins) ? snapshot.plugins : [];
+  if (plugins.length === 0) {
+    body.innerHTML = '<tr><td colspan="4"><div class="empty">No WASM plugins discovered. Drop a <code>.wasm</code> file in the plugin directory and reload.</div></td></tr>';
+  } else {
+    body.innerHTML = plugins.map((p) => `
+      <tr>
+        <td>${esc(p.name)}</td>
+        <td class="mono">${esc(p.version)}</td>
+        <td>${p.loaded ? '<span class="badge allow">loaded</span>' : '<span class="badge block">failed</span>'}${p.attestationOfflineVerified ? ' <span class="badge allow">attested</span>' : ''}</td>
+        <td class="mono small">${esc(p.path)}</td>
+      </tr>
+    `).join('');
+  }
+
+  const loadErrors = Array.isArray(snapshot.loadErrors) ? snapshot.loadErrors : [];
+  errors.innerHTML = loadErrors.length
+    ? `<div class="small" style="margin-bottom:8px;">Load errors</div><div class="list">${loadErrors.map((e) => `<div class="list-item"><div class="mono small">${esc(e.path)}</div><div class="right small">${esc(e.error)}</div></div>`).join('')}</div>`
+    : '';
+}
+
+async function reloadPlugins() {
+  $('plugins-reload-button').disabled = true;
+  await fetchJson('/v1/plugins/reload', { method: 'POST' });
+  await refreshData();
+  $('plugins-reload-button').disabled = false;
+}
+
+/* ── Webhooks ── */
+
+function renderWebhooks() {
+  const container = $('webhook-list');
+  const hooks = state.data.webhooks || [];
+
+  if (hooks.length === 0) {
+    container.innerHTML = '<div class="empty">No webhooks registered. Add an endpoint URL above to receive governance events.</div>';
+    return;
+  }
+
+  container.innerHTML = hooks.map((hook) => `
+    <div class="list-item">
+      <div>
+        <div class="mono" style="font-weight:600;">${esc(hook.url)}</div>
+        <div class="small">${esc(hook.eventFilter && hook.eventFilter.length ? hook.eventFilter.join(', ') : 'all events')} · created ${esc(formatTimestamp(hook.createdAt))}</div>
+      </div>
+      <div class="right">
+        <div>${hook.active ? '<span class="badge allow">active</span>' : '<span class="badge neutral">inactive</span>'}</div>
+        <button type="button" class="btn danger small" style="margin-top:8px;" data-webhook-delete="${esc(hook.id)}">Remove</button>
+      </div>
+    </div>
+  `).join('');
+
+  container.querySelectorAll('[data-webhook-delete]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      await fetchJson(`/v1/webhooks/${encodeURIComponent(button.getAttribute('data-webhook-delete'))}`, { method: 'DELETE' });
+      await refreshData();
+    });
+  });
+}
+
+async function createWebhook() {
+  const input = $('webhook-url-input');
+  const url = input.value.trim();
+  if (!url) return;
+  $('webhook-create-button').disabled = true;
+  await fetchJson('/v1/webhooks', { method: 'POST', body: JSON.stringify({ url }) });
+  input.value = '';
+  await refreshData();
+  $('webhook-create-button').disabled = false;
+}
+
+function renderDlq() {
+  const container = $('dlq-list');
+  const entries = state.data.dlq || [];
+
+  if (entries.length === 0) {
+    container.innerHTML = '<div class="empty">Dead letter queue is empty. Failed webhook deliveries land here after retries are exhausted.</div>';
+    return;
+  }
+
+  container.innerHTML = entries.map((entry) => `
+    <div class="queue-item">
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap;">
+        <div style="min-width:0;">
+          <h4 class="mono">${esc(entry.eventType)}</h4>
+          <p class="mono small">${esc(entry.webhookUrl)}</p>
+        </div>
+        <span class="badge block">${esc(formatNumber(entry.attempts))} attempts</span>
+      </div>
+      <div class="small" style="margin-top:8px;">${esc(entry.error)} · failed ${esc(formatTimestamp(entry.failedAt))}</div>
+      <div class="queue-actions">
+        <button type="button" class="btn primary small" data-dlq-retry="${esc(entry.id)}">Retry</button>
+        <button type="button" class="btn danger small" data-dlq-delete="${esc(entry.id)}">Drop</button>
+      </div>
+    </div>
+  `).join('');
+
+  container.querySelectorAll('[data-dlq-retry]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      await fetchJson(`/v1/webhooks/dlq/${encodeURIComponent(button.getAttribute('data-dlq-retry'))}/retry`, { method: 'POST' });
+      await refreshData();
+    });
+  });
+  container.querySelectorAll('[data-dlq-delete]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      button.disabled = true;
+      await fetchJson(`/v1/webhooks/dlq/${encodeURIComponent(button.getAttribute('data-dlq-delete'))}`, { method: 'DELETE' });
+      await refreshData();
+    });
+  });
+}
+
+/* ── Identities ── */
+
+function renderIdentities() {
+  const body = $('identities-body');
+  const all = state.data.identities || [];
+  const identities = all.slice(0, 100);
+
+  $('identities-count').textContent = all.length > identities.length
+    ? `Showing 100 of ${all.length} identities`
+    : `${all.length} identities`;
+
+  if (identities.length === 0) {
+    body.innerHTML = '<tr><td colspan="6"><div class="empty">No NHI identities registered. POST to <code>/v1/nhi/identities</code> to register an agent identity.</div></td></tr>';
+    return;
+  }
+
+  body.innerHTML = identities.map((id) => {
+    const status = String(id.attestationStatus || 'unknown').toLowerCase();
+    const tone = status === 'attested' || status === 'verified' ? 'allow' : status === 'pending' ? 'pending' : 'neutral';
+    return `
+      <tr>
+        <td>${esc(id.agentId)}</td>
+        <td class="mono small">${esc(id.spiffeId)}</td>
+        <td><span class="badge ${tone}">${esc(id.attestationStatus || 'unknown')}</span></td>
+        <td class="num">${esc(formatNumber(id.trustScore || 0, 2))}</td>
+        <td class="small">${esc(listOrFallback(id.capabilities || [], 'none'))}</td>
+        <td class="small muted">${esc(formatTimestamp(id.createdAt))}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+/* ── Live feed (SSE over fetch, so the Bearer header works) ── */
+
+function liveEventLabel(event) {
+  if (!event || !event.type) return { tone: 'neutral', text: 'event' };
+  if (event.type === 'action_governed') {
+    return {
+      tone: String(event.decision || '').toLowerCase(),
+      text: `${event.agent_id} · ${event.tool_name} · risk ${event.risk_score}`
+    };
+  }
+  if (event.type === 'review_created') {
+    return { tone: 'review', text: `review opened · ${event.agent_id} · ${event.tool_name} · risk ${event.risk_score}` };
+  }
+  if (event.type === 'review_resolved') {
+    return { tone: String(event.status) === 'approved' ? 'allow' : 'block', text: `review ${event.status} · ${event.review_id}` };
+  }
+  return { tone: 'neutral', text: event.type };
+}
+
+function renderLiveFeed() {
+  const feed = $('live-feed');
+  const events = state.live.events;
+  if (events.length === 0) {
+    feed.innerHTML = '<div class="feed-row"><span class="t">--:--:--</span><span class="body muted">Waiting for events. Each governed action will appear here as it happens.</span></div>';
+    return;
+  }
+  feed.innerHTML = events.map((entry) => {
+    const label = liveEventLabel(entry.event);
+    const decision = entry.event && entry.event.decision ? String(entry.event.decision).toLowerCase() : '';
+    const badge = entry.event.type === 'action_governed'
+      ? `<span class="badge ${label.tone || 'neutral'}">${esc(decision || entry.event.type)}</span> `
+      : `<span class="badge ${label.tone}">${esc(entry.event.type.replace('review_', 'review '))}</span> `;
+    return `<div class="feed-row"><span class="t">${esc(entry.at)}</span><span class="body">${badge}${esc(label.text)}</span></div>`;
+  }).join('');
+}
+
+function setLiveStatus(text, on) {
+  $('live-status').textContent = text;
+  $('live-dot').classList.toggle('on', !!on);
+}
+
+function pushLiveEvent(event) {
+  state.live.events.unshift({ at: new Date().toLocaleTimeString(), event });
+  if (state.live.events.length > FEED_MAX) {
+    state.live.events.length = FEED_MAX;
+  }
+  renderLiveFeed();
+}
+
+async function startLiveFeed() {
+  if (state.live.running || !state.live.enabled) return;
+  state.live.running = true;
+  const abort = new AbortController();
+  state.live.abort = abort;
+
+  while (state.live.enabled && state.connected && !abort.signal.aborted) {
+    try {
+      const headers = new Headers({ Accept: 'text/event-stream' });
+      if (state.token) headers.set('Authorization', `Bearer ${state.token}`);
+      const response = await fetch('/v1/events/stream', { headers, signal: abort.signal });
+      if (!response.ok || !response.body) {
+        setLiveStatus(`Stream unavailable (${response.status}). Retrying…`, false);
+        await new Promise((r) => setTimeout(r, 4000));
+        continue;
+      }
+      setLiveStatus('Streaming live governance events.', true);
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        let sep;
+        while ((sep = buffer.indexOf('\n\n')) !== -1) {
+          const chunk = buffer.slice(0, sep);
+          buffer = buffer.slice(sep + 2);
+          const dataLines = chunk.split('\n')
+            .filter((line) => line.startsWith('data:'))
+            .map((line) => line.slice(5).trim());
+          if (!dataLines.length) continue;
+          try {
+            const event = JSON.parse(dataLines.join('\n'));
+            pushLiveEvent(event);
+          } catch (_) {}
+        }
+      }
+      setLiveStatus('Stream closed. Reconnecting…', false);
+    } catch (error) {
+      if (abort.signal.aborted) break;
+      setLiveStatus('Stream error. Reconnecting…', false);
+      await new Promise((r) => setTimeout(r, 4000));
+    }
+  }
+
+  state.live.running = false;
+  if (!state.live.enabled) setLiveStatus('Stream paused.', false);
+}
+
+function stopLiveFeed() {
+  if (state.live.abort) {
+    state.live.abort.abort();
+    state.live.abort = null;
+  }
+  state.live.running = false;
+}
+
+function toggleLiveFeed() {
+  state.live.enabled = !state.live.enabled;
+  $('live-toggle-button').textContent = state.live.enabled ? 'Pause' : 'Resume';
+  if (state.live.enabled) {
+    if (state.connected) startLiveFeed();
+  } else {
+    stopLiveFeed();
+    setLiveStatus('Stream paused.', false);
+  }
+}
+
+/* ── Section nav highlighting ── */
+
+function wireSectionNav() {
+  const links = Array.from(document.querySelectorAll('#section-nav a'));
+  const byHash = new Map(links.map((a) => [a.getAttribute('href').slice(1), a]));
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      links.forEach((a) => a.classList.remove('active'));
+      const link = byHash.get(entry.target.id);
+      if (link) link.classList.add('active');
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+
+  byHash.forEach((_, id) => {
+    const el = document.getElementById(id);
+    if (el) observer.observe(el);
+  });
+}
+
+/* ── Wiring ── */
 
 function wireEvents() {
   $('api-token').value = state.token;
@@ -1762,7 +2726,11 @@ function wireEvents() {
     state.token = '';
     $('api-token').value = '';
     localStorage.removeItem('iaga-sentinel-api-key');
+    stopLiveFeed();
     await refreshData();
+  });
+  $('api-token').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') connectAndRefresh();
   });
 
   $('audit-search').addEventListener('input', renderAudit);
@@ -1770,12 +2738,32 @@ function wireEvents() {
   $('export-audit-button').addEventListener('click', exportVisibleAudit);
   $('workspace-select').addEventListener('change', refreshPolicyFromSelection);
   $('policy-refresh-button').addEventListener('click', refreshPolicyFromSelection);
+  $('plugins-reload-button').addEventListener('click', reloadPlugins);
+  $('webhook-create-button').addEventListener('click', createWebhook);
+  $('live-toggle-button').addEventListener('click', toggleLiveFeed);
+  $('live-clear-button').addEventListener('click', () => {
+    state.live.events = [];
+    renderLiveFeed();
+  });
+
+  document.querySelectorAll('[data-cost-tab]').forEach((button) => {
+    button.addEventListener('click', () => setCostTab(button.getAttribute('data-cost-tab')));
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && state.connected) refreshData();
+  });
+
+  wireSectionNav();
+  renderLiveFeed();
 }
 
 async function init() {
   wireEvents();
   await refreshData();
-  state.refreshTimer = setInterval(refreshData, REFRESH_MS);
+  state.refreshTimer = setInterval(() => {
+    if (!document.hidden) refreshData();
+  }, REFRESH_MS);
 }
 
 init();

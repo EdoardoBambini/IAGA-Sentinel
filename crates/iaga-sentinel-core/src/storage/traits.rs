@@ -115,6 +115,35 @@ pub trait ApiKeyStore: Send + Sync {
     async fn verify_raw_key(&self, raw_key: &str) -> Result<bool, SentinelError>;
     async fn delete_key(&self, key_id: &str) -> Result<(), SentinelError>;
     async fn list_keys(&self) -> Result<Vec<ApiKeyRecord>, SentinelError>;
+
+    /// Store a key with an explicit [`KeyScope`] (1.5.2). The default
+    /// implementation delegates to [`store_key`](Self::store_key), which on a
+    /// migrated database persists the `scope` column default (`admin`), so
+    /// legacy implementors keep working unchanged.
+    async fn store_key_scoped(
+        &self,
+        key_id: &str,
+        key_hash: &str,
+        label: &str,
+        raw_key: &str,
+        _scope: KeyScope,
+    ) -> Result<(), SentinelError> {
+        self.store_key(key_id, key_hash, label, raw_key).await
+    }
+
+    /// Verify a raw API key and return its identity + scope (1.5.2). The
+    /// default implementation wraps [`verify_raw_key`](Self::verify_raw_key)
+    /// and reports `Admin` scope on match, preserving the historical
+    /// "any valid key may do anything" behavior for legacy implementors.
+    async fn verify_raw_key_scoped(
+        &self,
+        raw_key: &str,
+    ) -> Result<Option<VerifiedKey>, SentinelError> {
+        Ok(self.verify_raw_key(raw_key).await?.then_some(VerifiedKey {
+            key_id: None,
+            scope: KeyScope::Admin,
+        }))
+    }
 }
 
 /// Tenant management store (enterprise multi-tenancy support).
@@ -205,4 +234,51 @@ pub struct ApiKeyRecord {
     pub id: String,
     pub label: String,
     pub created_at: String,
+    /// 1.5.2 key scope; records persisted before the scope column default to
+    /// `admin` (the historical, fully-privileged behavior).
+    #[serde(default = "default_admin_scope")]
+    pub scope: String,
+}
+
+fn default_admin_scope() -> String {
+    KeyScope::Admin.as_str().to_string()
+}
+
+/// Privilege scope of an API key (1.5.2). `Admin` keys may also manage the
+/// gateway itself (keys, webhooks, rate-limit config, threat intel, plugin
+/// reloads); `Agent` keys are limited to the governance surface. Deliberately
+/// minimal and single-tenant: multi-tenant/SSO/SIEM stay Enterprise (ADR 0010).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum KeyScope {
+    Admin,
+    Agent,
+}
+
+impl KeyScope {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            KeyScope::Admin => "admin",
+            KeyScope::Agent => "agent",
+        }
+    }
+
+    /// Tolerant parse: unknown/legacy values fall back to `Admin`, matching
+    /// the migration default so old rows never lose access.
+    pub fn from_db(raw: &str) -> Self {
+        match raw {
+            "agent" => KeyScope::Agent,
+            _ => KeyScope::Admin,
+        }
+    }
+}
+
+/// Outcome of a successful raw-key verification, carrying the key's identity
+/// and scope for downstream authorization decisions.
+#[derive(Debug, Clone)]
+pub struct VerifiedKey {
+    /// `None` when produced by a legacy [`ApiKeyStore::verify_raw_key`]
+    /// implementation that only reports a boolean match.
+    pub key_id: Option<String>,
+    pub scope: KeyScope,
 }

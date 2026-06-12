@@ -99,25 +99,43 @@ struct DenylistFile {
 /// ```toml
 /// deny = ["MY_CUSTOM_SECRET", "INTERNAL_TOKEN"]
 /// ```
-/// Unreadable or malformed files degrade to the built-in list (warn only):
-/// a bad config must never harden into a crash on the launch path.
-fn load_denylist_extension(path: Option<&str>) -> Vec<String> {
+/// Default (`strict = false`): unreadable or malformed files degrade to the
+/// built-in list (warn only) — a bad config must never harden into a crash on
+/// the launch path. With `IAGA_SENTINEL_ENV_DENYLIST_STRICT=1` the same
+/// failures FAIL CLOSED instead (1.5.2): an operator who configured an
+/// extension expects it to apply, and silently launching without it would
+/// quietly weaken the secret-scrubbing posture.
+fn load_denylist_extension(path: Option<&str>, strict: bool) -> Result<Vec<String>> {
     let path = match path {
         Some(p) if !p.is_empty() => p,
-        _ => return Vec::new(),
+        _ => return Ok(Vec::new()),
     };
     let text = match std::fs::read_to_string(path) {
         Ok(t) => t,
         Err(e) => {
+            if strict {
+                return Err(KernelError::Denied {
+                    reason: format!(
+                        "sensitive-env denylist TOML at `{path}` unreadable in strict mode: {e}"
+                    ),
+                });
+            }
             tracing::warn!(path = %path, error = %e, "sensitive-env denylist TOML unreadable; using built-in list only");
-            return Vec::new();
+            return Ok(Vec::new());
         }
     };
     match toml::from_str::<DenylistFile>(&text) {
-        Ok(f) => f.deny,
+        Ok(f) => Ok(f.deny),
         Err(e) => {
+            if strict {
+                return Err(KernelError::Denied {
+                    reason: format!(
+                        "sensitive-env denylist TOML at `{path}` malformed in strict mode: {e}"
+                    ),
+                });
+            }
             tracing::warn!(path = %path, error = %e, "sensitive-env denylist TOML malformed; using built-in list only");
-            Vec::new()
+            Ok(Vec::new())
         }
     }
 }
@@ -125,22 +143,29 @@ fn load_denylist_extension(path: Option<&str>) -> Vec<String> {
 /// Effective denylist (uppercased for case-insensitive matching) given an
 /// optional TOML extension path. Split from `sensitive_denylist` so it is
 /// testable without mutating the process environment.
-fn build_denylist(extra_path: Option<&str>) -> std::collections::HashSet<String> {
+fn build_denylist(
+    extra_path: Option<&str>,
+    strict: bool,
+) -> Result<std::collections::HashSet<String>> {
     let mut set: std::collections::HashSet<String> = SENSITIVE_ENV_DENYLIST
         .iter()
         .map(|s| s.to_ascii_uppercase())
         .collect();
-    for extra in load_denylist_extension(extra_path) {
+    for extra in load_denylist_extension(extra_path, strict)? {
         set.insert(extra.to_ascii_uppercase());
     }
-    set
+    Ok(set)
 }
 
 /// The effective sensitive-env denylist: the built-ins plus any names from
-/// the TOML file at `IAGA_SENTINEL_ENV_DENYLIST`.
-fn sensitive_denylist() -> std::collections::HashSet<String> {
+/// the TOML file at `IAGA_SENTINEL_ENV_DENYLIST`. Strict failure mode is
+/// opt-in via `IAGA_SENTINEL_ENV_DENYLIST_STRICT=1`.
+fn sensitive_denylist() -> Result<std::collections::HashSet<String>> {
     let extra = std::env::var("IAGA_SENTINEL_ENV_DENYLIST").ok();
-    build_denylist(extra.as_deref())
+    let strict = std::env::var("IAGA_SENTINEL_ENV_DENYLIST_STRICT")
+        .map(|v| v == "1" || v == "true")
+        .unwrap_or(false);
+    build_denylist(extra.as_deref(), strict)
 }
 
 pub struct UserspaceKernel {
@@ -163,8 +188,8 @@ impl UserspaceKernel {
         Self { policy }
     }
 
-    fn build_env(spec: &ProcessSpec) -> HashMap<String, String> {
-        let denylist = sensitive_denylist();
+    fn build_env(spec: &ProcessSpec) -> Result<HashMap<String, String>> {
+        let denylist = sensitive_denylist()?;
         let mut env: HashMap<String, String> = HashMap::new();
         for key in INHERITED_ENV_ALLOWLIST {
             // Defense in depth: never inherit a known-sensitive var even if
@@ -183,7 +208,7 @@ impl UserspaceKernel {
         // child, even when passed explicitly via `ProcessSpec.env`. Secrets
         // must be delivered through a vetted channel, not the process env.
         env.retain(|k, _| !denylist.contains(&k.to_ascii_uppercase()));
-        env
+        Ok(env)
     }
 }
 
@@ -213,10 +238,26 @@ impl EnforcementKernel for UserspaceKernel {
             });
         }
 
+        // Strict denylist mode fails closed: if the configured extension
+        // can't be applied, the launch is blocked rather than silently run
+        // with weaker secret scrubbing.
+        let env = match Self::build_env(spec) {
+            Ok(env) => env,
+            Err(e) => {
+                return Ok(LaunchOutcome {
+                    decision: KernelDecision::Block,
+                    reason: Some(e.to_string()),
+                    pid: None,
+                    exit_code: None,
+                    backend: self.backend_name(),
+                })
+            }
+        };
+
         let mut cmd = tokio::process::Command::new(&spec.program);
         cmd.args(&spec.args);
         cmd.env_clear();
-        for (k, v) in Self::build_env(spec) {
+        for (k, v) in env {
             cmd.env(k, v);
         }
         if let Some(cwd) = &spec.working_dir {
@@ -282,7 +323,7 @@ mod tests {
             ("aws_secret_access_key", "lowercase-also-scrubbed"),
             ("MY_TOOL_FLAG", "1"),
         ]);
-        let env = UserspaceKernel::build_env(&spec);
+        let env = UserspaceKernel::build_env(&spec).expect("non-strict build_env");
         assert!(
             !env.contains_key("OPENAI_API_KEY"),
             "known secret must be scrubbed from the child env"
@@ -309,7 +350,7 @@ mod tests {
         let path = dir.path().join("deny.toml");
         std::fs::write(&path, "deny = [\"CUSTOM_SECRET\", \"internal_token\"]")
             .expect("write toml");
-        let set = build_denylist(Some(path.to_str().unwrap()));
+        let set = build_denylist(Some(path.to_str().unwrap()), false).expect("valid toml");
         assert!(set.contains("CUSTOM_SECRET"));
         assert!(set.contains("INTERNAL_TOKEN"), "extension is uppercased");
         // Built-ins remain present alongside the extension.
@@ -318,8 +359,41 @@ mod tests {
 
     #[test]
     fn missing_toml_path_degrades_to_builtins() {
-        let set = build_denylist(Some("/nonexistent/deny.toml"));
+        let set = build_denylist(Some("/nonexistent/deny.toml"), false).expect("lenient mode");
         assert!(set.contains("AWS_SECRET_ACCESS_KEY"));
+        assert_eq!(set.len(), SENSITIVE_ENV_DENYLIST.len());
+    }
+
+    #[test]
+    fn malformed_toml_degrades_to_builtins_when_lenient() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("deny.toml");
+        std::fs::write(&path, "deny = [unclosed").expect("write toml");
+        let set = build_denylist(Some(path.to_str().unwrap()), false).expect("lenient mode");
+        assert_eq!(set.len(), SENSITIVE_ENV_DENYLIST.len());
+    }
+
+    #[test]
+    fn malformed_toml_fails_closed_in_strict_mode() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("deny.toml");
+        std::fs::write(&path, "deny = [unclosed").expect("write toml");
+        let err = build_denylist(Some(path.to_str().unwrap()), true).expect_err("strict mode");
+        assert!(matches!(err, KernelError::Denied { .. }));
+        assert!(err.to_string().contains("strict mode"));
+    }
+
+    #[test]
+    fn missing_toml_fails_closed_in_strict_mode() {
+        let err = build_denylist(Some("/nonexistent/deny.toml"), true).expect_err("strict mode");
+        assert!(matches!(err, KernelError::Denied { .. }));
+    }
+
+    #[test]
+    fn strict_mode_without_extension_path_is_a_noop() {
+        // Strict mode only governs the optional TOML extension; with no path
+        // configured the built-in list applies as always.
+        let set = build_denylist(None, true).expect("no extension configured");
         assert_eq!(set.len(), SENSITIVE_ENV_DENYLIST.len());
     }
 }

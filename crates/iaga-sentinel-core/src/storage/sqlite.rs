@@ -3,6 +3,7 @@ use sqlx::sqlite::{SqlitePool, SqlitePoolOptions};
 
 use super::migrations::run_sqlite_migrations;
 use super::traits::*;
+use super::{parse_json_opt_or_warn, parse_json_or_warn};
 use crate::core::errors::SentinelError;
 use crate::core::types::*;
 use crate::modules::policy::rules_engine::PolicyRule;
@@ -497,12 +498,12 @@ impl AuditRow {
             risk_score: self.risk_score as u32,
             review_status: serde_json::from_value(serde_json::Value::String(self.review_status))
                 .unwrap_or(ReviewStatus::NotRequired),
-            reasons: serde_json::from_str(&self.reasons).unwrap_or_default(),
+            reasons: parse_json_or_warn(&self.reasons, "audit_events.reasons"),
             timestamp: self.timestamp,
             usage: self
                 .usage_json
                 .as_deref()
-                .and_then(|s| serde_json::from_str(s).ok()),
+                .and_then(|s| parse_json_opt_or_warn(s, "audit_events.usage_json")),
         }
     }
 }
@@ -618,7 +619,7 @@ impl ReviewRow {
                 .unwrap_or(GovernanceDecision::Review),
             status: self.status,
             risk_score: self.risk_score as u32,
-            reasons: serde_json::from_str(&self.reasons).unwrap_or_default(),
+            reasons: parse_json_or_warn(&self.reasons, "review_requests.reasons"),
             created_at: self.created_at,
             updated_at: self.updated_at,
         }
@@ -866,10 +867,18 @@ impl ProfileRow {
             framework: self.framework,
             role: serde_json::from_value(serde_json::Value::String(self.role))
                 .unwrap_or(AgentRole::Builder),
-            approved_tools: serde_json::from_str(&self.approved_tools).unwrap_or_default(),
-            approved_secrets: serde_json::from_str(&self.approved_secrets).unwrap_or_default(),
-            baseline_action_types: serde_json::from_str(&self.baseline_action_types)
-                .unwrap_or_default(),
+            approved_tools: parse_json_or_warn(
+                &self.approved_tools,
+                "agent_profiles.approved_tools",
+            ),
+            approved_secrets: parse_json_or_warn(
+                &self.approved_secrets,
+                "agent_profiles.approved_secrets",
+            ),
+            baseline_action_types: parse_json_or_warn(
+                &self.baseline_action_types,
+                "agent_profiles.baseline_action_types",
+            ),
             tool_trust: 0.7,
         }
     }
@@ -905,9 +914,15 @@ impl WorkspaceRow {
         WorkspacePolicy {
             workspace_id: self.workspace_id,
             tenant_id: self.tenant_id,
-            allowed_protocols: serde_json::from_str(&self.allowed_protocols).unwrap_or_default(),
-            allowed_domains: serde_json::from_str(&self.allowed_domains).unwrap_or_default(),
-            tools: serde_json::from_str(&self.tools).unwrap_or_default(),
+            allowed_protocols: parse_json_or_warn(
+                &self.allowed_protocols,
+                "workspace_policies.allowed_protocols",
+            ),
+            allowed_domains: parse_json_or_warn(
+                &self.allowed_domains,
+                "workspace_policies.allowed_domains",
+            ),
+            tools: parse_json_or_warn(&self.tools, "workspace_policies.tools"),
             threshold_block: self.threshold_block as u32,
             threshold_review: self.threshold_review as u32,
         }
@@ -926,8 +941,8 @@ fn sqlite_row_to_policy_rule(row: &sqlx::sqlite::SqliteRow) -> Result<PolicyRule
         id: row.try_get("id")?,
         name: row.try_get("name")?,
         priority: row.try_get("priority").unwrap_or(0),
-        match_criteria: serde_json::from_str(&match_criteria).unwrap_or_default(),
-        conditions: serde_json::from_str(&conditions).unwrap_or_default(),
+        match_criteria: parse_json_or_warn(&match_criteria, "workspace_rules.match_criteria"),
+        conditions: parse_json_or_warn(&conditions, "workspace_rules.conditions"),
         decision: serde_json::from_value(serde_json::Value::String(decision))
             .unwrap_or(GovernanceDecision::Review),
         reason: row.try_get("reason").unwrap_or(None),
@@ -983,7 +998,7 @@ impl ApiKeyStore for SqliteStorage {
 
     async fn list_keys(&self) -> Result<Vec<ApiKeyRecord>, SentinelError> {
         let rows = sqlx::query_as::<_, ApiKeyRow>(
-            "SELECT id, label, created_at FROM api_keys ORDER BY created_at DESC",
+            "SELECT id, label, created_at, scope FROM api_keys ORDER BY created_at DESC",
         )
         .fetch_all(&self.pool)
         .await?;
@@ -993,8 +1008,54 @@ impl ApiKeyStore for SqliteStorage {
                 id: r.id,
                 label: r.label,
                 created_at: r.created_at,
+                scope: r.scope,
             })
             .collect())
+    }
+
+    async fn store_key_scoped(
+        &self,
+        key_id: &str,
+        key_hash: &str,
+        label: &str,
+        raw_key: &str,
+        scope: KeyScope,
+    ) -> Result<(), SentinelError> {
+        let prefix = &raw_key[..raw_key.len().min(8)];
+        sqlx::query(
+            "INSERT INTO api_keys (id, key_hash, key_prefix, label, scope) VALUES (?, ?, ?, ?, ?)",
+        )
+        .bind(key_id)
+        .bind(key_hash)
+        .bind(prefix)
+        .bind(label)
+        .bind(scope.as_str())
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    async fn verify_raw_key_scoped(
+        &self,
+        raw_key: &str,
+    ) -> Result<Option<VerifiedKey>, SentinelError> {
+        let prefix = &raw_key[..raw_key.len().min(8)];
+        let candidates = sqlx::query_as::<_, (String, String, String)>(
+            "SELECT id, key_hash, scope FROM api_keys WHERE key_prefix = ?",
+        )
+        .bind(prefix)
+        .fetch_all(&self.pool)
+        .await?;
+
+        for (id, stored_hash, scope) in &candidates {
+            if crate::auth::api_keys::verify_key(raw_key, stored_hash) {
+                return Ok(Some(VerifiedKey {
+                    key_id: Some(id.clone()),
+                    scope: KeyScope::from_db(scope),
+                }));
+            }
+        }
+        Ok(None)
     }
 }
 
@@ -1002,6 +1063,7 @@ struct ApiKeyRow {
     id: String,
     label: String,
     created_at: String,
+    scope: String,
 }
 
 impl<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow> for ApiKeyRow {
@@ -1011,6 +1073,11 @@ impl<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow> for ApiKeyRow {
             id: row.try_get("id")?,
             label: row.try_get("label")?,
             created_at: row.try_get("created_at")?,
+            // Tolerant: rows read before the 0005 migration ran report the
+            // historical fully-privileged scope.
+            scope: row
+                .try_get("scope")
+                .unwrap_or_else(|_| KeyScope::Admin.as_str().to_string()),
         })
     }
 }
@@ -1053,7 +1120,7 @@ impl TenantStore for SqliteStorage {
             name: row.try_get("name")?,
             enabled: row.try_get::<bool, _>("enabled").unwrap_or(true),
             created_at: row.try_get("created_at")?,
-            metadata: metadata_str.and_then(|s| serde_json::from_str(&s).ok()),
+            metadata: metadata_str.and_then(|s| parse_json_opt_or_warn(&s, "tenants.metadata")),
         })
     }
 
@@ -1073,7 +1140,7 @@ impl TenantStore for SqliteStorage {
                 name: row.try_get("name")?,
                 enabled: row.try_get::<bool, _>("enabled").unwrap_or(true),
                 created_at: row.try_get("created_at")?,
-                metadata: metadata_str.and_then(|s| serde_json::from_str(&s).ok()),
+                metadata: metadata_str.and_then(|s| parse_json_opt_or_warn(&s, "tenants.metadata")),
             });
         }
         Ok(tenants)
@@ -1150,7 +1217,7 @@ impl NhiStore for SqliteStorage {
                     created_at: r.try_get("created_at")?,
                     attestation_status: r.try_get("attestation_status")?,
                     trust_score: r.try_get("trust_score").unwrap_or(0.5),
-                    capabilities: serde_json::from_str(&caps_json).unwrap_or_default(),
+                    capabilities: parse_json_or_warn(&caps_json, "nhi_identities.capabilities"),
                 }))
             }
             None => Ok(None),
@@ -1187,7 +1254,7 @@ impl NhiStore for SqliteStorage {
                 created_at: r.try_get("created_at")?,
                 attestation_status: r.try_get("attestation_status")?,
                 trust_score: r.try_get("trust_score").unwrap_or(0.5),
-                capabilities: serde_json::from_str(&caps_json).unwrap_or_default(),
+                capabilities: parse_json_or_warn(&caps_json, "nhi_identities.capabilities"),
             });
         }
         Ok(identities)
@@ -1378,8 +1445,8 @@ fn session_dag_from_row(r: &sqlx::sqlite::SqliteRow) -> Result<SessionDAG, Senti
     Ok(SessionDAG {
         session_id: r.try_get("session_id")?,
         agent_id: r.try_get("agent_id")?,
-        nodes: serde_json::from_str(&nodes_json).unwrap_or_default(),
-        edges: serde_json::from_str(&edges_json).unwrap_or_default(),
+        nodes: parse_json_or_warn(&nodes_json, "sessions.nodes_json"),
+        edges: parse_json_or_warn(&edges_json, "sessions.edges_json"),
         created_at: r.try_get::<i64, _>("created_at").unwrap_or(0) as u64,
         last_activity: r.try_get::<i64, _>("last_activity").unwrap_or(0) as u64,
         state: serde_json::from_value(serde_json::Value::String(state_str))
@@ -1408,7 +1475,10 @@ impl TaintStore for SqliteStorage {
         match row {
             Some(r) => {
                 let labels_json: String = r.try_get("labels_json").unwrap_or_default();
-                Ok(serde_json::from_str(&labels_json).unwrap_or_default())
+                Ok(parse_json_or_warn(
+                    &labels_json,
+                    "taint_sessions.labels_json",
+                ))
             }
             None => Ok(HashSet::new()),
         }
@@ -1557,15 +1627,15 @@ fn fingerprint_from_row(r: &sqlx::sqlite::SqliteRow) -> Result<AgentFingerprint,
     Ok(AgentFingerprint {
         agent_id: r.try_get("agent_id")?,
         total_requests: r.try_get::<i64, _>("total_requests").unwrap_or(0) as u64,
-        tool_usage: serde_json::from_str(&tool_usage_json).unwrap_or_default(),
-        action_types: serde_json::from_str(&action_types_json).unwrap_or_default(),
+        tool_usage: parse_json_or_warn(&tool_usage_json, "fingerprints.tool_usage"),
+        action_types: parse_json_or_warn(&action_types_json, "fingerprints.action_types"),
         avg_risk_score: r.try_get("avg_risk_score").unwrap_or(0.0),
         peak_risk_score: r.try_get("peak_risk_score").unwrap_or(0.0),
         hourly_pattern,
         anomaly_score: r.try_get("anomaly_score").unwrap_or(0.0),
         first_seen: r.try_get("first_seen")?,
         last_seen: r.try_get("last_seen")?,
-        flags: serde_json::from_str(&flags_json).unwrap_or_default(),
+        flags: parse_json_or_warn(&flags_json, "fingerprints.flags"),
     })
 }
 

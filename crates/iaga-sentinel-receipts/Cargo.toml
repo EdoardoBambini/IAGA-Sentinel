@@ -2,10 +2,14 @@
 name = "iaga-sentinel-receipts"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
 description = "IAGA Sentinel, Ed25519-signed action receipts + Merkle append-log + deterministic replay (Signer trait + drift-replay capture)"
+
+[lints]
+workspace = true
 
 [lib]
 name = "iaga_sentinel_receipts"
@@ -34,5 +38,5 @@ iaga-sentinel-cost = { path = "../iaga-sentinel-cost" }
 sqlx = { workspace = true, optional = true }
 
 [dev-dependencies]
-tokio = { version = "1", features = ["full", "test-util"] }
+tokio = { workspace = true, features = ["test-util"] }
 tempfile = "3"

@@ -3,6 +3,7 @@ use sqlx::postgres::{PgPool, PgPoolOptions};
 
 use super::migrations::run_postgres_migrations;
 use super::traits::*;
+use super::{parse_json_opt_or_warn, parse_json_or_warn};
 use crate::core::errors::SentinelError;
 use crate::core::types::*;
 use crate::modules::policy::rules_engine::PolicyRule;
@@ -114,7 +115,7 @@ impl AuditStore for PostgresStorage {
         .fetch_all(&self.pool)
         .await?;
 
-        Ok(rows.iter().map(|r| pg_row_to_audit(r)).collect())
+        Ok(rows.iter().map(pg_row_to_audit).collect())
     }
 
     async fn list_filtered(
@@ -147,7 +148,7 @@ impl AuditStore for PostgresStorage {
         .fetch_all(&self.pool)
         .await?;
 
-        Ok(rows.iter().map(|r| pg_row_to_audit(r)).collect())
+        Ok(rows.iter().map(pg_row_to_audit).collect())
     }
 
     async fn stats(&self) -> Result<AuditStats, SentinelError> {
@@ -503,7 +504,7 @@ impl ReviewStore for PostgresStorage {
         .fetch_all(&self.pool)
         .await?;
 
-        Ok(rows.iter().map(|r| pg_row_to_review(r)).collect())
+        Ok(rows.iter().map(pg_row_to_review).collect())
     }
 }
 
@@ -548,7 +549,7 @@ impl PolicyStore for PostgresStorage {
         .fetch_all(&self.pool)
         .await?;
 
-        Ok(rows.iter().map(|r| pg_row_to_profile(r)).collect())
+        Ok(rows.iter().map(pg_row_to_profile).collect())
     }
 
     async fn list_workspace_rules(
@@ -576,7 +577,7 @@ impl PolicyStore for PostgresStorage {
         .fetch_all(&self.pool)
         .await?;
 
-        Ok(rows.iter().map(|r| pg_row_to_workspace(r)).collect())
+        Ok(rows.iter().map(pg_row_to_workspace).collect())
     }
 
     async fn upsert_profile(&self, profile: &AgentProfile) -> Result<(), SentinelError> {
@@ -756,7 +757,7 @@ impl ApiKeyStore for PostgresStorage {
     async fn list_keys(&self) -> Result<Vec<ApiKeyRecord>, SentinelError> {
         use sqlx::Row;
         let rows = sqlx::query(
-            "SELECT id, label, created_at::text FROM api_keys ORDER BY created_at DESC",
+            "SELECT id, label, created_at::text, scope FROM api_keys ORDER BY created_at DESC",
         )
         .fetch_all(&self.pool)
         .await?;
@@ -766,8 +767,58 @@ impl ApiKeyStore for PostgresStorage {
                 id: r.try_get("id").unwrap_or_default(),
                 label: r.try_get("label").unwrap_or_default(),
                 created_at: r.try_get("created_at").unwrap_or_default(),
+                // Tolerant: rows read before the 0005 migration ran report
+                // the historical fully-privileged scope.
+                scope: r
+                    .try_get("scope")
+                    .unwrap_or_else(|_| KeyScope::Admin.as_str().to_string()),
             })
             .collect())
+    }
+
+    async fn store_key_scoped(
+        &self,
+        key_id: &str,
+        key_hash: &str,
+        label: &str,
+        raw_key: &str,
+        scope: KeyScope,
+    ) -> Result<(), SentinelError> {
+        let prefix = &raw_key[..raw_key.len().min(8)];
+        sqlx::query(
+            "INSERT INTO api_keys (id, key_hash, key_prefix, label, scope) VALUES ($1, $2, $3, $4, $5)",
+        )
+        .bind(key_id)
+        .bind(key_hash)
+        .bind(prefix)
+        .bind(label)
+        .bind(scope.as_str())
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    async fn verify_raw_key_scoped(
+        &self,
+        raw_key: &str,
+    ) -> Result<Option<VerifiedKey>, SentinelError> {
+        let prefix = &raw_key[..raw_key.len().min(8)];
+        let candidates = sqlx::query_as::<_, (String, String, String)>(
+            "SELECT id, key_hash, scope FROM api_keys WHERE key_prefix = $1",
+        )
+        .bind(prefix)
+        .fetch_all(&self.pool)
+        .await?;
+
+        for (id, stored_hash, scope) in &candidates {
+            if crate::auth::api_keys::verify_key(raw_key, stored_hash) {
+                return Ok(Some(VerifiedKey {
+                    key_id: Some(id.clone()),
+                    scope: KeyScope::from_db(scope),
+                }));
+            }
+        }
+        Ok(None)
     }
 }
 
@@ -809,7 +860,7 @@ impl TenantStore for PostgresStorage {
             name: row.try_get("name")?,
             enabled: row.try_get::<bool, _>("enabled").unwrap_or(true),
             created_at: row.try_get("created_at")?,
-            metadata: metadata_str.and_then(|s| serde_json::from_str(&s).ok()),
+            metadata: metadata_str.and_then(|s| parse_json_opt_or_warn(&s, "tenants.metadata")),
         })
     }
 
@@ -829,7 +880,7 @@ impl TenantStore for PostgresStorage {
                 name: row.try_get("name")?,
                 enabled: row.try_get::<bool, _>("enabled").unwrap_or(true),
                 created_at: row.try_get("created_at")?,
-                metadata: metadata_str.and_then(|s| serde_json::from_str(&s).ok()),
+                metadata: metadata_str.and_then(|s| parse_json_opt_or_warn(&s, "tenants.metadata")),
             });
         }
         Ok(tenants)
@@ -874,12 +925,12 @@ fn pg_row_to_audit(row: &sqlx::postgres::PgRow) -> StoredAuditEvent {
         },
         reasons: {
             let s: String = row.try_get("reasons").unwrap_or_default();
-            serde_json::from_str(&s).unwrap_or_default()
+            parse_json_or_warn(&s, "audit_events.reasons")
         },
         timestamp: row.try_get("timestamp").unwrap_or_default(),
         usage: {
             let s: Option<String> = row.try_get("usage_json").unwrap_or(None);
-            s.and_then(|s| serde_json::from_str(&s).ok())
+            s.and_then(|s| parse_json_opt_or_warn(&s, "audit_events.usage_json"))
         },
     }
 }
@@ -903,7 +954,7 @@ fn pg_row_to_review(row: &sqlx::postgres::PgRow) -> ReviewRequest {
         },
         reasons: {
             let s: String = row.try_get("reasons").unwrap_or_default();
-            serde_json::from_str(&s).unwrap_or_default()
+            parse_json_or_warn(&s, "review_requests.reasons")
         },
         created_at: row.try_get("created_at").unwrap_or_default(),
         updated_at: row.try_get("updated_at").unwrap_or_default(),
@@ -923,15 +974,15 @@ fn pg_row_to_profile(row: &sqlx::postgres::PgRow) -> AgentProfile {
         },
         approved_tools: {
             let s: String = row.try_get("approved_tools").unwrap_or_default();
-            serde_json::from_str(&s).unwrap_or_default()
+            parse_json_or_warn(&s, "agent_profiles.approved_tools")
         },
         approved_secrets: {
             let s: String = row.try_get("approved_secrets").unwrap_or_default();
-            serde_json::from_str(&s).unwrap_or_default()
+            parse_json_or_warn(&s, "agent_profiles.approved_secrets")
         },
         baseline_action_types: {
             let s: String = row.try_get("baseline_action_types").unwrap_or_default();
-            serde_json::from_str(&s).unwrap_or_default()
+            parse_json_or_warn(&s, "agent_profiles.baseline_action_types")
         },
         tool_trust: 0.7,
     }
@@ -944,15 +995,15 @@ fn pg_row_to_workspace(row: &sqlx::postgres::PgRow) -> WorkspacePolicy {
         tenant_id: row.try_get("tenant_id").unwrap_or(None),
         allowed_protocols: {
             let s: String = row.try_get("allowed_protocols").unwrap_or_default();
-            serde_json::from_str(&s).unwrap_or_default()
+            parse_json_or_warn(&s, "workspace_policies.allowed_protocols")
         },
         allowed_domains: {
             let s: String = row.try_get("allowed_domains").unwrap_or_default();
-            serde_json::from_str(&s).unwrap_or_default()
+            parse_json_or_warn(&s, "workspace_policies.allowed_domains")
         },
         tools: {
             let s: String = row.try_get("tools").unwrap_or_default();
-            serde_json::from_str(&s).unwrap_or_default()
+            parse_json_or_warn(&s, "workspace_policies.tools")
         },
         threshold_block: {
             let v: i64 = row.try_get("threshold_block").unwrap_or(70);
@@ -976,8 +1027,8 @@ fn pg_row_to_policy_rule(row: &sqlx::postgres::PgRow) -> Result<PolicyRule, Sent
         id: row.try_get("id")?,
         name: row.try_get("name")?,
         priority: row.try_get("priority").unwrap_or(0),
-        match_criteria: serde_json::from_str(&match_criteria).unwrap_or_default(),
-        conditions: serde_json::from_str(&conditions).unwrap_or_default(),
+        match_criteria: parse_json_or_warn(&match_criteria, "workspace_rules.match_criteria"),
+        conditions: parse_json_or_warn(&conditions, "workspace_rules.conditions"),
         decision: serde_json::from_value(serde_json::Value::String(decision))
             .unwrap_or(GovernanceDecision::Review),
         reason: row.try_get("reason").unwrap_or(None),
@@ -991,10 +1042,8 @@ fn pg_row_to_policy_rule(row: &sqlx::postgres::PgRow) -> Result<PolicyRule, Sent
 
 use crate::modules::fingerprint::behavioral::AgentFingerprint;
 use crate::modules::nhi::crypto_identity::{AgentIdentity, PendingChallenge};
-use crate::modules::session_graph::session_dag::{
-    DataFlowEdge, FSAState, SessionDAG, ToolCallNode,
-};
-use std::collections::{HashMap, HashSet};
+use crate::modules::session_graph::session_dag::{FSAState, SessionDAG};
+use std::collections::HashSet;
 
 // ── NhiStore ──
 
@@ -1052,7 +1101,7 @@ impl NhiStore for PostgresStorage {
                 created_at: r.try_get("created_at").unwrap_or_default(),
                 attestation_status: r.try_get("attestation_status").unwrap_or_default(),
                 trust_score: r.try_get("trust_score").unwrap_or(0.0),
-                capabilities: serde_json::from_str(&caps_str).unwrap_or_default(),
+                capabilities: parse_json_or_warn(&caps_str, "nhi_identities.capabilities"),
             }
         }))
     }
@@ -1089,7 +1138,7 @@ impl NhiStore for PostgresStorage {
                     created_at: r.try_get("created_at").unwrap_or_default(),
                     attestation_status: r.try_get("attestation_status").unwrap_or_default(),
                     trust_score: r.try_get("trust_score").unwrap_or(0.0),
-                    capabilities: serde_json::from_str(&caps_str).unwrap_or_default(),
+                    capabilities: parse_json_or_warn(&caps_str, "nhi_identities.capabilities"),
                 }
             })
             .collect())
@@ -1174,7 +1223,7 @@ impl SessionStore for PostgresStorage {
     async fn store_session(&self, session: &SessionDAG) -> Result<(), SentinelError> {
         let nodes_json = serde_json::to_string(&session.nodes).unwrap_or_default();
         let edges_json = serde_json::to_string(&session.edges).unwrap_or_default();
-        let state_str = serde_json::to_value(&session.state)
+        let state_str = serde_json::to_value(session.state)
             .unwrap_or_default()
             .as_str()
             .unwrap_or("idle")
@@ -1212,8 +1261,6 @@ impl SessionStore for PostgresStorage {
     }
 
     async fn get_session(&self, session_id: &str) -> Result<Option<SessionDAG>, SentinelError> {
-        use sqlx::Row;
-
         let row = sqlx::query(
             "SELECT session_id, agent_id, state, blocked, block_reason, blocked_at, block_count, nodes_json::text, edges_json::text, created_at, last_activity
              FROM session_graphs WHERE session_id = $1"
@@ -1233,7 +1280,7 @@ impl SessionStore for PostgresStorage {
         .fetch_all(&self.pool)
         .await?;
 
-        Ok(rows.iter().map(|r| pg_row_to_session(r)).collect())
+        Ok(rows.iter().map(pg_row_to_session).collect())
     }
 
     async fn delete_session(&self, session_id: &str) -> Result<(), SentinelError> {
@@ -1276,7 +1323,7 @@ impl TaintStore for PostgresStorage {
         match row {
             Some(r) => {
                 let json_str: String = r.try_get("labels_json").unwrap_or_default();
-                Ok(serde_json::from_str(&json_str).unwrap_or_default())
+                Ok(parse_json_or_warn(&json_str, "taint_sessions.labels_json"))
             }
             None => Ok(HashSet::new()),
         }
@@ -1324,8 +1371,6 @@ impl FingerprintStore for PostgresStorage {
         &self,
         agent_id: &str,
     ) -> Result<Option<AgentFingerprint>, SentinelError> {
-        use sqlx::Row;
-
         let row = sqlx::query(
             "SELECT agent_id, total_requests, tool_usage::text, action_types::text, avg_risk_score, peak_risk_score, hourly_pattern::text, anomaly_score, first_seen, last_seen, flags::text
              FROM fingerprints WHERE agent_id = $1"
@@ -1384,7 +1429,7 @@ impl FingerprintStore for PostgresStorage {
         .fetch_all(&self.pool)
         .await?;
 
-        Ok(rows.iter().map(|r| pg_row_to_fingerprint(r)).collect())
+        Ok(rows.iter().map(pg_row_to_fingerprint).collect())
     }
 
     async fn delete_fingerprint(&self, agent_id: &str) -> Result<(), SentinelError> {
@@ -1457,8 +1502,8 @@ fn pg_row_to_session(row: &sqlx::postgres::PgRow) -> SessionDAG {
     SessionDAG {
         session_id: row.try_get("session_id").unwrap_or_default(),
         agent_id: row.try_get("agent_id").unwrap_or_default(),
-        nodes: serde_json::from_str(&nodes_str).unwrap_or_default(),
-        edges: serde_json::from_str(&edges_str).unwrap_or_default(),
+        nodes: parse_json_or_warn(&nodes_str, "sessions.nodes_json"),
+        edges: parse_json_or_warn(&edges_str, "sessions.edges_json"),
         created_at: {
             let v: i64 = row.try_get("created_at").unwrap_or(0);
             v as u64
@@ -1501,14 +1546,14 @@ fn pg_row_to_fingerprint(row: &sqlx::postgres::PgRow) -> AgentFingerprint {
             let v: i64 = row.try_get("total_requests").unwrap_or(0);
             v as u64
         },
-        tool_usage: serde_json::from_str(&tool_usage_str).unwrap_or_default(),
-        action_types: serde_json::from_str(&action_types_str).unwrap_or_default(),
+        tool_usage: parse_json_or_warn(&tool_usage_str, "fingerprints.tool_usage"),
+        action_types: parse_json_or_warn(&action_types_str, "fingerprints.action_types"),
         avg_risk_score: row.try_get("avg_risk_score").unwrap_or(0.0),
         peak_risk_score: row.try_get("peak_risk_score").unwrap_or(0.0),
         hourly_pattern,
         anomaly_score: row.try_get("anomaly_score").unwrap_or(0.0),
         first_seen: row.try_get("first_seen").unwrap_or_default(),
         last_seen: row.try_get("last_seen").unwrap_or_default(),
-        flags: serde_json::from_str(&flags_str).unwrap_or_default(),
+        flags: parse_json_or_warn(&flags_str, "fingerprints.flags"),
     }
 }

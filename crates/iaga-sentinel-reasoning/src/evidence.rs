@@ -59,6 +59,13 @@ impl EvalInput {
 pub struct MlEvidence {
     pub scores: serde_json::Value,
     pub model_digests: Vec<ModelDigest>,
+    /// Names of loaded models whose inference FAILED for this input (1.5.2).
+    /// Before this field, a crashed model was indistinguishable from one that
+    /// produced no score. Elided when empty so the serialized shape (and any
+    /// consumer of it) is unchanged in the no-failure case. Receipts embed
+    /// only `scores`, so this can never alter receipt signing bytes.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub failed_models: Vec<String>,
 }
 
 impl MlEvidence {
@@ -66,6 +73,7 @@ impl MlEvidence {
         Self {
             scores: serde_json::Value::Object(Default::default()),
             model_digests: Vec::new(),
+            failed_models: Vec::new(),
         }
     }
 

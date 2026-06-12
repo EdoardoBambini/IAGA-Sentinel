@@ -19,10 +19,16 @@ use sha2::{Digest, Sha256};
 
 use crate::core::types::ActionType;
 
-/// Entries older than this are treated as misses and dropped.
-const TTL_MS: u64 = 5 * 60 * 1000;
-/// Hard cap; the oldest entry is evicted when full.
-const MAX_ENTRIES: usize = 4096;
+// Both tunables are read from the environment once, at first use; defaults
+// are the pre-1.5.2 hardcoded values.
+/// Entries older than this are treated as misses and dropped
+/// (`IAGA_SENTINEL_COST_CACHE_TTL_MS`).
+static TTL_MS: Lazy<u64> =
+    Lazy::new(|| crate::config::env::env_parse("IAGA_SENTINEL_COST_CACHE_TTL_MS", 5 * 60 * 1000));
+/// Hard cap; the oldest entry is evicted when full
+/// (`IAGA_SENTINEL_COST_CACHE_MAX_ENTRIES`).
+static MAX_ENTRIES: Lazy<usize> =
+    Lazy::new(|| crate::config::env::env_parse("IAGA_SENTINEL_COST_CACHE_MAX_ENTRIES", 4096usize));
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct CacheKey {
@@ -101,7 +107,7 @@ pub fn get(key: &CacheKey) -> Option<CachedResponse> {
     let now = now_ms();
     let found = { CACHE.read().ok()?.get(key).cloned() };
     match found {
-        Some(v) if now.saturating_sub(v.stored_at_ms) <= TTL_MS => {
+        Some(v) if now.saturating_sub(v.stored_at_ms) <= *TTL_MS => {
             if let Ok(mut s) = STATS.write() {
                 s.hits += 1;
                 s.savings_micros = s.savings_micros.saturating_add(v.original_cost_micros);
@@ -134,7 +140,7 @@ pub fn put(key: CacheKey, result_json: serde_json::Value, original_cost_micros: 
         stored_at_ms: now_ms(),
     };
     if let Ok(mut map) = CACHE.write() {
-        if map.len() >= MAX_ENTRIES && !map.contains_key(&key) {
+        if map.len() >= *MAX_ENTRIES && !map.contains_key(&key) {
             if let Some(oldest) = map
                 .iter()
                 .min_by_key(|(_, v)| v.stored_at_ms)
@@ -252,7 +258,7 @@ mod tests {
                 CachedResponse {
                     result_json: serde_json::json!({ "stale": true }),
                     original_cost_micros: 10,
-                    stored_at_ms: now_ms().saturating_sub(TTL_MS + 1_000),
+                    stored_at_ms: now_ms().saturating_sub(*TTL_MS + 1_000),
                 },
             );
         }

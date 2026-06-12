@@ -44,10 +44,21 @@ pub struct PricingTable {
     pub default_rate: Option<ModelRate>,
 }
 
+/// Date the [`PricingTable::builtin`] rates were last checked against
+/// published list prices (ISO 8601). A const rather than a `PricingTable`
+/// field on purpose: adding a field would change the serialized table (and
+/// the `/v1/cost/pricing` JSON) for existing consumers. Hosts use this to
+/// warn when the built-in list has gone stale — list prices drift, and a
+/// receipt silently priced off an old table corrupts the cost ledger's
+/// usefulness without anyone noticing. Bump it whenever the rates below are
+/// re-verified.
+pub const BUILTIN_PRICING_EFFECTIVE_DATE: &str = "2026-05-01";
+
 impl PricingTable {
-    /// Built-in published list prices (USD per million tokens), as of 2026-05.
-    /// Overridable via `IAGA_SENTINEL_PRICING_FILE`; a caller-supplied cost
-    /// always wins. See ADR 0020.
+    /// Built-in published list prices (USD per million tokens), as of
+    /// [`BUILTIN_PRICING_EFFECTIVE_DATE`]. Overridable via
+    /// `IAGA_SENTINEL_PRICING_FILE`; a caller-supplied cost always wins.
+    /// See ADR 0020.
     pub fn builtin() -> Self {
         fn rate(input: f64, output: f64) -> ModelRate {
             ModelRate {

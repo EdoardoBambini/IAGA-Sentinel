@@ -283,15 +283,21 @@ fn default_transitions() -> Vec<Transition> {
 static SESSIONS: Lazy<Mutex<HashMap<String, SessionDAG>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 
-const MAX_SESSIONS: usize = 10_000;
-const SESSION_TTL_MS: u64 = 30 * 60 * 1000;
+// Tunables below are read from the environment once, at first use (not
+// hot-reloadable); the defaults are the pre-1.5.2 hardcoded values.
+static MAX_SESSIONS: Lazy<usize> =
+    Lazy::new(|| crate::config::env::env_parse("IAGA_SENTINEL_MAX_SESSIONS", 10_000usize));
+static SESSION_TTL_MS: Lazy<u64> =
+    Lazy::new(|| crate::config::env::env_parse("IAGA_SENTINEL_SESSION_TTL_MS", 30 * 60 * 1000u64));
 /// How long a blocked session stays blocked before decaying to a
 /// "cooldown" state where new requests are evaluated with elevated
-/// scrutiny but not auto-rejected. 60 seconds.
-const BLOCK_COOLDOWN_MS: u64 = 60_000;
+/// scrutiny but not auto-rejected. 60 seconds by default.
+static BLOCK_COOLDOWN_MS: Lazy<u64> =
+    Lazy::new(|| crate::config::env::env_parse("IAGA_SENTINEL_BLOCK_COOLDOWN_MS", 60_000u64));
 /// Maximum number of times a session can be blocked before it becomes
 /// permanently blocked (no more cooldown recovery).
-const MAX_BLOCK_COUNT: u32 = 3;
+static MAX_BLOCK_COUNT: Lazy<u32> =
+    Lazy::new(|| crate::config::env::env_parse("IAGA_SENTINEL_MAX_BLOCK_COUNT", 3u32));
 
 fn now_ms() -> u64 {
     SystemTime::now()
@@ -309,9 +315,9 @@ fn get_or_create_session(session_id: &str, agent_id: &str) -> SessionDAG {
     }
 
     // Evict stale sessions
-    if store.len() >= MAX_SESSIONS {
+    if store.len() >= *MAX_SESSIONS {
         let now = now_ms();
-        store.retain(|_, s| now - s.last_activity < SESSION_TTL_MS);
+        store.retain(|_, s| now - s.last_activity < *SESSION_TTL_MS);
     }
 
     let session = SessionDAG {
@@ -384,7 +390,7 @@ pub fn add_tool_call_to_session(
         let elapsed = now.saturating_sub(session.blocked_at);
 
         // Permanently blocked after MAX_BLOCK_COUNT strikes
-        if session.block_count >= MAX_BLOCK_COUNT {
+        if session.block_count >= *MAX_BLOCK_COUNT {
             return SessionAnalysisResult {
                 node_id: String::new(),
                 session_id: session_id.to_string(),
@@ -404,7 +410,7 @@ pub fn add_tool_call_to_session(
         }
 
         // Still within cooldown window, remain blocked
-        if elapsed < BLOCK_COOLDOWN_MS {
+        if elapsed < *BLOCK_COOLDOWN_MS {
             return SessionAnalysisResult {
                 node_id: String::new(),
                 session_id: session_id.to_string(),
@@ -415,7 +421,7 @@ pub fn add_tool_call_to_session(
                 anomaly_score: 80,
                 anomaly_reasons: vec![format!(
                     "session in cooldown ({:.0}s remaining): {}",
-                    (BLOCK_COOLDOWN_MS - elapsed) as f64 / 1000.0,
+                    (*BLOCK_COOLDOWN_MS - elapsed) as f64 / 1000.0,
                     session.block_reason.as_deref().unwrap_or("unknown")
                 )],
                 session_call_count: session.nodes.len() as u32,

@@ -22,11 +22,25 @@ members = [
 ]
 
 [workspace.package]
-version = "1.5.1"
+version = "1.5.2"
 edition = "2021"
+# Minimum Supported Rust Version. Floor set by transitive deps in Cargo.lock
+# (`home 0.5.12` needs 1.88); bump deliberately, note it in CHANGELOG.md.
+rust-version = "1.88"
 license = "BUSL-1.1"
 repository = "https://github.com/EdoardoBambini/IAGA-Sentinel"
 authors = ["Edoardo Bambini"]
+
+# Lint policy shared by every crate (each adds `[lints] workspace = true`).
+# Kept deliberately conservative: CI already runs clippy with `-D warnings`,
+# this block encodes the non-negotiables so local builds and IDEs see them too.
+[workspace.lints.rust]
+unsafe_code = "deny"
+
+[workspace.lints.clippy]
+dbg_macro = "deny"
+todo = "warn"
+unimplemented = "warn"
 
 [workspace.dependencies]
 # shared deps inherited by crates in the workspace
@@ -47,3 +61,6 @@ hex = "0.4"
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "chrono", "uuid", "macros", "migrate"] }
 # APL lexer
 logos = "0.14"
+# WASM runtime: optional plugin engine in core, dev-dep of iaga-sentinel-apl
+# for the tree-walk ↔ WASM differential tests (single workspace version).
+wasmtime = "36.0.8"

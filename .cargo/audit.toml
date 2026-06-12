@@ -1,4 +1,5 @@
-# Ignored advisories for cargo audit
+# Ignored advisories for cargo audit — single source of truth (1.5.2; CI runs
+# plain `cargo audit` from the repo root and discovers this file).
 #
 # RUSTSEC-2023-0071, rsa 0.9.10 timing sidechannel (Marvin Attack)
 #   Pulled transitively via sqlx-macros-core -> sqlx-mysql. We use only
@@ -7,7 +8,7 @@
 #   No upstream fix available as of 2026-04.
 #
 # RUSTSEC-2025-0057, fxhash 0.2.1 unmaintained
-#   Pulled via wasmtime 36.0.7 -> fxprof-processed-profile. Out of our
+#   Pulled via wasmtime 36.x -> fxprof-processed-profile. Out of our
 #   control; tracked upstream in bytecodealliance/wasmtime.
 #
 # RUSTSEC-2024-0436, paste 1.0.15 unmaintained

@@ -22,6 +22,9 @@ pub enum SentinelError {
     #[error("Invalid API key")]
     InvalidApiKey,
 
+    #[error("This endpoint requires an admin-scoped API key")]
+    AdminScopeRequired,
+
     #[error("Invalid request: {0}")]
     InvalidRequest(String),
 
@@ -33,6 +36,9 @@ pub enum SentinelError {
 
     #[error("Configuration error: {0}")]
     Config(String),
+
+    #[error("IO error: {0}")]
+    Io(String),
 
     #[error("Proxy error: {0}")]
     Proxy(String),
@@ -53,10 +59,12 @@ impl IntoResponse for SentinelError {
             SentinelError::Storage(_) => (StatusCode::INTERNAL_SERVER_ERROR, "storage_error"),
             SentinelError::AuthRequired => (StatusCode::UNAUTHORIZED, "auth_required"),
             SentinelError::InvalidApiKey => (StatusCode::UNAUTHORIZED, "invalid_api_key"),
+            SentinelError::AdminScopeRequired => (StatusCode::FORBIDDEN, "admin_scope_required"),
             SentinelError::InvalidRequest(_) => (StatusCode::BAD_REQUEST, "invalid_request"),
             SentinelError::ReviewNotFound(_) => (StatusCode::NOT_FOUND, "review_not_found"),
             SentinelError::Internal(_) => (StatusCode::INTERNAL_SERVER_ERROR, "internal_error"),
             SentinelError::Config(_) => (StatusCode::INTERNAL_SERVER_ERROR, "config_error"),
+            SentinelError::Io(_) => (StatusCode::INTERNAL_SERVER_ERROR, "io_error"),
             SentinelError::Proxy(_) => (StatusCode::INTERNAL_SERVER_ERROR, "proxy_error"),
         };
 
@@ -77,7 +85,9 @@ impl From<sqlx::Error> for SentinelError {
 
 impl From<std::io::Error> for SentinelError {
     fn from(e: std::io::Error) -> Self {
-        SentinelError::Config(e.to_string())
+        // 1.5.2: dedicated Io variant; previously conflated with Config,
+        // which made file-not-found surface as `config_error`.
+        SentinelError::Io(e.to_string())
     }
 }
 

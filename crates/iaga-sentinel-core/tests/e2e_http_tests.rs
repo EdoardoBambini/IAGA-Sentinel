@@ -42,11 +42,24 @@ impl Drop for TestServer {
 }
 
 async fn spawn_test_server() -> TestServer {
-    spawn_test_server_with_plugin_registry(Arc::new(PluginRegistry::default())).await
+    spawn_test_server_inner(Arc::new(PluginRegistry::default()), None).await
 }
 
+// Only the plugins-gated test below builds a server with a custom registry.
+#[cfg(feature = "plugins")]
 async fn spawn_test_server_with_plugin_registry(
     plugin_registry: Arc<PluginRegistry>,
+) -> TestServer {
+    spawn_test_server_inner(plugin_registry, None).await
+}
+
+async fn spawn_test_server_with_cors(origins: Vec<String>) -> TestServer {
+    spawn_test_server_inner(Arc::new(PluginRegistry::default()), Some(origins)).await
+}
+
+async fn spawn_test_server_inner(
+    plugin_registry: Arc<PluginRegistry>,
+    cors_origins: Option<Vec<String>>,
 ) -> TestServer {
     let db_url = format!(
         "sqlite:file:e2e-http-{}?mode=memory&cache=shared",
@@ -96,9 +109,12 @@ async fn spawn_test_server_with_plugin_registry(
         storage_backend: StorageBackend::Sqlite,
         env: AppEnv {
             port: 0,
+            host: "127.0.0.1".to_string(),
             node_env: NodeEnv::Test,
             default_mode: ServiceMode::Gateway,
+            cors_origins,
         },
+        auth_cache: iaga_sentinel::auth::cache::AuthCache::from_env(),
         receipts: None,
         reasoning: None,
         #[cfg(feature = "apl")]
@@ -705,4 +721,195 @@ async fn test_http_requires_valid_bearer_token() {
         .await
         .expect("invalid-key request should complete");
     assert_eq!(invalid.status(), StatusCode::UNAUTHORIZED);
+}
+
+// ── 1.5.2: API key scopes + verified-key cache ──
+
+#[tokio::test]
+async fn test_http_agent_scope_cannot_administer_gateway() {
+    let server = spawn_test_server().await;
+    let admin = auth_client(&server.api_key);
+
+    // Admin creates an agent-scoped key.
+    let created = admin
+        .post(format!("{}/v1/auth/keys", server.base_url()))
+        .json(&serde_json::json!({ "label": "e2e-agent-key", "scope": "agent" }))
+        .send()
+        .await
+        .expect("create agent key should succeed");
+    assert_eq!(created.status(), StatusCode::CREATED);
+    let created_json: Value = created.json().await.expect("create key JSON");
+    assert_eq!(created_json["scope"], "agent");
+    let agent_key = created_json["key"]
+        .as_str()
+        .expect("raw key returned once")
+        .to_string();
+    let agent = auth_client(&agent_key);
+
+    // The administrative surface rejects the agent key with 403.
+    let admin_get_endpoints = ["/v1/auth/keys", "/v1/webhooks", "/v1/webhooks/dlq"];
+    for path in admin_get_endpoints {
+        let resp = agent
+            .get(format!("{}{}", server.base_url(), path))
+            .send()
+            .await
+            .expect("agent request should complete");
+        assert_eq!(
+            resp.status(),
+            StatusCode::FORBIDDEN,
+            "agent key must not read {path}"
+        );
+        let body: Value = resp.json().await.expect("error body JSON");
+        assert_eq!(body["error"], "admin_scope_required");
+    }
+    let admin_post_endpoints = [
+        ("/v1/auth/keys", serde_json::json!({ "label": "nope" })),
+        (
+            "/v1/webhooks",
+            serde_json::json!({ "url": "https://example.org/h", "secret": "s" }),
+        ),
+        ("/v1/plugins/reload", serde_json::json!({})),
+        ("/v1/rate-limit/config", serde_json::json!({})),
+        ("/v1/threat-intel/indicators", serde_json::json!({})),
+    ];
+    for (path, body) in admin_post_endpoints {
+        let resp = agent
+            .post(format!("{}{}", server.base_url(), path))
+            .json(&body)
+            .send()
+            .await
+            .expect("agent request should complete");
+        assert_eq!(
+            resp.status(),
+            StatusCode::FORBIDDEN,
+            "agent key must not mutate {path}"
+        );
+    }
+
+    // The governance surface keeps working for the agent key.
+    let inspect = agent
+        .post(format!("{}/v1/inspect", server.base_url()))
+        .json(&safe_inspect_body())
+        .send()
+        .await
+        .expect("agent inspect should complete");
+    assert_eq!(inspect.status(), StatusCode::OK);
+
+    // The admin key still manages keys, and records expose their scope.
+    let keys = admin
+        .get(format!("{}/v1/auth/keys", server.base_url()))
+        .send()
+        .await
+        .expect("admin list keys should complete");
+    assert_eq!(keys.status(), StatusCode::OK);
+    let keys_json: Value = keys.json().await.expect("keys JSON");
+    let records = keys_json.as_array().expect("keys array");
+    assert!(records
+        .iter()
+        .any(|k| k["label"] == "e2e-agent-key" && k["scope"] == "agent"));
+    assert!(records
+        .iter()
+        .any(|k| k["label"] == "e2e" && k["scope"] == "admin"));
+
+    // Invalid scope values are rejected with 400.
+    let bad_scope = admin
+        .post(format!("{}/v1/auth/keys", server.base_url()))
+        .json(&serde_json::json!({ "label": "bad", "scope": "root" }))
+        .send()
+        .await
+        .expect("bad scope request should complete");
+    assert_eq!(bad_scope.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn test_http_cors_allowlist_restricts_origins() {
+    // Default (no allowlist) keeps the permissive `Any`: every origin is
+    // reflected as `*`.
+    let permissive = spawn_test_server().await;
+    let client = reqwest::Client::new();
+    let resp = client
+        .get(format!("{}/health", permissive.base_url()))
+        .header(reqwest::header::ORIGIN, "https://anywhere.example")
+        .send()
+        .await
+        .expect("health with origin");
+    assert_eq!(
+        resp.headers()
+            .get("access-control-allow-origin")
+            .and_then(|v| v.to_str().ok()),
+        Some("*"),
+        "without IAGA_SENTINEL_CORS_ORIGINS the pre-1.5.2 Any behavior must hold"
+    );
+
+    // With an allowlist, only listed origins are echoed back.
+    let restricted = spawn_test_server_with_cors(vec!["https://ok.example".to_string()]).await;
+    let allowed = client
+        .get(format!("{}/health", restricted.base_url()))
+        .header(reqwest::header::ORIGIN, "https://ok.example")
+        .send()
+        .await
+        .expect("allowed origin request");
+    assert_eq!(
+        allowed
+            .headers()
+            .get("access-control-allow-origin")
+            .and_then(|v| v.to_str().ok()),
+        Some("https://ok.example")
+    );
+
+    let denied = client
+        .get(format!("{}/health", restricted.base_url()))
+        .header(reqwest::header::ORIGIN, "https://evil.example")
+        .send()
+        .await
+        .expect("denied origin request");
+    assert!(
+        denied
+            .headers()
+            .get("access-control-allow-origin")
+            .is_none(),
+        "unlisted origins must not receive an allow-origin header"
+    );
+}
+
+#[tokio::test]
+async fn test_http_key_delete_invalidates_auth_cache_immediately() {
+    let server = spawn_test_server().await;
+    let admin = auth_client(&server.api_key);
+
+    let created = admin
+        .post(format!("{}/v1/auth/keys", server.base_url()))
+        .json(&serde_json::json!({ "label": "e2e-to-delete" }))
+        .send()
+        .await
+        .expect("create key should succeed");
+    assert_eq!(created.status(), StatusCode::CREATED);
+    let created_json: Value = created.json().await.expect("create key JSON");
+    let key_id = created_json["id"].as_str().expect("key id").to_string();
+    let second = auth_client(created_json["key"].as_str().expect("raw key"));
+
+    // First call verifies via Argon2 and caches; second call hits the cache.
+    for _ in 0..2 {
+        let ok = second
+            .get(format!("{}/v1/audit", server.base_url()))
+            .send()
+            .await
+            .expect("authenticated request should complete");
+        assert_eq!(ok.status(), StatusCode::OK);
+    }
+
+    let deleted = admin
+        .delete(format!("{}/v1/auth/keys/{key_id}", server.base_url()))
+        .send()
+        .await
+        .expect("delete key should complete");
+    assert_eq!(deleted.status(), StatusCode::NO_CONTENT);
+
+    // The deleted key is rejected immediately, not after the cache TTL.
+    let rejected = second
+        .get(format!("{}/v1/audit", server.base_url()))
+        .send()
+        .await
+        .expect("post-delete request should complete");
+    assert_eq!(rejected.status(), StatusCode::UNAUTHORIZED);
 }

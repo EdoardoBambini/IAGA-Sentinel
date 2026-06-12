@@ -376,4 +376,134 @@ mod tests {
             .expect_err("dangerous shell must be blocked");
         assert!(matches!(err, SentinelError::Blocked { .. }), "got {err:?}");
     }
+
+    // ── 1.5.2: mock /v1/inspect server (no live sidecar needed) ──
+    //
+    // Until now the only end-to-end client test was the #[ignore]d live one
+    // above, so `enforce`'s verdict mapping and the outbound wire shape were
+    // never exercised in CI. The mock binds an ephemeral 127.0.0.1 port and
+    // returns a canned verdict while capturing the body the client sent.
+
+    mod mock_server {
+        use std::net::SocketAddr;
+        use std::sync::{Arc, Mutex};
+
+        /// Serves one canned `/v1/inspect` verdict; captures request bodies.
+        pub(super) struct MockSentinel {
+            pub addr: SocketAddr,
+            pub captured: Arc<Mutex<Vec<serde_json::Value>>>,
+            handle: tokio::task::JoinHandle<()>,
+        }
+
+        impl MockSentinel {
+            pub(super) async fn serve(decision: &'static str, score: u32) -> Self {
+                use axum::{routing::post, Json, Router};
+
+                let captured: Arc<Mutex<Vec<serde_json::Value>>> = Arc::default();
+                let captured_in = captured.clone();
+                let app = Router::new().route(
+                    "/v1/inspect",
+                    post(move |Json(body): Json<serde_json::Value>| {
+                        let captured = captured_in.clone();
+                        async move {
+                            captured.lock().unwrap().push(body);
+                            Json(serde_json::json!({
+                                "traceId": "mock-trace",
+                                "decision": decision,
+                                "risk": {
+                                    "score": score,
+                                    "decision": decision,
+                                    "reasons": ["mock reason"]
+                                },
+                                "auditEvent": { "eventId": "mock-event" }
+                            }))
+                        }
+                    }),
+                );
+
+                let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+                    .await
+                    .expect("bind mock listener");
+                let addr = listener.local_addr().expect("mock addr");
+                let handle = tokio::spawn(async move {
+                    axum::serve(listener, app).await.expect("mock server runs");
+                });
+                Self {
+                    addr,
+                    captured,
+                    handle,
+                }
+            }
+
+            pub(super) fn base_url(&self) -> String {
+                format!("http://{}", self.addr)
+            }
+        }
+
+        impl Drop for MockSentinel {
+            fn drop(&mut self) {
+                self.handle.abort();
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn enforce_allows_on_allow_and_sends_camel_case_wire_body() {
+        let server = mock_server::MockSentinel::serve("allow", 5).await;
+        let client = SentinelClient::new(server.base_url()).with_api_key("iaga_test-key");
+
+        let result = client
+            .enforce(&shell_request("echo hi"), true)
+            .await
+            .expect("allow verdict passes enforcement");
+        assert!(result.allowed());
+        assert_eq!(result.trace_id, "mock-trace");
+
+        // The body that actually went over the wire is the public camelCase
+        // contract, with None fields elided.
+        let captured = server.captured.lock().unwrap();
+        assert_eq!(captured.len(), 1);
+        let body = &captured[0];
+        assert_eq!(body["framework"], "rust-integrations");
+        assert_eq!(body["action"]["toolName"], "shell");
+        assert_eq!(body["action"]["type"], "shell");
+        assert_eq!(body["action"]["payload"]["cmd"], "echo hi");
+        assert!(body.get("tenantId").is_none(), "None fields are elided");
+        assert!(body.get("usage").is_none());
+    }
+
+    #[tokio::test]
+    async fn enforce_maps_block_verdict_to_blocked_error() {
+        let server = mock_server::MockSentinel::serve("block", 95).await;
+        let client = SentinelClient::new(server.base_url());
+
+        let err = client
+            .enforce(&shell_request("rm -rf /"), false)
+            .await
+            .expect_err("block verdict must surface as error");
+        match err {
+            SentinelError::Blocked {
+                tool,
+                score,
+                reasons,
+            } => {
+                assert_eq!(tool, "shell");
+                assert_eq!(score, 95);
+                assert!(reasons.contains("mock reason"));
+            }
+            other => panic!("expected Blocked, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn enforce_maps_review_verdict_to_review_error() {
+        let server = mock_server::MockSentinel::serve("review", 60).await;
+        let client = SentinelClient::new(server.base_url());
+
+        let err = client
+            .enforce(&shell_request("curl example.org"), false)
+            .await
+            .expect_err("review verdict must surface as error");
+        assert!(matches!(err, SentinelError::Review { score: 60, .. }));
+    }
 }

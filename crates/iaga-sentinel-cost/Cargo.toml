@@ -2,10 +2,14 @@
 name = "iaga-sentinel-cost"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
 description = "IAGA Sentinel, canonical cost/usage types + self-hosted pricing engine (token to USD) shared by receipts and core"
+
+[lints]
+workspace = true
 
 [lib]
 name = "iaga_sentinel_cost"

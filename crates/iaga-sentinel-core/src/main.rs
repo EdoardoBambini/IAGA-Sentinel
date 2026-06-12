@@ -182,6 +182,11 @@ enum Commands {
         /// Label for the API key
         #[arg(short, long, default_value = "cli-generated")]
         label: String,
+
+        /// Key scope: `admin` (full access, default) or `agent`
+        /// (governance surface only — cannot manage keys/webhooks/config)
+        #[arg(long, default_value = "admin", value_parser = ["admin", "agent"])]
+        scope: String,
     },
 
     /// Show audit trail
@@ -520,8 +525,8 @@ async fn main() {
         Some(Commands::Export { output }) => {
             cmd_export(&db_url, output.as_deref()).await;
         }
-        Some(Commands::GenKey { label }) => {
-            cmd_gen_key(&db_url, &label).await;
+        Some(Commands::GenKey { label, scope }) => {
+            cmd_gen_key(&db_url, &label, &scope).await;
         }
         Some(Commands::Audit { limit, format }) => {
             cmd_audit(&db_url, limit, &format).await;
@@ -798,9 +803,14 @@ async fn cmd_serve(
     let cleanup_session = storage.session_store.clone();
     let cleanup_taint = storage.taint_store.clone();
     tokio::spawn(async move {
-        let interval = std::time::Duration::from_secs(300);
-        let ttl = std::time::Duration::from_secs(3600); // 1 hour TTL
-        let ttl_ms = 3_600_000u64;
+        let interval = std::time::Duration::from_secs(iaga_sentinel::config::env::env_parse(
+            "IAGA_SENTINEL_CLEANUP_INTERVAL_SECS",
+            300u64,
+        ));
+        let ttl_secs =
+            iaga_sentinel::config::env::env_parse("IAGA_SENTINEL_CLEANUP_TTL_SECS", 3600u64);
+        let ttl = std::time::Duration::from_secs(ttl_secs);
+        let ttl_ms = ttl_secs.saturating_mul(1000);
         loop {
             tokio::time::sleep(interval).await;
 
@@ -822,7 +832,7 @@ async fn cmd_serve(
                 .await
                 .map_err(|e| tracing::warn!(error = %e, "DB prune: sessions"));
             let _ = cleanup_taint
-                .prune_stale_sessions(3600)
+                .prune_stale_sessions(ttl_secs)
                 .await
                 .map_err(|e| tracing::warn!(error = %e, "DB prune: taint"));
 
@@ -907,6 +917,7 @@ async fn cmd_serve(
         plugin_registry: Arc::new(PluginRegistry::default()),
         storage_backend: storage.storage_backend,
         env: app_env,
+        auth_cache: iaga_sentinel::auth::cache::AuthCache::from_env(),
         receipts,
         reasoning,
         #[cfg(feature = "apl")]
@@ -915,7 +926,7 @@ async fn cmd_serve(
 
     let router = create_router(state.clone());
 
-    let addr = format!("0.0.0.0:{}", state.env.port);
+    let addr = format!("{}:{}", state.env.host, state.env.port);
     let listener = match tokio::net::TcpListener::bind(&addr).await {
         Ok(l) => l,
         Err(e) => {
@@ -1027,6 +1038,7 @@ async fn cmd_inspect(source: &str, db_url: &str) -> i32 {
         plugin_registry: Arc::new(PluginRegistry::default()),
         storage_backend: storage.storage_backend,
         env: load_env(),
+        auth_cache: iaga_sentinel::auth::cache::AuthCache::from_env(),
         receipts,
         reasoning,
         #[cfg(feature = "apl")]
@@ -1650,20 +1662,24 @@ async fn cmd_export(db_url: &str, output: Option<&str>) {
 
 // ── gen-key ──
 
-async fn cmd_gen_key(db_url: &str, label: &str) {
+async fn cmd_gen_key(db_url: &str, label: &str, scope: &str) {
     use iaga_sentinel::auth::api_keys::generate_api_key;
+    use iaga_sentinel::storage::traits::KeyScope;
 
     let storage = init_storage_bundle(db_url).await.unwrap_or_else(|e| {
         eprintln!("{e}");
         process::exit(1);
     });
 
+    // Clap's value_parser restricts to admin|agent; from_db maps anything
+    // else to Admin defensively.
+    let key_scope = KeyScope::from_db(scope);
     let (raw_key, key_hash) = generate_api_key();
     let key_id = uuid::Uuid::new_v4().to_string();
 
     storage
         .api_key_store
-        .store_key(&key_id, &key_hash, label, &raw_key)
+        .store_key_scoped(&key_id, &key_hash, label, &raw_key, key_scope)
         .await
         .unwrap_or_else(|e| {
             eprintln!("Failed to store key: {e}");
@@ -1674,6 +1690,7 @@ async fn cmd_gen_key(db_url: &str, label: &str) {
     println!("  ID:    {key_id}");
     println!("  Key:   {raw_key}");
     println!("  Label: {label}");
+    println!("  Scope: {}", key_scope.as_str());
     println!();
     println!("Save this key now, it cannot be retrieved again.");
 }
@@ -1865,6 +1882,7 @@ async fn cmd_proxy(db_url: &str, agent_id: &str, command: &str, args: Vec<String
         plugin_registry: Arc::new(PluginRegistry::default()),
         storage_backend: storage.storage_backend,
         env: load_env(),
+        auth_cache: iaga_sentinel::auth::cache::AuthCache::from_env(),
         receipts,
         reasoning,
         #[cfg(feature = "apl")]
@@ -1925,6 +1943,7 @@ async fn cmd_mcp_server(db_url: &str, seed_demo: bool) {
         plugin_registry: Arc::new(PluginRegistry::default()),
         storage_backend: storage.storage_backend,
         env: load_env(),
+        auth_cache: iaga_sentinel::auth::cache::AuthCache::from_env(),
         receipts,
         reasoning,
         #[cfg(feature = "apl")]
@@ -2171,6 +2190,7 @@ async fn cmd_kernel_run(db_url: &str, agent_id: &str, cwd: Option<&str>, cmd: &[
         plugin_registry: Arc::new(PluginRegistry::default()),
         storage_backend: storage.storage_backend,
         env: load_env(),
+        auth_cache: iaga_sentinel::auth::cache::AuthCache::from_env(),
         receipts,
         reasoning,
         #[cfg(feature = "apl")]

@@ -57,8 +57,10 @@ async fn build_test_state_with_plugin_registry(
 
     let env = AppEnv {
         port: 4010,
+        host: "127.0.0.1".to_string(),
         node_env: NodeEnv::Test,
         default_mode: ServiceMode::Gateway,
+        cors_origins: None,
     };
 
     Arc::new(AppState {
@@ -80,6 +82,7 @@ async fn build_test_state_with_plugin_registry(
         plugin_registry,
         storage_backend: StorageBackend::Sqlite,
         env,
+        auth_cache: iaga_sentinel::auth::cache::AuthCache::from_env(),
         receipts: None,
         reasoning: None,
         #[cfg(feature = "apl")]

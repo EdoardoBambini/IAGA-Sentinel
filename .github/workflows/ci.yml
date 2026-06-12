@@ -41,14 +41,29 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
 
       - name: Security audit
-        # Ignores documented in crates/iaga-sentinel-core/.cargo/audit.toml. Passed explicitly
-        # because cargo-audit's project-local config discovery is version-dependent.
-        run: cargo audit --ignore RUSTSEC-2023-0071 --ignore RUSTSEC-2025-0057 --ignore RUSTSEC-2024-0436
+        # Ignores live in .cargo/audit.toml (repo root, auto-discovered) —
+        # single source of truth, no duplicated CLI flags (1.5.2).
+        run: cargo audit
 
   test:
     name: Test
     runs-on: ubuntu-latest
     needs: check
+    services:
+      # Live Postgres for the receipts/core postgres-feature suites (1.5.2).
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: sentinel
+          POSTGRES_PASSWORD: sentinel
+          POSTGRES_DB: sentinel_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sentinel"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
 
@@ -96,11 +111,26 @@ jobs:
       - name: Run iaga-sentinel-core tests with `cost-control` feature (1.5)
         run: cargo test -p iaga-sentinel-core --features cost-control
 
-      - name: Run iaga-sentinel-receipts tests with `postgres` feature (1.2)
-        run: cargo build -p iaga-sentinel-receipts --features postgres
-        # No live postgres in this job, feature compile-check only.
-        # Promotion to full --features postgres test execution (with a
-        # postgres:16-alpine service container) is on the 1.3 roadmap.
+      - name: Run iaga-sentinel-receipts tests with `postgres` feature (1.5.2, live DB)
+        run: cargo test -p iaga-sentinel-receipts --features postgres
+        env:
+          IAGA_SENTINEL_TEST_PG_URL: postgres://sentinel:sentinel@localhost:5432/sentinel_test
+
+      - name: Run iaga-sentinel-core tests with `postgres` feature (1.5.2)
+        run: cargo test -p iaga-sentinel-core --features postgres
+        env:
+          IAGA_SENTINEL_TEST_PG_URL: postgres://sentinel:sentinel@localhost:5432/sentinel_test
+
+      - name: Build iaga-sentinel-kernel with `linux-bpf` (scaffold compile check, 1.5.2)
+        run: cargo build -p iaga-sentinel-kernel --features linux-bpf
+
+      - name: Run workspace tests with all features combined (1.5.2)
+        # First job that compiles every feature together (sqlite+postgres+ml+
+        # plugins+apl-wasm+linux-bpf+cost-control+…) to catch feature-gate
+        # interactions no single-feature step can see.
+        run: cargo test --workspace --all-features
+        env:
+          IAGA_SENTINEL_TEST_PG_URL: postgres://sentinel:sentinel@localhost:5432/sentinel_test
 
       - name: Build TypeScript SDK
         working-directory: sdks/typescript
@@ -111,6 +141,33 @@ jobs:
       - name: Compile Python SDK
         working-directory: sdks/python
         run: python -m compileall iaga_sentinel
+
+      - name: SDK e2e smoke against a live sidecar (1.5.2)
+        # Until 1.5.2 the SDK suites never ran in CI: the Python adapter tests
+        # auto-skip without a sidecar and the TS smoke needed a registered
+        # agent pool. This step closes both gaps with the real binary.
+        env:
+          IAGA_SENTINEL_OPEN_MODE: "true"
+          IAGA_BIN: ${{ github.workspace }}/target/debug/iaga
+          IAGA_BASE_URL: http://127.0.0.1:4010
+        run: |
+          set -euo pipefail
+          cargo build -p iaga-sentinel-core --bin iaga
+          ./target/debug/iaga serve --seed-demo &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
+          for i in $(seq 1 60); do
+            curl -fsS "$IAGA_BASE_URL/health" >/dev/null 2>&1 && break
+            sleep 0.5
+          done
+          curl -fsS "$IAGA_BASE_URL/health"
+          # Python SDK: framework-free adapter tests driving the live sidecar
+          # (tests/e2e needs the actual agent frameworks installed and stays local-only).
+          pip install --quiet pytest httpx requests
+          python -m pytest sdks/python/tests --ignore sdks/python/tests/e2e -q
+          # TypeScript SDK: register a fresh agent pool, then run the smoke checks.
+          IAGA_SMOKE_AGENTS="$(node sdks/typescript/register-smoke-agents.cjs)" \
+            node sdks/typescript/smoke.cjs
 
   build:
     name: Build
@@ -149,14 +206,13 @@ jobs:
           path: target/release/iaga-sentinel
 
   compile-sanity:
-    # 1.2: best-effort cross-platform compile check. Does not gate
-    # release (continue-on-error: true), promotion to a required
-    # status is on the 1.3 roadmap when the macOS Endpoint Security
-    # backend and Windows ETW backend land in Enterprise / OSS-1.x.
+    # 1.5.2: promoted to a blocking status. Windows is the primary dev
+    # platform (the workspace builds there daily) and macOS has no
+    # platform-specific code outside #[cfg(unix)] gates, so a failure
+    # here is a real regression, not expected flakiness.
     name: Compile sanity (${{ matrix.os }})
     needs: check
     runs-on: ${{ matrix.os }}
-    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:

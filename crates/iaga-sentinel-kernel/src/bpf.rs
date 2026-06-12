@@ -44,13 +44,25 @@ impl Default for BpfKernel {
     }
 }
 
+/// Stable machine-readable prefix for the scaffold's block reason. Audit
+/// consumers can match on this to distinguish "the loader is not implemented"
+/// from a genuine policy-driven block (1.5.2).
+pub const BPF_SCAFFOLD_REASON_CODE: &str = "bpf-loader-not-implemented";
+
 #[async_trait]
 impl EnforcementKernel for BpfKernel {
     async fn launch(&self, _spec: &ProcessSpec) -> Result<LaunchOutcome> {
-        // Honest scaffold: we say no until the real loader lands.
+        // Honest scaffold: we say no until the real loader lands. The reason
+        // starts with a stable code so receipts/audit rows can't be confused
+        // with a policy verdict. Authoritative kernel enforcement (the real
+        // eBPF/LSM loader) is an Enterprise implementation per ADR 0010; the
+        // OSS scaffold reports its posture truthfully and nothing more.
         Ok(LaunchOutcome {
             decision: KernelDecision::Block,
-            reason: Some("linux-bpf scaffold active; LSM loader pending M4.1".into()),
+            reason: Some(format!(
+                "{BPF_SCAFFOLD_REASON_CODE}: linux-bpf scaffold, no LSM loader attached; \
+                 authoritative kernel enforcement is Enterprise (ADR 0010)"
+            )),
             pid: None,
             exit_code: None,
             backend: self.backend_name(),

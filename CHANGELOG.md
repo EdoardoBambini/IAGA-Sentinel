@@ -14,6 +14,102 @@ Enterprise overview.
 
 ---
 
+## [1.5.2], 2026-06-12
+
+Technical-debt remediation across the whole open build: hardening of existing
+features, test-coverage closure, and CI/workspace hygiene. No new product
+surface beyond minimal API-key scopes; signed receipts produced by any prior
+release verify unchanged (now enforced by golden-vector tests), and every new
+tunable defaults to the previous hardcoded behavior.
+
+### Added
+
+- **Verified-API-key cache**: the auth middleware no longer pays one
+  `list_keys()` query plus an Argon2 verification on *every* request — verified
+  keys (stored as SHA-256, never raw) are cached per server instance with a TTL
+  (`IAGA_SENTINEL_AUTH_CACHE_TTL_MS`, default 60 s; `0` restores
+  verify-every-request). Key deletion invalidates the cache immediately.
+- **API-key scopes** (minimal, single-tenant): `admin` (default — identical to
+  pre-1.5.2 keys; all existing keys stay admin via migration 0005) and `agent`
+  (governance surface only). `iaga gen-key --scope agent`, `scope` on
+  `POST /v1/auth/keys`, and admin-only enforcement (403 `admin_scope_required`)
+  on key/webhook/DLQ management, rate-limit config, threat-intel mutations, and
+  plugin reloads. Multi-tenant/SSO/SIEM remain Enterprise (ADR 0010).
+- **Network configuration**: `IAGA_SENTINEL_HOST` (bind interface, default
+  `0.0.0.0`) and `IAGA_SENTINEL_CORS_ORIGINS` (comma-separated allowlist;
+  unset keeps the permissive `Any` of previous releases).
+- **Tunables for previously hardcoded constants** (defaults unchanged):
+  session-graph cap/TTL/cooldown/strikes, background-cleanup cadence/age, and
+  response-cache TTL/size (see README → Environment variables).
+- **`POST /v1/risk/weights/reset`** (admin): drop feedback-learned adaptive-risk
+  weight adjustments; the process-global weight behavior is now documented.
+- **Strict env-denylist mode**: `IAGA_SENTINEL_ENV_DENYLIST_STRICT=1` makes
+  `iaga run` fail closed (launch blocked) when the denylist TOML extension is
+  unreadable or malformed, instead of silently degrading to the built-in list.
+- **Pricing freshness**: the built-in price list now carries
+  `BUILTIN_PRICING_EFFECTIVE_DATE` (also surfaced as `builtinEffectiveDate` on
+  `/v1/cost/pricing`) and the server warns when it is older than 90 days.
+- **ML failure visibility**: per-model inference failures are logged and
+  recorded in a new additive `MlEvidence.failed_models` (elided when empty —
+  serialized shape and receipts unchanged in the no-failure case).
+- **Signer key permission posture**: on Unix a freshly created receipt signing
+  key is re-checked post-write and creation fails if group/world accessible;
+  loading a pre-existing loose key warns (`chmod 600` hint). Windows warns to
+  restrict NTFS ACLs.
+- **Test-coverage closure**: golden-vector tests freezing `signing_bytes()` for
+  every receipt shape since 1.1; a live-Postgres receipts suite mirroring the
+  SQLite one; APL tree-walk ↔ WASM differential tests (fixed corpus + 256
+  property-based cases) plus clean-rejection checks for unsupported constructs;
+  a mock-HTTP client suite for `iaga-sentinel-integrations` (verdict mapping +
+  wire shape, no live sidecar needed); `iaga-verify` CLI smoke tests pinning
+  the documented exit codes 0/1/2/3.
+- **CI**: postgres:16 service container with real `--features postgres` test
+  runs (receipts + core), a `cargo test --workspace --all-features` job, a
+  `linux-bpf` scaffold compile check, and the cross-platform compile-sanity job
+  promoted to a blocking status.
+- **SDK e2e smoke in CI**: the test job now boots a real sidecar and runs the
+  Python SDK adapter suite (previously auto-skipped without a server) plus the
+  TypeScript `smoke.cjs` checks against it; a new
+  `sdks/typescript/register-smoke-agents.cjs` helper provisions the fresh
+  agent pool the smoke needs. The framework-heavy `tests/e2e` suites stay
+  local-only.
+- **Workspace hygiene**: declared MSRV (`rust-version = "1.88"`),
+  `[workspace.lints]` shared by every crate (`unsafe_code = "deny"` among
+  others), centralized `wasmtime` version and tokio dev-dependencies.
+
+### Changed
+
+- Raw IO failures now map to a dedicated `SentinelError::Io` and an `io_error`
+  HTTP error body; previously they surfaced as `config_error`.
+- The `linux-bpf` scaffold's block reason is now machine-readable
+  (`bpf-loader-not-implemented: …`) so audit consumers can distinguish
+  "loader not implemented" from a policy-driven block. Posture unchanged:
+  `is_authoritative()` stays `false`; authoritative kernel enforcement is
+  Enterprise (ADR 0010).
+- `cargo audit` ignores consolidated into a single `.cargo/audit.toml` at the
+  repo root (previously duplicated as CI flags).
+- `ApiKeyRecord` gains a `scope` field (serde-defaulted to `admin` for old
+  records); the `ApiKeyStore` trait gains `store_key_scoped` /
+  `verify_raw_key_scoped` with backward-compatible default implementations.
+
+### Fixed
+
+- Corrupt JSON in storage rows (audit reasons/usage, workspace policies, rules,
+  tenant metadata, NHI capabilities, sessions, taint labels, fingerprints) is
+  no longer silently replaced by defaults: the same fallback now logs a warning
+  naming the column, on both SQLite and Postgres backends.
+- The background TTL-cleanup task now derives the durable taint-store prune age
+  from the configured TTL instead of a hardcoded 3600 s.
+- `docs/openapi.yaml` was three releases stale (frozen at 1.3.0): now at
+  1.5.2 with every served route documented (receipts, cost API, audit
+  export/stats, analytics, webhook DLQ, NHI challenge/verify, templates,
+  workspace rules, plugins, policy overlay / reasoning / kernel status,
+  risk-weights reset), admin-scope operations marked with their 403, and the
+  `RiskWeights` / `HealthResponse` / error-code schemas corrected to match the
+  actual wire shapes.
+- The Python SDK `__version__` was stale at 1.4.0 while `pyproject.toml` said
+  1.5.x; both now track the release version.
+
 ## [1.5.1], 2026-06-10
 
 Patch release: a test-determinism fix only — no change to the open build's

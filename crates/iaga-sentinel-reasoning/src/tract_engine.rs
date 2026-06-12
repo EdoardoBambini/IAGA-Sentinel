@@ -188,20 +188,26 @@ impl ReasoningEngine for TractEngine {
         }
         let feats = tokenize(input);
         let mut scores = serde_json::Map::with_capacity(self.models.len());
+        let mut failed_models = Vec::new();
         for m in &self.models {
             match run_one(m, &feats) {
                 Ok(s) => {
                     scores.insert(m.name.clone(), json!({ "score": s as f64 }));
                 }
-                Err(_e) => {
-                    // Soft-fail: model contributes nothing this round.
-                    // Host wires `tracing` if it cares about the warn line.
+                Err(e) => {
+                    // Soft-fail: the model contributes nothing this round, but
+                    // the failure is no longer silent (1.5.2) — it is logged
+                    // and recorded in `failed_models` so consumers can tell a
+                    // crashed model from one that scored nothing.
+                    tracing::warn!(model = %m.name, error = %e, "ml inference failed; skipping model for this input");
+                    failed_models.push(m.name.clone());
                 }
             }
         }
         MlEvidence {
             scores: serde_json::Value::Object(scores),
             model_digests: self.models.iter().map(|m| m.digest.clone()).collect(),
+            failed_models,
         }
     }
 

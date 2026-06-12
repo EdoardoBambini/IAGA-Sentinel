@@ -53,6 +53,13 @@ impl Default for Weights {
     }
 }
 
+/// Adaptive signal weights for the risk scorer.
+///
+/// **Process-global and shared across ALL agents**: feedback posted by any
+/// caller to `/v1/risk/feedback` shifts the weights for every agent governed
+/// by this instance (a deliberate MVP trade-off — per-agent weight stores are
+/// a follow-up). Learned adjustments live in memory only: they reset on
+/// restart, or on demand via [`reset_weights`] / `POST /v1/risk/weights/reset`.
 static WEIGHTS: Lazy<Mutex<Weights>> = Lazy::new(|| Mutex::new(Weights::default()));
 
 // ── Baselines ──
@@ -397,6 +404,10 @@ pub fn reset_weights() {
     *w = Weights::default();
 }
 
+/// Nudge the **global** signal weights from operator feedback
+/// (`"false_positive"` lowers stat/context, `"false_negative"` raises them;
+/// weights are then re-normalized to sum 1). Affects every agent on this
+/// instance, not just the one the feedback was filed for — see [`WEIGHTS`].
 pub fn apply_feedback(feedback: &str) {
     let mut w = WEIGHTS.lock().unwrap_or_else(|e| e.into_inner());
     let lr = 0.02;

@@ -41,11 +41,13 @@ MIGRATION.md
 docs/aisec-2026/
 
 # Local-only planning and design notes.
+STATE_OF_ART_OSS.md
 ROADMAP_ENTERPRISE.md
 ENTERPRISE_*.md
 INTERNAL_*.md
 docs/internal/
 docs/enterprise/
+docs/sentinel-*-research-prompt.md
 
 # Local-only drafts and large document exports.
 *.pdf

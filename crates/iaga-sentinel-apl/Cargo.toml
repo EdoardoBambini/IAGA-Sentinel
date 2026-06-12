@@ -2,10 +2,14 @@
 name = "iaga-sentinel-apl"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
 description = "IAGA Sentinel, Agent Policy Language (APL) parser, Hindley-Milner type checker, deterministic evaluator, optional WASM codegen"
+
+[lints]
+workspace = true
 
 [lib]
 name = "iaga_sentinel_apl"
@@ -31,3 +35,6 @@ wasm-encoder = { version = "0.220", optional = true }
 [dev-dependencies]
 pretty_assertions = "1"
 proptest = "1.6"
+# Differential tests (tests/differential.rs, gated on `apl-wasm`): execute the
+# compiled WASM and assert it agrees with the tree-walk evaluator.
+wasmtime = { workspace = true }

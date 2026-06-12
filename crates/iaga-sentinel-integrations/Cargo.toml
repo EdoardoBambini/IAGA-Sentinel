@@ -2,10 +2,14 @@
 name = "iaga-sentinel-integrations"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
 description = "IAGA Sentinel, shared adapter contract + async HTTP client for the governance API (POST /v1/inspect)"
+
+[lints]
+workspace = true
 
 [lib]
 name = "iaga_sentinel_integrations"
@@ -20,4 +24,6 @@ reqwest = { version = "0.12", features = ["json"] }
 iaga-sentinel-cost = { path = "../iaga-sentinel-cost" }
 
 [dev-dependencies]
-tokio = { version = "1", features = ["full"] }
+tokio = { workspace = true }
+# Mock /v1/inspect server for client tests (same axum line as core).
+axum = "0.8"

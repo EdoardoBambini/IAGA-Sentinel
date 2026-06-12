@@ -116,9 +116,12 @@ async fn spawn(apl_overlay: Option<Arc<AplOverlay>>) -> TestServer {
         storage_backend: StorageBackend::Sqlite,
         env: AppEnv {
             port: 0,
+            host: "127.0.0.1".to_string(),
             node_env: NodeEnv::Test,
             default_mode: ServiceMode::Gateway,
+            cors_origins: None,
         },
+        auth_cache: iaga_sentinel::auth::cache::AuthCache::from_env(),
         receipts: None,
         reasoning: None,
         apl_overlay,

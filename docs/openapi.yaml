@@ -1,12 +1,19 @@
 openapi: 3.1.0
 info:
   title: IAGA Sentinel API
-  version: 1.3.0
+  version: 1.5.2
   description: >
     IAGA Sentinel is the EU AI Act conformity evidence layer for AI agents.
     It intercepts tool calls, evaluates risk against typed policies, and
     produces Ed25519-signed, replay-verifiable receipts across a 12-layer
     governance pipeline, mapped to AI Act Article 12 and Annex IV.
+
+
+    Since 1.5.2 API keys carry a scope: `admin` (default — full access,
+    identical to pre-1.5.2 keys) or `agent` (governance surface only).
+    Operations marked "admin scope" reject agent-scoped keys with
+    `403 admin_scope_required`. Endpoints under the `cost-control` feature
+    respond with `{"enabled": false}` when the server was compiled without it.
   license:
     name: BUSL-1.1
     url: https://spdx.org/licenses/BUSL-1.1.html
@@ -64,6 +71,22 @@ tags:
     description: Threat intelligence indicator management
   - name: Demo
     description: Demo scenarios and adapter runner
+  - name: Analytics
+    description: Per-agent audit analytics
+  - name: Receipts
+    description: "M2: Ed25519-signed receipt chains (read API)"
+  - name: Cost
+    description: "1.5 cost-control: spend observability and budget (feature-gated)"
+  - name: PolicyOverlay
+    description: "M6: APL live policy overlay status"
+  - name: Reasoning
+    description: "M3.5: ML reasoning plane status"
+  - name: Kernel
+    description: "M4: enforcement kernel posture"
+  - name: Templates
+    description: Built-in policy templates
+  - name: Plugins
+    description: WASM plugin registry
 
 paths:
   /:
@@ -85,6 +108,20 @@ paths:
       operationId: getHealth
       summary: Health check
       tags: [Core]
+      security: []
+      responses:
+        "200":
+          description: Service health status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /dashboard/context:
+    get:
+      operationId: getDashboardContext
+      summary: Public context for the dashboard (same payload as /health)
+      tags: [Dashboard]
       security: []
       responses:
         "200":
@@ -137,6 +174,119 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/StoredAuditEvent"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/audit/export:
+    get:
+      operationId: exportAuditEvents
+      summary: Export filtered audit events as JSON or CSV
+      tags: [Audit]
+      parameters:
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [json, csv]
+            default: json
+        - name: tenant_id
+          in: query
+          schema:
+            type: string
+        - name: agent_id
+          in: query
+          schema:
+            type: string
+        - name: decision
+          in: query
+          schema:
+            $ref: "#/components/schemas/GovernanceDecision"
+        - name: from_date
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to_date
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 1000
+      responses:
+        "200":
+          description: Filtered audit events (JSON array or CSV body)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StoredAuditEvent"
+            text/csv:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/audit/stats:
+    get:
+      operationId: getAuditStats
+      summary: Aggregate audit statistics (totals, decisions, top agents/tools)
+      tags: [Audit]
+      responses:
+        "200":
+          description: Aggregate audit statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditStats"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/analytics/agents:
+    get:
+      operationId: listAgentAnalytics
+      summary: Per-agent audit analytics for all agents
+      tags: [Analytics]
+      responses:
+        "200":
+          description: Array of per-agent analytics
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AgentAnalytics"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/analytics/agents/{agent_id}:
+    get:
+      operationId: getAgentAnalytics
+      summary: Per-agent audit analytics for one agent
+      tags: [Analytics]
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+      responses:
+        "200":
+          description: Analytics for the requested agent
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AgentAnalytics"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "500":
@@ -386,10 +536,97 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /v1/workspaces/{workspace_id}/rules:
+    get:
+      operationId: listWorkspaceRules
+      summary: List policy rules attached to a workspace
+      tags: [Workspaces]
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+      responses:
+        "200":
+          description: Rules for the workspace
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceRulesResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    post:
+      operationId: addWorkspaceRule
+      summary: Add or update a policy rule on a workspace
+      tags: [Workspaces]
+      parameters:
+        - $ref: "#/components/parameters/WorkspaceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PolicyRule"
+      responses:
+        "201":
+          description: Upserted rule
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/templates:
+    get:
+      operationId: listPolicyTemplates
+      summary: List built-in policy templates
+      tags: [Templates]
+      responses:
+        "200":
+          description: Template summaries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TemplateListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/templates/{template_id}:
+    get:
+      operationId: getPolicyTemplate
+      summary: Get a built-in policy template with its workspace and rules
+      tags: [Templates]
+      parameters:
+        - name: template_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Full template definition
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TemplateDetail"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /v1/auth/keys:
     get:
       operationId: listApiKeys
-      summary: List all API keys (hashed, no raw keys returned)
+      summary: List all API keys (hashed, no raw keys returned) — admin scope
       tags: [Auth]
       responses:
         "200":
@@ -402,11 +639,13 @@ paths:
                   $ref: "#/components/schemas/ApiKeyRecord"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/AdminScopeRequired"
         "500":
           $ref: "#/components/responses/InternalError"
     post:
       operationId: createApiKey
-      summary: Generate a new API key
+      summary: Generate a new API key — admin scope
       tags: [Auth]
       requestBody:
         required: true
@@ -421,15 +660,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiKeyCreated"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/AdminScopeRequired"
         "500":
           $ref: "#/components/responses/InternalError"
 
   /v1/auth/keys/{id}:
     delete:
       operationId: deleteApiKey
-      summary: Revoke an API key
+      summary: Revoke an API key (takes effect immediately) — admin scope
       tags: [Auth]
       parameters:
         - $ref: "#/components/parameters/ResourceId"
@@ -438,6 +681,8 @@ paths:
           description: Key revoked
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/AdminScopeRequired"
         "404":
           $ref: "#/components/responses/NotFound"
         "500":
@@ -446,7 +691,7 @@ paths:
   /v1/webhooks:
     get:
       operationId: listWebhooks
-      summary: List all registered webhooks
+      summary: List all registered webhooks — admin scope
       tags: [Webhooks]
       responses:
         "200":
@@ -459,11 +704,13 @@ paths:
                   $ref: "#/components/schemas/WebhookConfig"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/AdminScopeRequired"
         "500":
           $ref: "#/components/responses/InternalError"
     post:
       operationId: createWebhook
-      summary: Register a new webhook endpoint
+      summary: Register a new webhook endpoint — admin scope
       tags: [Webhooks]
       requestBody:
         required: true
@@ -480,13 +727,15 @@ paths:
                 $ref: "#/components/schemas/WebhookConfig"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/AdminScopeRequired"
         "500":
           $ref: "#/components/responses/InternalError"
 
   /v1/webhooks/{id}:
     delete:
       operationId: deleteWebhook
-      summary: Unregister a webhook
+      summary: Unregister a webhook — admin scope
       tags: [Webhooks]
       parameters:
         - $ref: "#/components/parameters/ResourceId"
@@ -495,10 +744,65 @@ paths:
           description: Webhook removed
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/AdminScopeRequired"
         "404":
           $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/InternalError"
+
+  /v1/webhooks/dlq:
+    get:
+      operationId: listWebhookDlq
+      summary: List dead-lettered webhook deliveries — admin scope
+      tags: [Webhooks]
+      responses:
+        "200":
+          description: Array of dead-letter entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DeadLetterEntry"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/AdminScopeRequired"
+
+  /v1/webhooks/dlq/{id}/retry:
+    post:
+      operationId: retryWebhookDlqEntry
+      summary: Retry a dead-lettered webhook delivery — admin scope
+      tags: [Webhooks]
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Delivery re-enqueued
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/AdminScopeRequired"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/webhooks/dlq/{id}:
+    delete:
+      operationId: deleteWebhookDlqEntry
+      summary: Discard a dead-lettered webhook delivery — admin scope
+      tags: [Webhooks]
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "204":
+          description: Entry removed
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/AdminScopeRequired"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /v1/events/stream:
     get:
@@ -609,6 +913,67 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /v1/nhi/challenge:
+    post:
+      operationId: createNhiChallenge
+      summary: Create an attestation challenge for a registered agent
+      tags: [NHI]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [agentId]
+              properties:
+                agentId:
+                  type: string
+      responses:
+        "201":
+          description: Challenge to be signed by the agent
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                description: Challenge object (challengeId, nonce, expiry)
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/nhi/verify:
+    post:
+      operationId: verifyNhiAttestation
+      summary: Verify a signed attestation challenge
+      tags: [NHI]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [agentId, challengeId, signature]
+              properties:
+                agentId:
+                  type: string
+                challengeId:
+                  type: string
+                signature:
+                  type: string
+                  description: Hex-encoded HMAC-SHA256 signature of the challenge
+      responses:
+        "200":
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                description: Attestation verification outcome (verified flag, trust update)
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /v1/nhi/tokens:
     post:
       operationId: issueCapabilityToken
@@ -646,6 +1011,33 @@ paths:
                 $ref: "#/components/schemas/RiskWeights"
         "401":
           $ref: "#/components/responses/Unauthorized"
+
+  /v1/risk/weights/reset:
+    post:
+      operationId: resetRiskWeights
+      summary: Reset adaptive risk weights to defaults — admin scope (1.5.2)
+      description: >
+        Drops feedback-learned adjustments. Weights are process-global across
+        ALL agents on the instance, which is why resetting them requires an
+        admin-scoped key.
+      tags: [Risk]
+      responses:
+        "200":
+          description: Weights restored to defaults
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [reset, weights]
+                properties:
+                  reset:
+                    type: boolean
+                  weights:
+                    $ref: "#/components/schemas/RiskWeights"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/AdminScopeRequired"
 
   /v1/risk/feedback:
     post:
@@ -904,7 +1296,7 @@ paths:
           $ref: "#/components/responses/Unauthorized"
     post:
       operationId: updateRateLimitConfig
-      summary: Update the global rate limit configuration
+      summary: Update the global rate limit configuration — admin scope
       tags: [RateLimiting]
       requestBody:
         required: true
@@ -921,6 +1313,8 @@ paths:
                 $ref: "#/components/schemas/RateLimitConfig"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/AdminScopeRequired"
 
   # ── Agent Fingerprinting ──
   /v1/fingerprint:
@@ -978,7 +1372,7 @@ paths:
           $ref: "#/components/responses/Unauthorized"
     post:
       operationId: addThreatIndicator
-      summary: Add a new threat indicator (IOC) to the database
+      summary: Add a new threat indicator (IOC) to the database — admin scope
       tags: [ThreatIntel]
       requestBody:
         required: true
@@ -995,11 +1389,13 @@ paths:
                 $ref: "#/components/schemas/ThreatIndicator"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/AdminScopeRequired"
 
   /v1/threat-intel/indicators/{id}:
     delete:
       operationId: deleteThreatIndicator
-      summary: Remove a threat indicator from the database
+      summary: Remove a threat indicator from the database — admin scope
       tags: [ThreatIntel]
       parameters:
         - $ref: "#/components/parameters/ResourceId"
@@ -1008,6 +1404,8 @@ paths:
           description: Indicator removed
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/AdminScopeRequired"
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -1083,6 +1481,258 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  # ── WASM Plugins ──
+  /v1/plugins:
+    get:
+      operationId: listPlugins
+      summary: List loaded WASM plugins
+      tags: [Plugins]
+      responses:
+        "200":
+          description: Snapshot of the plugin registry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PluginRegistrySnapshot"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/plugins/reload:
+    post:
+      operationId: reloadPlugins
+      summary: Re-scan the plugin directory and reload plugins — admin scope
+      tags: [Plugins]
+      responses:
+        "200":
+          description: Snapshot of the registry after reload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PluginRegistrySnapshot"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/AdminScopeRequired"
+
+  # ── Receipts (M2, read API) ──
+  /v1/receipts:
+    get:
+      operationId: listReceiptRuns
+      summary: List signed receipt runs (chain summaries)
+      tags: [Receipts]
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Receipt runs plus signer/policy identity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReceiptsListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/receipts/{run_id}:
+    get:
+      operationId: getReceiptRun
+      summary: Get the full signed receipt chain for a run, with verification
+      tags: [Receipts]
+      parameters:
+        - name: run_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Receipts of the run plus chain-verification outcome
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReceiptRunResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ── Cost control (1.5, feature-gated) ──
+  /v1/cost/summary:
+    get:
+      operationId: getCostSummary
+      summary: Aggregate spend summary (net, savings, cache hits)
+      tags: [Cost]
+      parameters:
+        - $ref: "#/components/parameters/FromDate"
+        - $ref: "#/components/parameters/ToDate"
+      responses:
+        "200":
+          description: Spend summary, or `enabled:false` without cost-control
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CostSummaryResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/cost/by-agent:
+    get:
+      operationId: getCostByAgent
+      summary: Spend aggregated per agent
+      tags: [Cost]
+      parameters:
+        - $ref: "#/components/parameters/FromDate"
+        - $ref: "#/components/parameters/ToDate"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Per-agent rows, or `enabled:false` without cost-control
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CostRowsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/cost/by-model:
+    get:
+      operationId: getCostByModel
+      summary: Spend aggregated per provider/model
+      tags: [Cost]
+      parameters:
+        - $ref: "#/components/parameters/FromDate"
+        - $ref: "#/components/parameters/ToDate"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Per-model rows, or `enabled:false` without cost-control
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CostRowsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/cost/by-tool:
+    get:
+      operationId: getCostByTool
+      summary: Spend aggregated per tool
+      tags: [Cost]
+      parameters:
+        - $ref: "#/components/parameters/FromDate"
+        - $ref: "#/components/parameters/ToDate"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Per-tool rows, or `enabled:false` without cost-control
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CostRowsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/cost/over-time:
+    get:
+      operationId: getCostOverTime
+      summary: Spend bucketed over time
+      tags: [Cost]
+      parameters:
+        - $ref: "#/components/parameters/FromDate"
+        - $ref: "#/components/parameters/ToDate"
+        - name: bucket
+          in: query
+          schema:
+            type: string
+            enum: [hour, day]
+            default: hour
+      responses:
+        "200":
+          description: Time-bucketed rows, or `enabled:false` without cost-control
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CostOverTimeResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/cost/budget:
+    get:
+      operationId: getCostBudget
+      summary: Configured per-session budget
+      tags: [Cost]
+      responses:
+        "200":
+          description: Budget configuration, or `enabled:false` without cost-control
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CostBudgetResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/cost/pricing:
+    get:
+      operationId: getCostPricing
+      summary: Active pricing table (built-in or operator-supplied)
+      tags: [Cost]
+      responses:
+        "200":
+          description: Pricing table, or `enabled:false` without cost-control
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CostPricingResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ── Pillar status surfaces ──
+  /v1/policy/overlay:
+    get:
+      operationId: getPolicyOverlayStatus
+      summary: APL live policy overlay status (M6)
+      tags: [PolicyOverlay]
+      responses:
+        "200":
+          description: Overlay status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PolicyOverlayStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/reasoning/status:
+    get:
+      operationId: getReasoningStatus
+      summary: ML reasoning plane status (M3.5)
+      tags: [Reasoning]
+      responses:
+        "200":
+          description: Reasoning engine and loaded model digests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReasoningStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/kernel/status:
+    get:
+      operationId: getKernelStatus
+      summary: Enforcement kernel posture (M4)
+      tags: [Kernel]
+      responses:
+        "200":
+          description: Kernel backend and authoritativeness (honest posture)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KernelStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1122,6 +1772,30 @@ components:
       schema:
         type: string
       description: Workspace identifier
+    FromDate:
+      name: from_date
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date-time
+      description: Inclusive lower bound on the event timestamp
+    ToDate:
+      name: to_date
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date-time
+      description: Inclusive upper bound on the event timestamp
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        default: 20
+      description: Maximum number of rows returned
 
   responses:
     BadRequest:
@@ -1138,6 +1812,14 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
     Forbidden:
       description: Policy violation
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    AdminScopeRequired:
+      description: >
+        The presented API key has `agent` scope; this operation requires an
+        `admin`-scoped key (error code `admin_scope_required`, 1.5.2).
       content:
         application/json:
           schema:
@@ -1171,9 +1853,13 @@ components:
             - storage_error
             - auth_required
             - invalid_api_key
+            - admin_scope_required
             - invalid_request
             - review_not_found
             - internal_error
+            - config_error
+            - io_error
+            - proxy_error
         message:
           type: string
           description: Human-readable error message
@@ -1181,7 +1867,7 @@ components:
     # ── Health ──
     HealthResponse:
       type: object
-      required: [ok, service, mode]
+      required: [ok, service, mode, version, authRequired, openMode, apiKeysConfigured]
       properties:
         ok:
           type: boolean
@@ -1190,7 +1876,18 @@ components:
           example: iaga-sentinel
         mode:
           type: string
-          example: community
+          example: gateway
+        version:
+          type: string
+          example: 1.5.2
+        authRequired:
+          type: boolean
+          description: True unless open mode is on and no keys exist
+        openMode:
+          type: boolean
+          description: IAGA_SENTINEL_OPEN_MODE=true
+        apiKeysConfigured:
+          type: boolean
 
     # ── Enums ──
     ProtocolKind:
@@ -1245,6 +1942,9 @@ components:
         agentId:
           type: string
           description: Unique agent identifier
+        tenantId:
+          type: string
+          description: Optional tenant scope
         workspaceId:
           type: string
           description: Optional workspace scope
@@ -1263,7 +1963,34 @@ components:
         metadata:
           type: object
           additionalProperties: true
-          description: Arbitrary key-value metadata
+          description: Arbitrary key-value metadata (e.g. `sessionId` for session correlation)
+        usage:
+          $ref: "#/components/schemas/UsageReport"
+
+    UsageReport:
+      type: object
+      required: [provider, model]
+      description: >
+        1.5 cost-control: optional usage reported alongside the action, priced
+        server-side into the receipt and audit cost ledger. A caller-supplied
+        `costUsd` always wins over the server's pricing table.
+      properties:
+        provider:
+          type: string
+          example: anthropic
+        model:
+          type: string
+          example: claude-sonnet-4-6
+        promptTokens:
+          type: integer
+        completionTokens:
+          type: integer
+        totalTokens:
+          type: integer
+        costUsd:
+          type: number
+          format: double
+          description: Caller-asserted cost in USD (overrides the pricing table)
 
     RiskScore:
       type: object
@@ -1361,6 +2088,13 @@ components:
         riskScore:
           type: integer
           minimum: 0
+        usage:
+          type: object
+          additionalProperties: true
+          description: >
+            1.5 cost-control: canonical usage/cost record (camelCase
+            `UsageData`, integer micro-USD ledger). Absent when no usage was
+            reported for the action.
 
     GovernanceResult:
       type: object
@@ -1522,9 +2256,17 @@ components:
             type: string
 
     # ── Auth ──
+    KeyScope:
+      type: string
+      enum: [admin, agent]
+      description: >
+        1.5.2 API-key scope. `admin` (default) has full access, identical to
+        pre-1.5.2 keys; `agent` may drive the governance surface but not
+        manage keys, webhooks, rate-limit config, threat intel, or plugins.
+
     ApiKeyRecord:
       type: object
-      required: [id, label, createdAt]
+      required: [id, label, createdAt, scope]
       properties:
         id:
           type: string
@@ -1534,6 +2276,8 @@ components:
         createdAt:
           type: string
           format: date-time
+        scope:
+          $ref: "#/components/schemas/KeyScope"
 
     CreateApiKeyBody:
       type: object
@@ -1542,10 +2286,12 @@ components:
         label:
           type: string
           description: Human-readable label for the key
+        scope:
+          $ref: "#/components/schemas/KeyScope"
 
     ApiKeyCreated:
       type: object
-      required: [id, key, label]
+      required: [id, key, label, scope]
       properties:
         id:
           type: string
@@ -1555,6 +2301,8 @@ components:
           description: Raw API key (shown only once)
         label:
           type: string
+        scope:
+          $ref: "#/components/schemas/KeyScope"
 
     # ── Webhooks ──
     WebhookConfig:
@@ -1729,21 +2477,26 @@ components:
     # ── Risk (L4) ──
     RiskWeights:
       type: object
+      description: >
+        Adaptive signal weights (normalized to sum 1). Process-global across
+        ALL agents on the instance: feedback shifts them for everyone.
+      required: [stat, context, behavioral, temporal, reputation]
       properties:
-        actionTypeWeight:
+        stat:
           type: number
-          format: float
-        toolRiskWeight:
+          format: double
+        context:
           type: number
-          format: float
-        historyWeight:
+          format: double
+        behavioral:
           type: number
-          format: float
-        contextWeight:
+          format: double
+        temporal:
           type: number
-          format: float
-      additionalProperties:
-        type: number
+          format: double
+        reputation:
+          type: number
+          format: double
 
     FeedbackBody:
       type: object
@@ -2093,3 +2846,390 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ThreatIndicator"
+
+    # ── Audit stats & analytics ──
+    AuditStats:
+      type: object
+      required: [totalEvents, decisions, topAgents, topTools, avgRiskScore]
+      properties:
+        totalEvents:
+          type: integer
+        decisions:
+          type: object
+          additionalProperties:
+            type: integer
+          description: Event count per decision (allow/review/block)
+        topAgents:
+          type: array
+          items:
+            type: array
+            prefixItems:
+              - type: string
+              - type: integer
+            description: "[agentId, eventCount] pair"
+        topTools:
+          type: array
+          items:
+            type: array
+            prefixItems:
+              - type: string
+              - type: integer
+            description: "[toolName, eventCount] pair"
+        avgRiskScore:
+          type: number
+          format: double
+
+    AgentAnalytics:
+      type: object
+      required: [agentId, totalRequests, decisions, avgRiskScore, topTools, lastActivity, trustScore]
+      properties:
+        agentId:
+          type: string
+        totalRequests:
+          type: integer
+        decisions:
+          type: object
+          additionalProperties:
+            type: integer
+        avgRiskScore:
+          type: number
+          format: double
+        topTools:
+          type: array
+          items:
+            type: array
+            prefixItems:
+              - type: string
+              - type: integer
+            description: "[toolName, useCount] pair"
+        lastActivity:
+          type: string
+          format: date-time
+        trustScore:
+          type: number
+          format: double
+
+    # ── Webhook DLQ ──
+    DeadLetterEntry:
+      type: object
+      required: [id, webhookId, webhookUrl, eventType, payload, error, attempts, failedAt]
+      properties:
+        id:
+          type: string
+        webhookId:
+          type: string
+        webhookUrl:
+          type: string
+          format: uri
+        eventType:
+          type: string
+        payload:
+          type: object
+          additionalProperties: true
+        error:
+          type: string
+        attempts:
+          type: integer
+        failedAt:
+          type: string
+          format: date-time
+
+    # ── Templates & rules ──
+    TemplateListResponse:
+      type: object
+      required: [templates, count]
+      properties:
+        templates:
+          type: array
+          items:
+            type: object
+            properties:
+              templateId:
+                type: string
+              name:
+                type: string
+              description:
+                type: string
+              category:
+                type: string
+              builtin:
+                type: boolean
+              rulesCount:
+                type: integer
+              toolsCount:
+                type: integer
+        count:
+          type: integer
+
+    TemplateDetail:
+      type: object
+      properties:
+        templateId:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        builtin:
+          type: boolean
+        workspace:
+          $ref: "#/components/schemas/WorkspacePolicy"
+        rules:
+          type: array
+          items:
+            $ref: "#/components/schemas/PolicyRule"
+
+    PolicyRule:
+      type: object
+      required: [id, name, decision]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        priority:
+          type: integer
+          default: 0
+          description: Lower = evaluated first
+        matchCriteria:
+          type: object
+          additionalProperties: true
+          description: Criteria the request must match for the rule to apply
+        conditions:
+          type: object
+          additionalProperties: true
+          description: Additional conditions that must hold
+        decision:
+          $ref: "#/components/schemas/GovernanceDecision"
+        reason:
+          type: string
+        enabled:
+          type: boolean
+          default: true
+
+    WorkspaceRulesResponse:
+      type: object
+      required: [rules, count]
+      properties:
+        rules:
+          type: array
+          items:
+            $ref: "#/components/schemas/PolicyRule"
+        count:
+          type: integer
+
+    # ── Plugins ──
+    PluginRegistrySnapshot:
+      type: object
+      required: [pluginDir, plugins, loadErrors, loadedCount]
+      properties:
+        pluginDir:
+          type: string
+        plugins:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: Plugin manifest (name, sha256, attestation when enabled)
+        loadErrors:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        loadedCount:
+          type: integer
+
+    # ── Receipts (M2) ──
+    ReceiptsListResponse:
+      type: object
+      required: [enabled, signerKeyId, policyHash, runs]
+      properties:
+        enabled:
+          type: boolean
+          description: False when the host was built/run without receipts
+        signerKeyId:
+          type: string
+          description: Stable signer identity (`ed25519-<hex16>`)
+        policyHash:
+          type: string
+          description: Hex SHA-256 of the active policy bundle
+        runs:
+          type: array
+          items:
+            type: object
+            properties:
+              runId:
+                type: string
+              receiptCount:
+                type: integer
+              firstTimestamp:
+                type: string
+              lastTimestamp:
+                type: string
+              terminalVerdict:
+                $ref: "#/components/schemas/GovernanceDecision"
+
+    ReceiptRunResponse:
+      type: object
+      required: [enabled, receipts]
+      properties:
+        enabled:
+          type: boolean
+        receipts:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: >
+              Signed receipt (canonical snake_case body + hex Ed25519
+              signature). The byte-exact schema is defined by
+              `iaga-sentinel-receipts::ReceiptBody` and frozen by
+              golden-vector tests.
+        verify:
+          type: object
+          additionalProperties: true
+          description: Chain verification outcome for the run
+
+    # ── Cost control (1.5) ──
+    CostSummaryResponse:
+      type: object
+      required: [enabled]
+      properties:
+        enabled:
+          type: boolean
+          description: False when compiled without `cost-control`
+        summary:
+          type: object
+          properties:
+            grossCostUsd:
+              type: number
+              format: double
+              description: net + savings
+            netCostUsd:
+              type: number
+              format: double
+            savingsUsd:
+              type: number
+              format: double
+            cacheHits:
+              type: integer
+            totalTokens:
+              type: integer
+            pricedActions:
+              type: integer
+          additionalProperties: true
+
+    CostRowsResponse:
+      type: object
+      required: [enabled]
+      properties:
+        enabled:
+          type: boolean
+        rows:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            description: Aggregation row (key fields + costUsd/tokens counters)
+
+    CostOverTimeResponse:
+      type: object
+      required: [enabled]
+      properties:
+        enabled:
+          type: boolean
+        bucket:
+          type: string
+          enum: [hour, day]
+        rows:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+    CostBudgetResponse:
+      type: object
+      required: [enabled]
+      properties:
+        enabled:
+          type: boolean
+        sessionLimitUsd:
+          type: number
+          format: double
+          nullable: true
+          description: IAGA_SENTINEL_SESSION_BUDGET_USD, null when unset
+
+    CostPricingResponse:
+      type: object
+      required: [enabled]
+      properties:
+        enabled:
+          type: boolean
+        pricing:
+          type: object
+          additionalProperties: true
+          description: Active PricingTable (providers → model → per-Mtok USD rates)
+        builtinEffectiveDate:
+          type: string
+          format: date
+          description: Date the BUILT-IN price list was last verified (1.5.2)
+
+    # ── Pillar status ──
+    PolicyOverlayStatus:
+      type: object
+      required: [enabled, loaded, policyCount]
+      properties:
+        enabled:
+          type: boolean
+          description: False when compiled without the `apl` feature
+        loaded:
+          type: boolean
+        policyCount:
+          type: integer
+        policyHash:
+          type: string
+          nullable: true
+        source:
+          type: string
+          nullable: true
+          description: Path of the loaded .apl bundle
+
+    ReasoningStatus:
+      type: object
+      required: [enabled, engine, models, mlFeatureCompiled]
+      properties:
+        enabled:
+          type: boolean
+        engine:
+          type: string
+          example: tract
+        models:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              sha256:
+                type: string
+        mlFeatureCompiled:
+          type: boolean
+
+    KernelStatus:
+      type: object
+      required: [enabled, backend, authoritative, linuxBpfScaffold]
+      properties:
+        enabled:
+          type: boolean
+        backend:
+          type: string
+          example: userspace
+        authoritative:
+          type: boolean
+          description: >
+            Honest posture flag: always false in the open build (userspace
+            soft enforcement; the eBPF/LSM scaffold has no loader).
+        linuxBpfScaffold:
+          type: boolean

@@ -37,6 +37,8 @@ pub async fn run_sqlite_migrations(pool: &sqlx::SqlitePool) -> Result<(), Sentin
         ("audit_events", "cache_hit", "INTEGER DEFAULT NULL"),
         ("audit_events", "provider", "TEXT DEFAULT NULL"),
         ("audit_events", "model", "TEXT DEFAULT NULL"),
+        // 1.5.2 API key scope (idempotent backfill for older community DBs)
+        ("api_keys", "scope", "TEXT NOT NULL DEFAULT 'admin'"),
     ] {
         ensure_sqlite_column(pool, table, column, definition).await?;
     }
@@ -89,6 +91,8 @@ pub async fn run_postgres_migrations(pool: &sqlx::PgPool) -> Result<(), Sentinel
         "ALTER TABLE IF EXISTS audit_events ADD COLUMN IF NOT EXISTS cache_hit BOOLEAN DEFAULT NULL",
         "ALTER TABLE IF EXISTS audit_events ADD COLUMN IF NOT EXISTS provider TEXT DEFAULT NULL",
         "ALTER TABLE IF EXISTS audit_events ADD COLUMN IF NOT EXISTS model TEXT DEFAULT NULL",
+        // 1.5.2 API key scope (idempotent backfill for older community DBs)
+        "ALTER TABLE IF EXISTS api_keys ADD COLUMN IF NOT EXISTS scope TEXT NOT NULL DEFAULT 'admin'",
     ] {
         sqlx::query(ddl).execute(pool).await?;
     }

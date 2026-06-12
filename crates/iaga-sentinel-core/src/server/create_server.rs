@@ -15,6 +15,7 @@ use uuid::Uuid;
 use crate::auth::api_keys::generate_api_key;
 use crate::auth::middleware::auth_middleware;
 use crate::auth::middleware::is_open_mode_enabled;
+use crate::auth::middleware::RequireAdmin;
 use crate::core::errors::SentinelError;
 use crate::core::types::*;
 use crate::dashboard::index_html::render_dashboard_html;
@@ -31,6 +32,7 @@ use crate::modules::telemetry::otel_emitter;
 use crate::modules::threat_intel::feed::ThreatIndicator;
 use crate::pipeline::execute_pipeline::{execute_pipeline, get_sensitive_patterns, scan_response};
 use crate::server::app_state::AppState;
+use crate::storage::traits::KeyScope;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -52,6 +54,10 @@ struct ReviewBody {
 #[derive(Deserialize)]
 struct CreateApiKeyBody {
     label: String,
+    /// 1.5.2 optional key scope: "admin" (default, full access) or "agent"
+    /// (governance surface only).
+    #[serde(default)]
+    scope: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -59,6 +65,7 @@ struct ApiKeyCreated {
     id: String,
     key: String,
     label: String,
+    scope: String,
 }
 
 #[derive(Deserialize)]
@@ -140,6 +147,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/v1/nhi/tokens", post(issue_token_handler))
         // L4: Risk Scoring
         .route("/v1/risk/weights", get(risk_weights_handler))
+        .route("/v1/risk/weights/reset", post(risk_weights_reset_handler))
         .route("/v1/risk/feedback", post(risk_feedback_handler))
         // L5: Sandbox
         .route("/v1/sandbox/pending", get(sandbox_pending_handler))
@@ -233,9 +241,28 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .merge(protected)
         .layer(axum_middleware::from_fn(request_logging_middleware))
         .layer({
-            use axum::http::{header, Method};
+            use axum::http::{header, HeaderValue, Method};
+            use tower_http::cors::AllowOrigin;
+
+            // `IAGA_SENTINEL_CORS_ORIGINS` (comma-separated) restricts CORS to
+            // an explicit allowlist; unset keeps the permissive `Any` of
+            // releases before 1.5.2.
+            let allow_origin: AllowOrigin =
+                match &state.env.cors_origins {
+                    Some(origins) => AllowOrigin::list(origins.iter().filter_map(|o| {
+                        match o.parse::<HeaderValue>() {
+                            Ok(v) => Some(v),
+                            Err(_) => {
+                                tracing::warn!(origin = %o, "ignoring unparseable CORS origin");
+                                None
+                            }
+                        }
+                    })),
+                    None => AllowOrigin::any(),
+                };
+
             CorsLayer::new()
-                .allow_origin(tower_http::cors::Any)
+                .allow_origin(allow_origin)
                 .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
                 .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION])
         })
@@ -556,9 +583,10 @@ async fn delete_workspace_handler(
     Ok(StatusCode::NO_CONTENT)
 }
 
-// ── API Keys ──
+// ── API Keys (admin scope required, 1.5.2) ──
 
 async fn list_api_keys_handler(
+    _admin: RequireAdmin,
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<Vec<crate::storage::traits::ApiKeyRecord>>, SentinelError> {
     let keys = state.api_key_store.list_keys().await?;
@@ -566,30 +594,45 @@ async fn list_api_keys_handler(
 }
 
 async fn create_api_key_handler(
+    _admin: RequireAdmin,
     State(state): State<Arc<AppState>>,
     Json(body): Json<CreateApiKeyBody>,
 ) -> Result<(StatusCode, Json<ApiKeyCreated>), SentinelError> {
+    let scope = match body.scope.as_deref() {
+        None | Some("admin") => KeyScope::Admin,
+        Some("agent") => KeyScope::Agent,
+        Some(other) => {
+            return Err(SentinelError::InvalidRequest(format!(
+                "invalid scope `{other}`: expected `admin` or `agent`"
+            )))
+        }
+    };
     let (raw_key, key_hash) = generate_api_key();
     let key_id = uuid::Uuid::new_v4().to_string();
     state
         .api_key_store
-        .store_key(&key_id, &key_hash, &body.label, &raw_key)
+        .store_key_scoped(&key_id, &key_hash, &body.label, &raw_key, scope)
         .await?;
+    state.auth_cache.set_keys_exist(true);
     Ok((
         StatusCode::CREATED,
         Json(ApiKeyCreated {
             id: key_id,
             key: raw_key,
             label: body.label,
+            scope: scope.as_str().to_string(),
         }),
     ))
 }
 
 async fn delete_api_key_handler(
+    _admin: RequireAdmin,
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, SentinelError> {
     state.api_key_store.delete_key(&id).await?;
+    // Deletion must take effect immediately, not after the cache TTL.
+    state.auth_cache.invalidate_key_id(&id);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -764,6 +807,18 @@ async fn issue_token_handler(Json(body): Json<IssueTokenBody>) -> impl IntoRespo
 async fn risk_weights_handler() -> Json<serde_json::Value> {
     let weights = adaptive_scorer::get_current_weights();
     Json(serde_json::to_value(weights).unwrap_or_default())
+}
+
+/// 1.5.2: drop feedback-learned adjustments and restore the default weights.
+/// Weights are process-global across all agents, so resetting them is an
+/// administrative action.
+async fn risk_weights_reset_handler(_admin: RequireAdmin) -> Json<serde_json::Value> {
+    adaptive_scorer::reset_weights();
+    let weights = adaptive_scorer::get_current_weights();
+    Json(serde_json::json!({
+        "reset": true,
+        "weights": serde_json::to_value(weights).unwrap_or_default()
+    }))
 }
 
 #[derive(Deserialize)]
@@ -953,6 +1008,7 @@ async fn get_rate_limit_config_handler(
 }
 
 async fn update_rate_limit_config_handler(
+    _admin: RequireAdmin,
     State(state): State<Arc<AppState>>,
     Json(new_config): Json<RateLimitConfig>,
 ) -> Json<RateLimitConfig> {
@@ -969,6 +1025,7 @@ async fn list_threat_indicators_handler(
 }
 
 async fn add_threat_indicator_handler(
+    _admin: RequireAdmin,
     State(state): State<Arc<AppState>>,
     Json(indicator): Json<ThreatIndicator>,
 ) -> (StatusCode, Json<ThreatIndicator>) {
@@ -977,6 +1034,7 @@ async fn add_threat_indicator_handler(
 }
 
 async fn delete_threat_indicator_handler(
+    _admin: RequireAdmin,
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
@@ -1016,6 +1074,7 @@ async fn threat_intel_check_handler(
 // ── Webhooks ──
 
 async fn list_webhooks_handler(
+    _admin: RequireAdmin,
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<Vec<WebhookConfig>>, SentinelError> {
     let hooks = state.webhook_manager.list().await;
@@ -1023,6 +1082,7 @@ async fn list_webhooks_handler(
 }
 
 async fn create_webhook_handler(
+    _admin: RequireAdmin,
     State(state): State<Arc<AppState>>,
     Json(body): Json<CreateWebhookBody>,
 ) -> Result<(StatusCode, Json<WebhookConfig>), SentinelError> {
@@ -1034,6 +1094,7 @@ async fn create_webhook_handler(
 }
 
 async fn delete_webhook_handler(
+    _admin: RequireAdmin,
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, SentinelError> {
@@ -1044,6 +1105,7 @@ async fn delete_webhook_handler(
 // ── Webhook DLQ ──
 
 async fn list_dlq_handler(
+    _admin: RequireAdmin,
     State(state): State<Arc<AppState>>,
 ) -> Json<Vec<crate::events::webhooks::DeadLetterEntry>> {
     let entries = state.webhook_manager.dlq().list().await;
@@ -1051,6 +1113,7 @@ async fn list_dlq_handler(
 }
 
 async fn retry_dlq_handler(
+    _admin: RequireAdmin,
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, SentinelError> {
@@ -1059,6 +1122,7 @@ async fn retry_dlq_handler(
 }
 
 async fn delete_dlq_handler(
+    _admin: RequireAdmin,
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
@@ -1082,6 +1146,7 @@ async fn list_plugins_handler(
 }
 
 async fn reload_plugins_handler(
+    _admin: RequireAdmin,
     State(state): State<Arc<AppState>>,
 ) -> Json<crate::plugins::PluginRegistrySnapshot> {
     Json(state.plugin_registry.reload())
@@ -1436,7 +1501,14 @@ async fn cost_budget_handler() -> Json<serde_json::Value> {
 #[cfg(feature = "cost-control")]
 async fn cost_pricing_handler() -> Json<serde_json::Value> {
     let table = serde_json::to_value(crate::pipeline::cost::pricing()).unwrap_or_default();
-    Json(serde_json::json!({ "enabled": true, "pricing": table }))
+    // `builtinEffectiveDate` is additive (1.5.2): the `pricing` payload shape
+    // is unchanged. It dates the BUILT-IN list; a table loaded from
+    // IAGA_SENTINEL_PRICING_FILE has whatever freshness the operator gave it.
+    Json(serde_json::json!({
+        "enabled": true,
+        "pricing": table,
+        "builtinEffectiveDate": iaga_sentinel_cost::BUILTIN_PRICING_EFFECTIVE_DATE,
+    }))
 }
 #[cfg(not(feature = "cost-control"))]
 async fn cost_pricing_handler() -> Json<serde_json::Value> {

@@ -364,9 +364,12 @@ mod tests {
             storage_backend: StorageBackend::Sqlite,
             env: AppEnv {
                 port: 0,
+                host: "127.0.0.1".to_string(),
                 node_env: NodeEnv::Test,
                 default_mode: ServiceMode::Gateway,
+                cors_origins: None,
             },
+            auth_cache: crate::auth::cache::AuthCache::from_env(),
             receipts: None,
             reasoning: None,
             #[cfg(feature = "apl")]

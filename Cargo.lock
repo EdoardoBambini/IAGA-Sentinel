@@ -1389,7 +1389,7 @@ dependencies = [
 
 [[package]]
 name = "iaga-sentinel-apl"
-version = "1.5.1"
+version = "1.5.2"
 dependencies = [
  "logos",
  "pretty_assertions",
@@ -1398,11 +1398,12 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "wasm-encoder 0.220.1",
+ "wasmtime",
 ]
 
 [[package]]
 name = "iaga-sentinel-core"
-version = "1.5.1"
+version = "1.5.2"
 dependencies = [
  "argon2",
  "async-trait",
@@ -1443,7 +1444,7 @@ dependencies = [
 
 [[package]]
 name = "iaga-sentinel-cost"
-version = "1.5.1"
+version = "1.5.2"
 dependencies = [
  "serde",
  "serde_json",
@@ -1451,8 +1452,9 @@ dependencies = [
 
 [[package]]
 name = "iaga-sentinel-integrations"
-version = "1.5.1"
+version = "1.5.2"
 dependencies = [
+ "axum",
  "iaga-sentinel-cost",
  "reqwest",
  "serde",
@@ -1463,7 +1465,7 @@ dependencies = [
 
 [[package]]
 name = "iaga-sentinel-kernel"
-version = "1.5.1"
+version = "1.5.2"
 dependencies = [
  "async-trait",
  "serde",
@@ -1477,7 +1479,7 @@ dependencies = [
 
 [[package]]
 name = "iaga-sentinel-reasoning"
-version = "1.5.1"
+version = "1.5.2"
 dependencies = [
  "async-trait",
  "hex",
@@ -1487,12 +1489,13 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
+ "tracing",
  "tract-onnx",
 ]
 
 [[package]]
 name = "iaga-sentinel-receipts"
-version = "1.5.1"
+version = "1.5.2"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1512,12 +1515,13 @@ dependencies = [
 
 [[package]]
 name = "iaga-sentinel-verify"
-version = "1.5.1"
+version = "1.5.2"
 dependencies = [
  "ed25519-dalek",
  "hex",
  "iaga-sentinel-receipts",
  "serde_json",
+ "tempfile",
 ]
 
 [[package]]

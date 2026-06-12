@@ -21,7 +21,7 @@
 pub mod pricing;
 pub mod usage;
 
-pub use pricing::{ModelRate, PricingTable};
+pub use pricing::{ModelRate, PricingTable, BUILTIN_PRICING_EFFECTIVE_DATE};
 pub use usage::{micros_to_usd, usd_to_micros, CostSource, UsageData, UsageReport};
 
 /// Resolve a caller's [`UsageReport`] into the canonical [`UsageData`] embedded
