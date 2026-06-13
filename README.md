@@ -24,7 +24,7 @@
 </p>
 
 <p align="center">
-  <img src="media/iaga-sentinel-hero-v2.gif" alt="An agent action gets blocked, a signed receipt is minted and chained, the chain verifies offline: CHAIN OK" width="760" />
+  <img src="media/iaga-sentinel-arch-hero-v1.gif" alt="Isometric exploded view of the IAGA Sentinel decision pipeline: ten governance layers from ingress to a signed Ed25519 receipt, with leader-line annotations" width="760" />
 </p>
 
 ---
