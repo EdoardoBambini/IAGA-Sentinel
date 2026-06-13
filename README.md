@@ -20,7 +20,12 @@
   <a href="https://www.iaga.tech/docs"><strong>Documentation</strong></a> ·
   <a href="#quickstart">Quickstart</a> ·
   <a href="#community-vs-enterprise">Community vs Enterprise</a> ·
+  <a href="#who-we-are">Who we are</a> ·
   <a href="#license">License</a>
+</p>
+
+<p align="center">
+  Built in the EU by <a href="https://www.iaga.tech/team">three founders</a> — French, German, Italian — and <a href="https://www.iaga.tech/research">research-validated, not marketing-validated</a>: peer-reviewed at AISec 2026 (ACM CCS).
 </p>
 
 <p align="center">
@@ -96,6 +101,29 @@ In this repository:
 This repository is the open build: the source-verifiable evidence core — signed receipts, offline verification and replay, the APL policy engine, cross-platform soft enforcement, BYOK signing, BYO ONNX reasoning, and cost control. Every claim is reproducible from a clean checkout: `git clone && cargo test --workspace`.
 
 IAGA Sentinel Enterprise adds managed, platform-specific, and compliance-delivery capabilities: Annex IV dossier generation, qualified signatures, SSO/RBAC/multi-tenancy, native SIEM and KMS integrations, authoritative kernel enforcement, and curated model packages. The public boundary is documented in [ADR 0010](docs/adr/0010-oss-enterprise-boundary.md); the overview is in [`ENTERPRISE.md`](ENTERPRISE.md).
+
+---
+
+## Who we are
+
+EU-sovereign infrastructure for an EU regulation is a question of who builds it. IAGA Sentinel is built in the EU by a founding team that is European, multilingual, and native to the regulated sectors the AI Act governs — the same "sovereign by construction" thread that runs through the evidence also runs through the team. The claims below are stated as facts, with links to check them — the same posture every receipt carries.
+
+- **William Petteni — CEO — French.** Commercial and strategy. Dual degree in mechanical engineering and computer science, with deep networks across EU regulated sectors.
+- **Justus Moritz Bohr — CPO — German.** Product and business. Third-time founder, 4+ years in business development; leads product for Annex IV and the regulatory UX.
+- **Edoardo Bambini — CTO — Italian.** Kernel engineer; author of the AISec 2026 paper; architect of the Rust deterministic governance kernel and the cryptographic proof layer.
+
+The full team is at [www.iaga.tech/team](https://www.iaga.tech/team).
+
+### Research
+
+Research-validated, not marketing-validated.
+
+- **Peer-reviewed, not self-asserted.** A paper by Edoardo Bambini was accepted at AISec 2026 — the ACM CCS Workshop on Artificial Intelligence and Security, held in Morocco. It presents IAGA Sentinel's approach to conformity evidence for autonomous AI agents and includes a case study on the platform. Paper link coming soon; details at [www.iaga.tech/research](https://www.iaga.tech/research).
+
+### Recognition
+
+- **École des Ponts.** 1st place out of 21 startups in the startup competition run by the École nationale des ponts et chaussées (École des Ponts).
+- **Leonard (VINCI Group).** A win in the competition run by Leonard — the innovation and foresight platform of the VINCI Group — which earned the team two passes to Slush in Helsinki.
 
 ---
 
