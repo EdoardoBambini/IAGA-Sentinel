@@ -14,6 +14,28 @@ Enterprise overview.
 
 ---
 
+## [1.5.5], 2026-06-13
+
+A tooling and documentation release. It adds a self-contained demo recording kit
+so anyone can reproduce a live governance run and verify a signed receipt
+offline, on their own machine. No product behavior changes: no enforcement,
+policy, receipt, or API code was touched, only the workspace version and the new
+demo assets. Verdicts are deterministic and the receipt chain verifies offline.
+
+### Added
+
+- **Demo recording kit under `scripts/` and `docs/demo/`.** `scripts/demo.ps1`
+  (with the `demo.sh` twin) builds the binaries, resets the demo database for an
+  identical seed, and serves the operator dashboard on `:4010`.
+  `scripts/demo_run.ps1` (with `demo_run.sh`) drives three real verdicts through
+  the live pipeline, Allow then Review then Block, under one shared session so the
+  signed receipts form a single hash-chained run. It asserts every verdict so a
+  non-deterministic take can never be recorded, then exports the chain and
+  verifies it offline with `iaga-verify` (embedded and pinned key). The
+  Windows-first recording runbook is in [`docs/demo/README.md`](docs/demo/README.md).
+- **`Test me now (1.5.5)` section in the README** with the exact first-person
+  steps to run the demo end to end, including the Linux and macOS variant.
+
 ## [1.5.4], 2026-06-13
 
 Makes the Armor Policy Language enforce what it advertised and hardens the core
