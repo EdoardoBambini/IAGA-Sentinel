@@ -108,9 +108,11 @@ IAGA Sentinel Enterprise adds managed, platform-specific, and compliance-deliver
 
 EU-sovereign infrastructure for an EU regulation is a question of who builds it. IAGA Sentinel is built in the EU by a founding team that is European, multilingual, and native to the regulated sectors the AI Act governs — the same "sovereign by construction" thread that runs through the evidence also runs through the team. The claims below are stated as facts, with links to check them — the same posture every receipt carries.
 
-- **William Petteni — CEO — French.** Commercial and strategy. Dual degree in mechanical engineering and computer science, with deep networks across EU regulated sectors.
-- **Justus Moritz Bohr — CPO — German.** Product and business. Third-time founder, 4+ years in business development; leads product for Annex IV and the regulatory UX.
-- **Edoardo Bambini — CTO — Italian.** Kernel engineer; author of the AISec 2026 paper; architect of the Rust deterministic governance kernel and the cryptographic proof layer.
+- **William Petteni — CEO, 20 — French.** Commercial and strategy. Dual degree in mechanical engineering and computer science, with deep networks across EU regulated sectors.
+- **Justus Moritz Bohr — CPO, 19 — German.** Product and business. Third-time founder, 4+ years in business development; leads product for Annex IV and the regulatory UX.
+- **Edoardo Bambini — CTO, 21 — Italian.** Software engineer and independent researcher; author of the AISec 2026 paper; architect of the Rust deterministic governance kernel and the cryptographic proof layer.
+
+Average age 20 — younger than the compliance suites we replace, older than the EU AI Act we map to. The signature verifies the same either way.
 
 The full team is at [www.iaga.tech/team](https://www.iaga.tech/team).
 
