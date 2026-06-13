@@ -1,12 +1,18 @@
 // Example APL policy set. Run with:
 //   iaga policy test crates/iaga-sentinel-apl/examples/no_pii_egress.apl \
 //       --context crates/iaga-sentinel-apl/examples/sample_context.json
+//
+// The first policy combines both runtime builtins:
+//   - url_host(...) parses the destination host for a real per-host allowlist,
+//   - secret_ref(...) scans the payload for credentials / PII.
+// Against the sample context (an off-allowlist host carrying an AWS key) it
+// fires Block.
 
 policy "no_secrets_to_public_http" {
-  when action.kind == "http.request"
-   and action.url.host not in workspace.allowlist
+  when action.kind == "http"
+   and url_host(action.payload.destination) not in workspace.allowlist
    and secret_ref(action.payload)
-  then block, reason="PII egress", evidence=action.url.host
+  then block, reason="secret egress to an off-allowlist host", evidence=action.payload.destination
 }
 
 policy "halt_on_hijack_suspicion" {

@@ -223,6 +223,8 @@ fn builtin_signature(name: &str) -> Option<(Ty, Vec<Ty>)> {
         // `secret_ref` accepts anything, returns bool, the runtime
         // detects sensitive material structurally.
         "secret_ref" => Some((Ty::Bool, vec![Ty::Unknown])),
+        // `url_host` extracts the host from a URL string.
+        "url_host" => Some((Ty::Str, vec![Ty::Str])),
         _ => None,
     }
 }
@@ -349,6 +351,42 @@ mod tests {
             Box::new(Expr::Lit(Lit::Str("x".into()))),
         );
         let err = infer(&prog(when)).expect_err("must reject");
+        assert!(matches!(err, TypeError::Mismatch { .. }));
+    }
+
+    #[test]
+    fn url_host_returns_str_so_eq_str_is_bool() {
+        // url_host(action.payload.dest) == "evil.com"
+        let when = Expr::Binary(
+            BinOp::Eq,
+            Box::new(Expr::Call(
+                "url_host".into(),
+                vec![Expr::Path(vec![
+                    "action".into(),
+                    "payload".into(),
+                    "dest".into(),
+                ])],
+            )),
+            Box::new(Expr::Lit(Lit::Str("evil.com".into()))),
+        );
+        let env = infer(&prog(when)).expect("url_host : Str, Eq Str is Bool");
+        assert_eq!(env.when_types(), &[Ty::Bool]);
+    }
+
+    #[test]
+    fn url_host_str_return_rejected_in_numeric_compare() {
+        // url_host(x) < 1 must be rejected: a Str return cannot be ordered
+        // against an Int. This only fails if url_host is typed as Str (not a
+        // free var), proving the signature is registered.
+        let when = Expr::Binary(
+            BinOp::Lt,
+            Box::new(Expr::Call(
+                "url_host".into(),
+                vec![Expr::Path(vec!["action".into(), "dest".into()])],
+            )),
+            Box::new(Expr::Lit(Lit::Int(1))),
+        );
+        let err = infer(&prog(when)).expect_err("Str < Int must be rejected");
         assert!(matches!(err, TypeError::Mismatch { .. }));
     }
 

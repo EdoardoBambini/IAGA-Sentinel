@@ -128,6 +128,13 @@ pub async fn execute_pipeline(
             review_status: ReviewStatus::NotRequired,
             risk_score: 0,
             usage: None,
+            session_id: input
+                .metadata
+                .as_ref()
+                .and_then(|m| m.get("sessionId"))
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .map(|s| s.to_string()),
         };
         if let Err(e) = state.audit_store.append(&stored).await {
             tracing::error!(event_id = %stored.event_id, error = %e, "Failed to persist audit event");
@@ -624,6 +631,14 @@ pub async fn execute_pipeline(
     }
     if !schema_validation.valid && minimum_decision != GovernanceDecision::Block {
         minimum_decision = GovernanceDecision::Block;
+        policy_findings.push(if schema_validation.findings.is_empty() {
+            "schema validation failed".to_string()
+        } else {
+            format!(
+                "schema validation failed: {}",
+                schema_validation.findings.join("; ")
+            )
+        });
     }
 
     // 1.0 M3.5: optional probabilistic reasoning. Produces evidence
@@ -829,6 +844,17 @@ pub async fn execute_pipeline(
         review_status: result.review_status,
         risk_score: result.risk.score,
         usage: captured_usage,
+        // Receipt run grouping: use the EXPLICIT metadata.sessionId only (never
+        // the agent_id fallback from `session_id` above — that would chain
+        // unrelated session-less calls together). Absent -> None -> receipt
+        // logger falls back to event_id, preserving byte-equality.
+        session_id: input
+            .metadata
+            .as_ref()
+            .and_then(|m| m.get("sessionId"))
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string()),
     };
     state.audit_store.append(&stored).await?;
     if let Some(rl) = state.receipts.as_ref() {

@@ -20,6 +20,7 @@ fn event(id: &str, agent: &str, tool: &str, usage: Option<UsageData>) -> StoredA
         review_status: ReviewStatus::NotRequired,
         risk_score: 10,
         usage,
+        session_id: None,
     }
 }
 

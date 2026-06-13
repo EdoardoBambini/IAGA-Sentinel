@@ -932,6 +932,9 @@ fn pg_row_to_audit(row: &sqlx::postgres::PgRow) -> StoredAuditEvent {
             let s: Option<String> = row.try_get("usage_json").unwrap_or(None);
             s.and_then(|s| parse_json_opt_or_warn(&s, "audit_events.usage_json"))
         },
+        // Not persisted as a column: receipt run grouping uses the in-memory
+        // event at request time, and the chain lives in the receipts table.
+        session_id: None,
     }
 }
 

@@ -14,6 +14,53 @@ Enterprise overview.
 
 ---
 
+## [1.5.4], 2026-06-13
+
+Makes the Armor Policy Language enforce what it advertised and hardens the core
+decision path. Two APL builtins become real, three core fixes land, and the
+signed-receipt schema stays backward compatible: receipts from any prior release
+still verify, and a receipt minted without a session id is byte identical to a
+1.5.3 receipt.
+
+### Added
+
+- **Functional `secret_ref()` APL builtin.** It now scans the serialized payload
+  subtree for credentials and PII (AWS, OpenAI, and GitHub keys, PEM private
+  keys, generic api_key and password assignments, bearer tokens, database
+  connection strings, SSNs, and card numbers) with a fixed, deterministic
+  pattern set in `iaga-sentinel-apl`. Previously it was a placeholder that always
+  returned `false`, so secret-egress policies such as
+  `crates/iaga-sentinel-apl/examples/no_pii_egress.apl` could never fire. Object
+  payloads are scanned correctly now, instead of flattening to null before the
+  check.
+- **`url_host()` APL builtin.** Extracts the lowercased host from a URL
+  (stripping scheme, userinfo, port, and path), so a policy can express a true
+  per-host egress allowlist, for example
+  `url_host(action.payload.destination) not in workspace.allowlist`. This
+  defeats look-alike bypasses such as `hooks.slack.com.attacker.tld` that a
+  substring match would let through.
+
+### Fixed
+
+- **URL-aware workspace egress allowlist.** `evaluate_policy` now normalizes a
+  request destination to its host before matching `allowed_domains`
+  (case-insensitively), so a full URL to an allowed host (for example
+  `https://api.github.com/repos`) is no longer over-blocked. Bare-host
+  allowlists are unaffected.
+- **No reasonless verdicts.** A `block` or `review` forced by the policy layer
+  now surfaces its human-readable cause (for example
+  `destination ... is outside allowed workspace domains`) in the audit event and
+  the signed receipt, instead of only the generic "escalated by security layers"
+  note. The previously silent schema-validation block records a reason too.
+- **Session-grouped signed receipts.** When a caller supplies an explicit
+  `metadata.sessionId`, every action in that session shares a receipt `run_id`,
+  so receipts hash-chain (seq 0, 1, 2, ...) into one tamper-evident Merkle run
+  that `iaga-verify` validates end to end. Without a session id the behavior is
+  unchanged (one receipt per run) and the receipt body stays byte identical to
+  earlier releases.
+
+See [ADR 0023](docs/adr/0023-apl-secret-detection-host-egress.md).
+
 ## [1.5.3], 2026-06-13
 
 Ships the **OpenAI Codex CLI plug-in** (`iaga-codex`) as IAGA Sentinel's first

@@ -155,10 +155,17 @@ mod signed {
         }
 
         fn run_id(event: &StoredAuditEvent) -> String {
-            // For M2 we use the event_id as run_id: every verdict is its
-            // own run. Multi-step runs grouped by a shared trace_id land
-            // in M3 when APL exposes session identity formally.
-            event.event_id.clone()
+            // Group a logical session into ONE hash-chained run: when the caller
+            // supplied an explicit `metadata.sessionId`, every action in that
+            // session shares a run_id, so receipts chain seq 0,1,2... with
+            // parent_hash links. When absent we fall back to `event_id` (one
+            // receipt per run), which keeps the receipt body byte-identical to
+            // earlier releases for session-less callers.
+            event
+                .session_id
+                .clone()
+                .filter(|s| !s.is_empty())
+                .unwrap_or_else(|| event.event_id.clone())
         }
     }
 
@@ -442,5 +449,42 @@ mod signed {
         );
         let logger = SignedReceiptLogger::new(store, signer, resolved_policy_hash);
         Some(Arc::new(logger) as Arc<dyn super::ReceiptLogger>)
+    }
+
+    #[cfg(test)]
+    mod run_id_tests {
+        use super::SignedReceiptLogger;
+        use crate::core::types::{ActionType, GovernanceDecision, ReviewStatus, StoredAuditEvent};
+
+        fn event(session_id: Option<&str>) -> StoredAuditEvent {
+            StoredAuditEvent {
+                event_id: "evt-123".into(),
+                agent_id: "a".into(),
+                tenant_id: None,
+                framework: "test".into(),
+                action_type: ActionType::Http,
+                tool_name: "t".into(),
+                decision: GovernanceDecision::Allow,
+                timestamp: "2026-06-13T00:00:00Z".into(),
+                reasons: vec![],
+                review_status: ReviewStatus::NotRequired,
+                risk_score: 0,
+                usage: None,
+                session_id: session_id.map(|s| s.to_string()),
+            }
+        }
+
+        #[test]
+        fn run_id_prefers_session_then_falls_back_to_event_id() {
+            // Explicit session -> all actions in it share one run_id (chained).
+            assert_eq!(
+                SignedReceiptLogger::run_id(&event(Some("sess-42"))),
+                "sess-42"
+            );
+            // No session -> event_id (one receipt per run; byte-equality preserved).
+            assert_eq!(SignedReceiptLogger::run_id(&event(None)), "evt-123");
+            // An empty session string is treated as absent.
+            assert_eq!(SignedReceiptLogger::run_id(&event(Some(""))), "evt-123");
+        }
     }
 }

@@ -91,11 +91,19 @@ pub fn evaluate_policy(
         }
     }
 
-    // Check destination domain
+    // Check destination domain. Host-aware: a full URL like
+    // `https://api.github.com/x` is normalized to its host before being matched
+    // (case-insensitively) against the bare-host allowlist, so structured URLs
+    // are no longer spuriously blocked. Mirrors the APL `url_host()` builtin.
     if let Some(destination) = extract_destination(&input.action.payload) {
-        if !workspace_policy.allowed_domains.contains(&destination) {
+        let host = host_of(&destination);
+        let allowed = workspace_policy
+            .allowed_domains
+            .iter()
+            .any(|d| d.eq_ignore_ascii_case(&host));
+        if !allowed {
             findings.push(format!(
-                "destination {destination} is outside allowed workspace domains"
+                "destination {destination} (host {host}) is outside allowed workspace domains"
             ));
             minimum_decision = GovernanceDecision::Block;
         }
@@ -118,4 +126,64 @@ fn extract_destination(
         .get("destination")
         .and_then(|v| v.as_str())
         .map(|s| s.to_string())
+}
+
+/// Extract the lowercased host from a URL or bare-host string.
+///
+/// Pure mirror of `iaga_sentinel_apl::extract_host`. It is duplicated here on
+/// purpose: `iaga-sentinel-apl` is an *optional* dependency (behind the default
+/// `apl` feature) and this module compiles in every feature configuration, so
+/// it cannot import the APL one. Strips scheme, userinfo, port, and
+/// path/query/fragment; preserves a bracketed IPv6 literal. A bare host is
+/// returned unchanged (lowercased), so existing bare-host allowlists keep
+/// working; unparseable input yields "" (matches no allowlist entry).
+fn host_of(s: &str) -> String {
+    let after_scheme = s.split_once("://").map(|(_, r)| r).unwrap_or(s);
+    let authority = after_scheme.split(['/', '?', '#']).next().unwrap_or("");
+    let hostport = authority
+        .rsplit_once('@')
+        .map(|(_, h)| h)
+        .unwrap_or(authority);
+    let host = if let Some(rest) = hostport.strip_prefix('[') {
+        match rest.split_once(']') {
+            Some((h6, _)) => format!("[{h6}]"),
+            None => hostport.to_string(),
+        }
+    } else {
+        hostport
+            .split_once(':')
+            .map(|(h, _)| h)
+            .unwrap_or(hostport)
+            .to_string()
+    };
+    host.to_ascii_lowercase()
+}
+
+#[cfg(test)]
+mod host_tests {
+    use super::host_of;
+
+    #[test]
+    fn full_url_to_bare_host() {
+        assert_eq!(
+            host_of("https://api.github.com/repos/x?y=1"),
+            "api.github.com"
+        );
+        assert_eq!(
+            host_of("http://user:pass@API.GitHub.com:8443/p"),
+            "api.github.com"
+        );
+    }
+
+    #[test]
+    fn bare_host_unchanged() {
+        assert_eq!(host_of("api.github.com"), "api.github.com");
+        assert_eq!(host_of("evil.com"), "evil.com");
+    }
+
+    #[test]
+    fn ipv6_and_garbage() {
+        assert_eq!(host_of("http://[::1]:8080/"), "[::1]");
+        assert_eq!(host_of(""), "");
+    }
 }

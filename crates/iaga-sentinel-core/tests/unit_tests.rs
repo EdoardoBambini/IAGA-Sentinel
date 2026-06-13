@@ -883,6 +883,83 @@ fn test_policy_blocked_destination_domain() {
     );
 }
 
+#[test]
+fn test_policy_full_url_to_allowed_host_is_not_blocked() {
+    // A full URL whose HOST is on the allowlist must not be flagged off-domain.
+    // Before host-normalization, the raw `https://api.example.com/x` string did
+    // not equal the bare allowlist entry `api.example.com` and was force-Blocked.
+    let mut payload = HashMap::new();
+    payload.insert(
+        "destination".to_string(),
+        serde_json::Value::String("https://api.example.com/repos/x?ref=main".to_string()),
+    );
+
+    let request = make_request("fetch_tool", ActionType::Http, payload);
+    let profile = make_profile(
+        "agent-policy-test",
+        vec!["fetch_tool"],
+        vec![ActionType::Http],
+    );
+    let workspace = make_workspace_policy(
+        vec![make_tool_policy(
+            "fetch_tool",
+            vec![ActionType::Http],
+            false,
+            GovernanceDecision::Allow,
+        )],
+        vec![ProtocolKind::Mcp],
+        vec!["api.example.com"],
+    );
+
+    let eval = evaluate_policy(&request, &profile, &workspace, ProtocolKind::Mcp);
+    assert_eq!(
+        eval.minimum_decision,
+        GovernanceDecision::Allow,
+        "Full URL to an allowed host must NOT be blocked off-domain"
+    );
+    assert!(
+        !eval.findings.iter().any(|f| f.contains("outside allowed")),
+        "No off-domain finding expected for an allowed host"
+    );
+}
+
+#[test]
+fn test_block_reasons_surface_the_cause() {
+    // A Block forced by the policy layer must carry its human-readable cause in
+    // the risk reasons, not just the vague "escalated by security layers" note.
+    use iaga_sentinel::modules::policy::tool_risk::{
+        score_tool_risk_with_thresholds, LayerRiskContributions,
+    };
+    let request = make_request("fetch_tool", ActionType::Http, HashMap::new());
+    let findings = vec![
+        "destination https://evil.example.com/x (host evil.example.com) is outside allowed workspace domains".to_string(),
+        "request matched registered tool and workspace policy".to_string(),
+    ];
+    let risk = score_tool_risk_with_thresholds(
+        &request,
+        GovernanceDecision::Block,
+        &findings,
+        &LayerRiskContributions::default(),
+        70,
+        35,
+    );
+    assert_eq!(risk.decision, GovernanceDecision::Block);
+    assert!(
+        risk.reasons
+            .iter()
+            .any(|r| r.contains("outside allowed workspace domains")),
+        "block cause must be surfaced in reasons, got {:?}",
+        risk.reasons
+    );
+    assert!(
+        !risk
+            .reasons
+            .iter()
+            .any(|r| r.contains("matched registered tool")),
+        "benign placeholder must not be surfaced"
+    );
+}
+
 // ============================================================================
 // 5. Rate Limiter Tests
 // ============================================================================

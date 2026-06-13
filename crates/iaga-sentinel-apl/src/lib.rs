@@ -22,9 +22,9 @@
 //!
 //! ```text
 //! policy "no_secrets_to_public_http" {
-//!   when action.kind == "http.request"
-//!    and action.url.host not in workspace.allowlist
-//!    and secret_ref(payload)
+//!   when action.kind == "http"
+//!    and url_host(action.payload.destination) not in workspace.allowlist
+//!    and secret_ref(action.payload)
 //!   then block, reason="PII egress"
 //! }
 //! ```
@@ -36,6 +36,7 @@ pub mod errors;
 pub mod eval;
 pub mod lexer;
 pub mod parser;
+mod secrets;
 pub mod types;
 pub mod validator;
 

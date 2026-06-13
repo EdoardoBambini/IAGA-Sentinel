@@ -8,12 +8,13 @@
 // `action.payload.commandLine` string the Codex plug-in derives for every
 // shell action (an argv array on its own can't be substring-matched).
 //
-// Honest limit: APL has substring matching, not URL parsing, so a true
-// per-host allowlist belongs on structured `http` actions
-// (`action.payload.destination not in workspace.allowlist`). For a raw
-// shell command the reliable, demo-relevant signal is "an egress tool is
-// shipping local secrets or uploading data off-box" — exactly the
-// poisoned-repo attack. Policies only tighten; there is no catch-all allow.
+// Two tiers. For a raw shell command an argv array can't be reliably
+// URL-parsed, so the dependable signal is substring-based: "an egress tool is
+// shipping local secrets or uploading data off-box" — exactly the poisoned-repo
+// attack (the two shell policies below). For structured `http` actions APL now
+// parses the host with `url_host(...)`, so a true per-host allowlist works (the
+// third policy). Allowlist entries are bare lowercase hosts. Policies only
+// tighten; there is no catch-all allow.
 
 policy "block_secret_exfil_via_egress" {
   when action.kind == "shell"
@@ -38,4 +39,10 @@ policy "block_data_upload_to_external_host" {
    and (contains(action.payload.commandLine, "http://")
      or contains(action.payload.commandLine, "https://"))
   then block, reason="data upload (POST/--upload) to an external host via curl is blocked"
+}
+
+policy "block_offhost_http_egress" {
+  when action.kind == "http"
+   and url_host(action.payload.destination) not in workspace.allowlist
+  then block, reason="http egress to a host outside the workspace allowlist is blocked"
 }

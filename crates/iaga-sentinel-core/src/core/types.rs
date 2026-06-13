@@ -291,6 +291,13 @@ pub struct StoredAuditEvent {
     /// `None` (and elided) unless the host captured usage for it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub usage: Option<iaga_sentinel_cost::UsageData>,
+    /// Explicit `metadata.sessionId` for this action, when the caller supplied
+    /// one. Used as the signed-receipt `run_id` so multiple actions in a logical
+    /// session form one hash-chained run. `None` (and elided from serialization)
+    /// when absent, in which case the receipt logger falls back to `event_id`
+    /// (one receipt per run) and the serialized event stays byte-identical.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
 }
 
 // ── Response Scanning ──

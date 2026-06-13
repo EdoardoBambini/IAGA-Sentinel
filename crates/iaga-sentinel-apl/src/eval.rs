@@ -287,6 +287,28 @@ fn eval_builtin(
     ctx: &Context,
     budget: &mut EvalBudget,
 ) -> Result<Value> {
+    // `secret_ref` is special-cased *before* the generic argument evaluation
+    // below. It needs the raw JSON subtree of its argument, not the flattened
+    // `Value`: `json_to_value` collapses objects to `Null`, so by the time a
+    // payload object reached the generic path there would be nothing left to
+    // scan. We resolve the sub-`Json` directly and run the credential detector
+    // over its serialized form. Still pure and deterministic.
+    if name == "secret_ref" {
+        if args.len() != 1 {
+            return Err(AplError::Eval(format!(
+                "secret_ref takes 1 arg, got {}",
+                args.len()
+            )));
+        }
+        let raw = resolve_json(&args[0], ctx, budget)?;
+        let haystack = match &raw {
+            Json::String(s) => s.clone(),
+            Json::Null => String::new(),
+            other => serde_json::to_string(other).unwrap_or_default(),
+        };
+        return Ok(Value::Bool(crate::secrets::contains_secret(&haystack)));
+    }
+
     let evaluated: Result<Vec<Value>> = args.iter().map(|a| eval_expr(a, ctx, budget)).collect();
     let evaluated = evaluated?;
     match (name, evaluated.as_slice()) {
@@ -298,16 +320,197 @@ fn eval_builtin(
         ("len", [Value::List(xs)]) => Ok(Value::Int(xs.len() as i64)),
         ("lower", [Value::Str(s)]) => Ok(Value::Str(s.to_lowercase())),
         ("upper", [Value::Str(s)]) => Ok(Value::Str(s.to_uppercase())),
-        ("secret_ref", [_]) => {
-            // MVP placeholder: secret detection lives in the firewall
-            // layer of iaga-sentinel-core today. When M3.5 lands we wire this to
-            // the real taint tracker. Until then, always false.
-            Ok(Value::Bool(false))
-        }
+        // Extract the lowercased host from a URL so a policy can write a real
+        // per-host egress allowlist: `url_host(action.payload.destination) not
+        // in workspace.allowlist`.
+        ("url_host", [Value::Str(s)]) => Ok(Value::Str(extract_host(s))),
         (other, args) => Err(AplError::Eval(format!(
             "unknown or mistyped call `{}` with {} arg(s)",
             other,
             args.len()
         ))),
+    }
+}
+
+/// Resolve an expression to its raw JSON subtree. For a path, walk the context
+/// and return the sub-`Json` verbatim (objects/arrays preserved). For any other
+/// expression, evaluate it and lift the resulting leaf `Value` back to `Json`.
+/// Used by `secret_ref`, which must see structure the flattened `Value` loses.
+fn resolve_json(e: &Expr, ctx: &Context, budget: &mut EvalBudget) -> Result<Json> {
+    match e {
+        Expr::Path(segs) => {
+            budget.tick()?;
+            Ok(walk_path_json(&ctx.root, segs))
+        }
+        other => Ok(value_to_json(&eval_expr(other, ctx, budget)?)),
+    }
+}
+
+/// Like `walk_path`, but returns the raw sub-`Json` (keeping objects/arrays)
+/// instead of flattening through `json_to_value`.
+fn walk_path_json(root: &Json, segs: &[String]) -> Json {
+    let mut cur = root;
+    for s in segs {
+        match cur {
+            Json::Object(m) => match m.get(s) {
+                Some(next) => cur = next,
+                None => return Json::Null,
+            },
+            _ => return Json::Null,
+        }
+    }
+    cur.clone()
+}
+
+/// Inverse of `json_to_value` for the leaf kinds the evaluator produces. Only
+/// used to feed non-path `secret_ref` arguments (e.g. a string literal) back
+/// into a scannable JSON value, so the lossy object case never arises here.
+fn value_to_json(v: &Value) -> Json {
+    match v {
+        Value::Null => Json::Null,
+        Value::Bool(b) => Json::Bool(*b),
+        Value::Int(n) => Json::Number((*n).into()),
+        Value::Float(f) => serde_json::Number::from_f64(*f)
+            .map(Json::Number)
+            .unwrap_or(Json::Null),
+        Value::Str(s) => Json::String(s.clone()),
+        Value::List(xs) => Json::Array(xs.iter().map(value_to_json).collect()),
+    }
+}
+
+/// Extract the lowercased host from a URL string. Hand-rolled and fully
+/// deterministic (no external URL crate): strips the scheme, userinfo, port,
+/// and any path/query/fragment, and preserves a bracketed IPv6 literal.
+/// Unparseable input yields an empty string, which matches no allowlist entry,
+/// so a `not in` rule blocks it (fail-safe).
+fn extract_host(url: &str) -> String {
+    let after_scheme = url.split_once("://").map(|(_, r)| r).unwrap_or(url);
+    let authority = after_scheme.split(['/', '?', '#']).next().unwrap_or("");
+    let hostport = authority
+        .rsplit_once('@')
+        .map(|(_, h)| h)
+        .unwrap_or(authority);
+    let host = if let Some(rest) = hostport.strip_prefix('[') {
+        // IPv6 literal: keep everything through the closing bracket.
+        match rest.split_once(']') {
+            Some((h6, _)) => format!("[{h6}]"),
+            None => hostport.to_string(),
+        }
+    } else {
+        hostport
+            .split_once(':')
+            .map(|(h, _)| h)
+            .unwrap_or(hostport)
+            .to_string()
+    };
+    host.to_ascii_lowercase()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::compile;
+
+    fn fired(src: &str, ctx_json: serde_json::Value) -> Option<PolicyFired> {
+        let program = compile(src).expect("compile");
+        let ctx = Context::from_value(ctx_json);
+        let mut budget = EvalBudget::default();
+        evaluate_program(&program, &ctx, &mut budget).expect("eval")
+    }
+
+    // ── secret_ref ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn secret_ref_fires_on_aws_key_in_nested_object() {
+        let src = r#"policy "p" { when secret_ref(action.payload) then block }"#;
+        let ctx = serde_json::json!({
+            "action": { "payload": { "note": "see AKIAIOSFODNN7EXAMPLE here" } }
+        });
+        let f = fired(src, ctx).expect("must fire on a secret");
+        assert_eq!(f.verdict, Verdict::Block);
+    }
+
+    #[test]
+    fn secret_ref_fires_on_pem_block_string() {
+        let src = r#"policy "p" { when secret_ref(action.payload.body) then block }"#;
+        let ctx = serde_json::json!({
+            "action": { "payload": { "body": "-----BEGIN OPENSSH PRIVATE KEY-----" } }
+        });
+        assert_eq!(fired(src, ctx).unwrap().verdict, Verdict::Block);
+    }
+
+    #[test]
+    fn secret_ref_does_not_fire_on_benign_object() {
+        let src = r#"policy "p" { when secret_ref(action.payload) then block }
+                     policy "ok" { when true then allow }"#;
+        let ctx = serde_json::json!({
+            "action": { "payload": { "city": "Berlin", "count": 42 } }
+        });
+        // First policy must miss; the catch-all allow fires instead.
+        assert_eq!(fired(src, ctx).unwrap().verdict, Verdict::Allow);
+    }
+
+    #[test]
+    fn secret_ref_false_on_missing_path() {
+        let src = r#"policy "p" { when secret_ref(action.nope) then block }
+                     policy "ok" { when true then allow }"#;
+        let ctx = serde_json::json!({ "action": { "payload": "x" } });
+        assert_eq!(fired(src, ctx).unwrap().verdict, Verdict::Allow);
+    }
+
+    // ── url_host ────────────────────────────────────────────────────────────
+
+    #[test]
+    fn url_host_extraction_cases() {
+        assert_eq!(
+            extract_host("https://evil.example.com/exfil?x=1#f"),
+            "evil.example.com"
+        );
+        assert_eq!(extract_host("http://user:pass@EVIL.COM:8443/p"), "evil.com");
+        assert_eq!(extract_host("evil.example.com/path"), "evil.example.com");
+        assert_eq!(extract_host("http://[::1]:8080/"), "[::1]");
+        assert_eq!(extract_host("api.github.com"), "api.github.com");
+        assert_eq!(extract_host(""), "");
+    }
+
+    #[test]
+    fn url_host_offallowlist_blocks_and_onallowlist_misses() {
+        let src = r#"policy "p" {
+                       when url_host(action.payload.destination) not in workspace.allowlist
+                       then block
+                     }
+                     policy "ok" { when true then allow }"#;
+        let off = serde_json::json!({
+            "action": { "payload": { "destination": "https://evil.example.com/x" } },
+            "workspace": { "allowlist": ["api.github.com", "internal.example.com"] }
+        });
+        assert_eq!(fired(src, off).unwrap().verdict, Verdict::Block);
+
+        let on = serde_json::json!({
+            "action": { "payload": { "destination": "https://api.github.com/repos" } },
+            "workspace": { "allowlist": ["api.github.com", "internal.example.com"] }
+        });
+        assert_eq!(fired(src, on).unwrap().verdict, Verdict::Allow);
+    }
+
+    #[test]
+    fn combined_secret_and_offhost_policy_fires() {
+        // Mirrors the shipped no_pii_egress.apl example.
+        let src = r#"policy "no_secrets_to_public_http" {
+                       when url_host(action.payload.destination) not in workspace.allowlist
+                        and secret_ref(action.payload)
+                       then block, reason="secret egress"
+                     }
+                     policy "default_allow" { when true then allow }"#;
+        let ctx = serde_json::json!({
+            "action": { "payload": {
+                "destination": "https://evil.example.com/collect",
+                "body": "exfiltrating AKIAIOSFODNN7EXAMPLE off-box"
+            }},
+            "workspace": { "allowlist": ["api.example.com"] }
+        });
+        let f = fired(src, ctx).expect("must fire");
+        assert_eq!(f.verdict, Verdict::Block);
+        assert_eq!(f.policy_name, "no_secrets_to_public_http");
     }
 }

@@ -154,6 +154,23 @@ pub fn score_tool_risk_with_thresholds(
 
     let mut score = (composite.round() as u32).min(100);
 
+    // Surface the policy-layer findings that drove an escalation, so a Block or
+    // Review verdict is never reasonless. Without this, a decision forced by the
+    // policy layer (e.g. "destination ... outside allowed domains", "tool ... is
+    // not registered") would show only the vague "escalated by security layers"
+    // note below. `reasons` flows to both the audit event and the signed
+    // receipt. Skip the benign "matched" placeholder and dedupe.
+    if minimum_decision != GovernanceDecision::Allow {
+        for f in policy_findings {
+            if f.contains("matched registered tool and workspace policy") {
+                continue;
+            }
+            if !reasons.iter().any(|r| r == f) {
+                reasons.push(f.clone());
+            }
+        }
+    }
+
     // ── Decision-aware score adjustment ──
     // When security layers force a higher decision, the score should
     // reflect that severity, but proportionally, not as a flat floor.

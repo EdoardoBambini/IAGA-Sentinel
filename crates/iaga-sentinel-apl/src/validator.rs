@@ -27,6 +27,7 @@ const BUILTIN_ARITIES: &[(&str, usize)] = &[
     ("lower", 1),
     ("upper", 1),
     ("secret_ref", 1),
+    ("url_host", 1),
 ];
 
 pub fn validate(program: &Program) -> Result<()> {

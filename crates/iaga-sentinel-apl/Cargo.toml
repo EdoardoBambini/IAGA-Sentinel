@@ -30,6 +30,11 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 logos = { workspace = true }
+# `secret_ref()` builtin: a fixed, lookaround-free credential/PII regex set,
+# compiled once. Pure (no I/O, clock, or RNG), so the evaluator stays
+# deterministic for receipt replay. Versions match iaga-sentinel-core.
+regex = "1"
+once_cell = "1"
 wasm-encoder = { version = "0.220", optional = true }
 
 [dev-dependencies]

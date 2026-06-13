@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.5.3-0f9d6b?style=flat-square" alt="version" />
+  <img src="https://img.shields.io/badge/version-1.5.4-0f9d6b?style=flat-square" alt="version" />
   <img src="https://img.shields.io/badge/license-BUSL--1.1-0f9d6b?style=flat-square" alt="license" />
   <img src="https://img.shields.io/badge/EU%20AI%20Act-Art.%2012%20and%20Annex%20IV-0B0F0E?style=flat-square" alt="EU AI Act Article 12 and Annex IV" />
   <img src="https://img.shields.io/badge/Rust-stable-0B0F0E?style=flat-square" alt="Rust" />
@@ -149,9 +149,12 @@ Research-validated, not marketing-validated.
 ## Status
 
 > [!NOTE]
+> **New in 1.5.4: the policy language now enforces what it promised.** The APL `secret_ref()` builtin actually detects credentials and PII inside a tool payload (it was a placeholder that always returned false), and a new `url_host()` builtin gives a policy a real per-host egress allowlist that also defeats look-alike-domain bypasses. Three core fixes ship alongside: the workspace egress allowlist is URL-aware, so a full URL to an allowed host is no longer over-blocked; every `block` or `review` now carries its cause in the audit event and the signed receipt, with no silent escalation; and signed receipts hash-chain across a session, so a multi-step run forms one tamper-evident Merkle chain. See [ADR 0023](docs/adr/0023-apl-secret-detection-host-egress.md) and the [CHANGELOG](CHANGELOG.md).
+
+> [!NOTE]
 > **New in 1.5.3: a vertical, in-the-loop plug-in.** The [OpenAI Codex plug-in](#in-the-loop-with-openai-codex) lands as IAGA Sentinel's first end-to-end, bidirectional integration: a `block` verdict stops an action *inside* the agent's loop, and a Phase 2 milestone pairs the gate with Codex's OS sandbox so prompt-injected egress can't even open the socket. Standalone `iaga-codex` binary; the `iaga` core is unchanged. See [ADR 0022](docs/adr/0022-codex-integration.md) and [STATUS.md](examples/integrations/codex/STATUS.md).
 
-Current release: **1.5.3** ([release notes](CHANGELOG.md)). CI runs the full workspace test suite (default and `--all-features`), live-Postgres receipt tests, SDK end-to-end smokes against a real sidecar, and clippy with `-D warnings`. All green from a clean checkout.
+Current release: **1.5.4** ([release notes](CHANGELOG.md)). CI runs the full workspace test suite (default and `--all-features`), live-Postgres receipt tests, SDK end-to-end smokes against a real sidecar, and clippy with `-D warnings`. All green from a clean checkout.
 
 ---
 

@@ -1,0 +1,29 @@
+// End-to-end fixture: proves the two runtime APL builtins work live through
+// `POST /v1/inspect` when loaded as an overlay (`iaga serve --policy <this>`).
+//
+//   iaga serve --policy examples/e2e/secrets_and_egress.apl
+//
+// The overlay only tightens (stricter-wins), so these rules can turn a YAML
+// "allow" into a "block" but never the reverse.
+
+// secret_ref scans the (serialized) payload for credentials / PII. Fires on a
+// silent exfil the signature firewall misses (e.g. a POST body carrying an AWS
+// key), regardless of action kind.
+policy "block_secret_egress" {
+  when secret_ref(action.payload)
+  then block, reason="payload carries a credential or PII"
+}
+
+// url_host parses the destination host for a true per-host allowlist. With no
+// configured workspace allowlist, every host is off-list and this blocks any
+// structured http egress; with an allowlist it only blocks off-list hosts.
+policy "block_offhost_http" {
+  when action.kind == "http"
+   and url_host(action.payload.destination) not in workspace.allowlist
+  then block, reason="http egress to an off-allowlist host"
+}
+
+policy "default_allow" {
+  when true
+  then allow
+}

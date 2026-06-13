@@ -504,6 +504,9 @@ impl AuditRow {
                 .usage_json
                 .as_deref()
                 .and_then(|s| parse_json_opt_or_warn(s, "audit_events.usage_json")),
+            // Not persisted as a column: receipt run grouping uses the in-memory
+            // event at request time, and the chain lives in the receipts table.
+            session_id: None,
         }
     }
 }
