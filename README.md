@@ -81,6 +81,45 @@ The operator dashboard is at <http://localhost:4010/> the moment the server is u
 
 ---
 
+## Test me now (1.5.5)
+
+Do not take our word for it. The repository ships a self-contained demo kit that drives three real verdicts through the live pipeline and proves the receipt offline, on your own machine. Nothing is faked, and you get the same verdicts every run. Two scripts under [`scripts/`](scripts/) and a runbook in [`docs/demo/README.md`](docs/demo/README.md). The primary path is Windows PowerShell; Linux and macOS use the `.sh` twins.
+
+Open two terminals. **Terminal A** starts the server: it builds the binaries, wipes the demo database for an identical seed, and serves the dashboard on `:4010`.
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+cd path\to\IAGA-Sentinel
+.\scripts\demo.ps1 -Build
+```
+
+Wait for the green `READY` banner and `DASHBOARD -> http://localhost:4010/`. Open that URL in a browser and click the **Live feed** tab. Then **Terminal B** drives the demo:
+
+```powershell
+cd path\to\IAGA-Sentinel
+.\scripts\demo_run.ps1
+```
+
+Paced for the camera, you will watch three real verdicts land in the dashboard Live feed and the terminal at the same time:
+
+- **Beat 1, ALLOW** (risk 2): a safe repository read, recorded.
+- **Beat 2, REVIEW** (risk 41): a shell command that needs a production secret, held for a human.
+- **Beat 3, BLOCK** (risk 81): `rm -rf` on the database, stopped before it runs.
+- **The proof.** The three signed receipts export as one hash-chained run and `iaga-verify` prints `CHAIN OK` with no server, no database and no network. The final receipt attests the Block.
+
+The driver asserts every verdict, so a non-deterministic run can never be recorded. To redo a clean take, stop the server with `Ctrl+C` and re-run `demo.ps1` (it re-seeds from scratch).
+
+On Linux and macOS the flow is identical (the driver needs `curl` and `jq`):
+
+```bash
+./scripts/demo.sh --build      # terminal A
+./scripts/demo_run.sh          # terminal B
+```
+
+Window layout, captions and a 75 to 100 second timing budget are in [`docs/demo/README.md`](docs/demo/README.md).
+
+---
+
 ## In the loop with OpenAI Codex
 
 Most integrations **observe**: they ask for a verdict and certify what happened. The OpenAI Codex plug-in is the first that also **acts inside the agent's loop**, adding a third verb to *enforces softly and certifies hard*: **enforces inside the loop**. It is IAGA Sentinel's first **vertical plug-in**: a deep, framework-specific adapter under active development, and its first end-to-end, bidirectional integration.

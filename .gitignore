@@ -86,3 +86,6 @@ logs/
 iaga-sentinel-video/
 crates/iaga-sentinel-core/*.db
 crates/iaga-sentinel-core/*.sqlite
+
+# Demo recording kit: the exported receipt chain is regenerated every run.
+chain.json
