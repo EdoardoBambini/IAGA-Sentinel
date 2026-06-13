@@ -24,7 +24,7 @@
 </p>
 
 <p align="center">
-  <img src="media/iaga-sentinel-arch-hero-v1.gif" alt="Isometric exploded view of the IAGA Sentinel decision pipeline: ten governance layers from ingress to a signed Ed25519 receipt, with leader-line annotations" width="760" />
+  <img src="media/iaga-sentinel-arch-hero-v2.gif" alt="Isometric exploded view of the IAGA Sentinel decision pipeline: ten governance layers from ingress to a signed Ed25519 receipt, with leader-line annotations" width="760" />
 </p>
 
 ---
@@ -71,7 +71,7 @@ iaga-verify chain.json                      # -> CHAIN OK
 The operator dashboard is at <http://localhost:4010/> the moment the server is up. Docker (`docker compose up -d`) and Postgres (`--features postgres` + `DATABASE_URL`) are covered in the docs.
 
 <p align="center">
-  <img src="media/iaga-sentinel-receipt-anatomy-v1.png" alt="Exploded technical drawing of a signed receipt: recorded action, hash grid, verdict stamp, Ed25519 signature layer, base plate" width="660" />
+  <img src="media/iaga-sentinel-arch-exploded-v1.png" alt="Isometric exploded view of the IAGA Sentinel stack: layered slabs of code, a policy grid, an ed25519 identity chip and signed-receipt circuit traces, with CAD leader-line callouts" width="660" />
 </p>
 
 ---
