@@ -36,6 +36,9 @@ docs/PRD.md
 docs/INTEGRATIONS.md
 IAGA_SENTINEL_*.md
 MIGRATION.md
+# Internal candid architecture write-up (local only, never push).
+ARCHITETTURA-INTERNA.md
+ARCHITETTURA-*.md
 
 # Research paper artifacts (kept local, never in public repo)
 docs/aisec-2026/
@@ -57,6 +60,13 @@ IAGA_SENTINEL_FEATURES_AND_POSITIONING.md
 # Stale or internal docs pulled from the public repo (kept local on disk).
 docs/ROADMAP_v0.4.0.md
 docs/DEMO.md
+
+# Internal source/build trees + planning docs that were removed from HEAD but
+# had NO ignore rule (so they could be re-added by mistake). Closing the gap.
+enterprise/
+ui/
+AGENT_ARMOR_*.md
+docs/ROADMAP*.md
 
 # Media (large, kept local). Committed README assets are GIF/PNG
 # (media/*.gif, charts/*.png); raw video stays local in any folder.

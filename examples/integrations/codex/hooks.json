@@ -1,0 +1,25 @@
+{
+  "_comment": [
+    "IAGA Sentinel gate registered as a Codex PreToolUse hook.",
+    "Format confirmed against codex-cli 0.138.0-alpha.7: Codex's hook engine",
+    "is Claude-Code-compatible (it migrates hooks from .claude) and reads this",
+    "schema. Codex pipes the pending-tool-call event (JSON) to the command's",
+    "stdin; the gate exits 0 (allow) or 2 (block) with the justification on",
+    "stdout. Replace the absolute path with your built binary",
+    "(cargo build --release -p iaga-sentinel-codex -> target/release/iaga-codex).",
+    "matcher is a regex over tool names; \".*\" gates every tool."
+  ],
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "C:\\path\\to\\target\\release\\iaga-codex.exe hook"
+          }
+        ]
+      }
+    ]
+  }
+}

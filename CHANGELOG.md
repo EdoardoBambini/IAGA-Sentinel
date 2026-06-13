@@ -14,6 +14,47 @@ Enterprise overview.
 
 ---
 
+## [1.5.3], 2026-06-13
+
+Ships the **OpenAI Codex CLI plug-in** (`iaga-codex`) as IAGA Sentinel's first
+*vertical*, in-the-loop integration, plus a Phase 2 milestone: egress the agent
+cannot bypass. Additive and fully isolated — the `iaga` core gains no Codex
+dependency, the receipt schema is untouched, and signed receipts from any prior
+release still verify unchanged.
+
+### Added
+
+- **OpenAI Codex plug-in** (`crates/iaga-sentinel-codex`, binary `iaga-codex`):
+  - **Gate** (`iaga-codex hook`): Codex's native `PreToolUse` hook routes every
+    tool call through `POST /v1/inspect` before it runs; a `block` verdict stops
+    the action inside Codex (exit 2) with the policy reason, and a signed receipt
+    is minted either way. **Fail-closed by default** — this is an enforcement
+    point, not an observer. (`agent-loop` tier.)
+  - **Compiler** (`iaga-codex export-rules`): compiles an APL bundle into Codex's
+    native `execpolicy` `.rules` (a static command-prefix layer that holds even
+    when hooks are off); strictest-wins merge. Syntax validated against the
+    pinned Codex version.
+  - **Ingest** (`iaga-codex ingest`): turns a `codex exec --json` session (live
+    pipe, spawned run, or captured file) into the same signed receipt chain —
+    the `advisory` tier (recorded, never applied).
+- **Phase 2 — egress the agent cannot bypass**: a runbook
+  ([`examples/integrations/codex/poisoned-repo/DEMO.md`](examples/integrations/codex/poisoned-repo/DEMO.md))
+  pairing the gate with Codex's native OS sandbox (outbound network denied by
+  default), so a prompt-injected `curl -d @.env …` exfiltration cannot open the
+  socket even if every cooperative check were removed. Honest posture: the OS
+  sandbox enforces, Sentinel attests; receipts stay `is_authoritative: false`.
+- **Honest status doc**
+  ([`examples/integrations/codex/STATUS.md`](examples/integrations/codex/STATUS.md)):
+  the verified what-works list plus the roadmap (non-disableable managed hooks
+  via `requirements.toml`, a Sentinel egress proxy, `review → ask`, …).
+
+### Notes
+
+- All Codex field-name knowledge is confined to two modules
+  (`codex_event.rs`, `exec_stream.rs`); the Codex version is pinned only in the
+  integration README. The `iaga` core, the receipt schema, and crypto are
+  untouched. See [ADR 0022](docs/adr/0022-codex-integration.md).
+
 ## [1.5.2], 2026-06-12
 
 Technical-debt remediation across the whole open build: hardening of existing

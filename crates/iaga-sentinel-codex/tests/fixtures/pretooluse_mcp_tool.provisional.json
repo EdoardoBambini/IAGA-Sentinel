@@ -1,0 +1,12 @@
+{
+  "event": "PreToolUse",
+  "session_id": "0195a3f2-7c41-codex-session",
+  "turn_id": "turn-4",
+  "permission_mode": "auto",
+  "cwd": "/work/project",
+  "tool_name": "github:create_issue",
+  "tool_input": {
+    "title": "Flaky test in CI",
+    "body": "See run 1234."
+  }
+}

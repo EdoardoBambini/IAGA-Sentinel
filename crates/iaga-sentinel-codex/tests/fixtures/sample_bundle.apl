@@ -1,0 +1,33 @@
+// Sample APL bundle exercised by the export-rules golden test.
+// Mixes faithfully-compilable command-prefix policies with policies that
+// must stay runtime-only, so the golden captures both halves of the report.
+
+// Compilable: a bare command prefix -> forbidden.
+policy "no_external_egress" {
+  when starts_with(action.payload.command, "curl")
+  then block, reason="use the approved proxy, not direct curl"
+}
+
+// Compilable: shell-gate ANDed with a multi-token prefix -> prompt.
+policy "confirm_destructive_rm" {
+  when action.kind == "shell" and starts_with(action.payload.command, "rm -rf")
+  then review, reason="destructive recursive delete needs confirmation"
+}
+
+// Runtime-only: a runtime risk-score condition has no static equivalent.
+policy "halt_high_risk_shell" {
+  when action.kind == "shell" and risk.score > 80
+  then block, reason="injection suspected"
+}
+
+// Runtime-only: substring match is not a command prefix.
+policy "no_pipe_to_shell" {
+  when contains(action.payload.command, "| sh")
+  then block, reason="piping a download into a shell"
+}
+
+// Runtime-only: catch-all baseline.
+policy "default_allow" {
+  when true
+  then allow
+}

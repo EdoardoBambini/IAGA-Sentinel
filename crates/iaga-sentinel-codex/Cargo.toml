@@ -1,0 +1,41 @@
+[package]
+name = "iaga-sentinel-codex"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "IAGA Sentinel, OpenAI Codex CLI plug-in: command hook gating tool calls through POST /v1/inspect (agent-loop enforcement tier)"
+
+[lints]
+workspace = true
+
+[lib]
+name = "iaga_sentinel_codex"
+path = "src/lib.rs"
+
+[[bin]]
+name = "iaga-codex"
+path = "src/bin/iaga-codex.rs"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+reqwest = { version = "0.12", features = ["json"] }
+clap = { version = "4", features = ["derive"] }
+sha2 = { workspace = true }
+hex = { workspace = true }
+# Public wire contract for POST /v1/inspect (InspectRequest / GovernanceResult).
+# The plug-in deliberately depends only on this leaf client crate, never on the
+# core pipeline: Codex stays a hyper-specific adapter, `iaga` stays Codex-free.
+iaga-sentinel-integrations = { path = "../iaga-sentinel-integrations" }
+# Public APL front-end (compile -> Program AST). The compiler walks the public
+# AST only; it never reaches into the core pipeline or the evaluator internals.
+iaga-sentinel-apl = { path = "../iaga-sentinel-apl" }
+
+[dev-dependencies]
+# Mock /v1/inspect server for gate tests (same axum line as core).
+axum = "0.8"

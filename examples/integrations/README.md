@@ -45,6 +45,7 @@ Then run the example in that folder. Verify any receipt:
 | MCP servers | Python / TS | `govern_tool` / `governMcpTool` (+ `iaga proxy`) | [`mcp/`](mcp/) |
 | Claude Code | CLI | `PreToolUse` hook | [`claude-code/`](claude-code/) |
 | Claude Agent SDK | TS / Python | `canUseTool` / `PreToolUse` hook | [`claude-agent-sdk/`](claude-agent-sdk/) |
+| OpenAI Codex CLI | CLI / Rust | `iaga-codex hook` (PreToolUse, fail-closed) | [`codex/`](codex/) |
 
 ## Tests
 

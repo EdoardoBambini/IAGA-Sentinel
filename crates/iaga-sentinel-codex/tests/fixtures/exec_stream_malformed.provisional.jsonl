@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"0195a3f2-7c41-codex-thread"}
+{"type":"item.completed","item":{"id":"item_1","type":"command_execution","command":"cat README.md","exit_code":0}}
+this line is not valid json and must be skipped, counted, and not abort the stream
+{"type":"item.completed","item":{"id":"item_2","type":"command_execution","command":"echo done","exit_code":0}}
