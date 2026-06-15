@@ -39,7 +39,7 @@ pub trait ReasoningHandle: Send + Sync {
 }
 
 /// Output of one reasoning evaluation, in a shape both the receipt
-/// logger and (in M5) the APL evaluator can consume directly.
+/// logger and (in M5) the Dictum evaluator can consume directly.
 #[derive(Debug, Clone, Default)]
 pub struct ReasoningOutcome {
     pub scores: serde_json::Value,

@@ -1,4 +1,4 @@
-// Sample APL bundle exercised by the export-rules golden test.
+// Sample Dictum bundle exercised by the export-rules golden test.
 // Mixes faithfully-compilable command-prefix policies with policies that
 // must stay runtime-only, so the golden captures both halves of the report.
 

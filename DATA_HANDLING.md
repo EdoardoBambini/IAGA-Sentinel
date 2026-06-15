@@ -34,7 +34,7 @@ stable order; fields that are empty or absent are omitted from the JSON.
 | `seq` | integer | always | Position in the chain, starting at 0 and incrementing by 1. |
 | `parent_hash` | string or null | always | SHA-256 of the previous receipt body, `null` at `seq` 0. |
 | `input_hash` | string | always | SHA-256 over the event's identifying fields, not the raw payload (see below). |
-| `policy_hash` | string | always | SHA-256 of the compiled policy bundle (or a default placeholder when no APL overlay is loaded). |
+| `policy_hash` | string | always | SHA-256 of the compiled policy bundle (or a default placeholder when no Dictum overlay is loaded). |
 | `verdict` | enum | always | `allow`, `review`, or `block`. |
 | `reasons` | string array | usually | Short machine reasons for the verdict; omitted when empty. |
 | `risk_score` | integer | always | Numeric risk for the decision. |

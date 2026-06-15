@@ -223,7 +223,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/v1/cost/over-time", get(cost_over_time_handler))
         .route("/v1/cost/budget", get(cost_budget_handler))
         .route("/v1/cost/pricing", get(cost_pricing_handler))
-        // M3 / M6, APL live overlay status
+        // M3 / M6, Dictum live overlay status
         .route("/v1/policy/overlay", get(policy_overlay_handler))
         // M3.5, Reasoning plane status
         .route("/v1/reasoning/status", get(reasoning_status_handler))
@@ -1305,9 +1305,9 @@ async fn receipts_run_handler(
 }
 
 async fn policy_overlay_handler(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
-    #[cfg(feature = "apl")]
+    #[cfg(feature = "dictum")]
     {
-        match state.apl_overlay.as_ref() {
+        match state.dictum_overlay.as_ref() {
             Some(overlay) => Json(serde_json::json!({
                 "enabled": true,
                 "loaded": true,
@@ -1324,7 +1324,7 @@ async fn policy_overlay_handler(State(state): State<Arc<AppState>>) -> Json<serd
             })),
         }
     }
-    #[cfg(not(feature = "apl"))]
+    #[cfg(not(feature = "dictum"))]
     {
         let _ = state;
         Json(serde_json::json!({

@@ -89,21 +89,21 @@ pub struct PipelineInputsCapture {
     pub payload_sha256: String,
 }
 
-/// APL evaluation trace summary captured alongside the verdict. Records
+/// Dictum evaluation trace summary captured alongside the verdict. Records
 /// which policies were considered and which fired, without leaking
 /// secret/PII content from the request body.
 ///
-/// Optional and additive: when absent the receipt has no APL trace
+/// Optional and additive: when absent the receipt has no Dictum trace
 /// (1.1 behaviour preserved bit-identically).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AplEvalTrace {
-    /// Hex-encoded SHA-256 of the compiled APL bundle (mirrors
+pub struct DictumEvalTrace {
+    /// Hex-encoded SHA-256 of the compiled Dictum bundle (mirrors
     /// `ReceiptBody::policy_hash` for cross-check).
     pub policy_hash: String,
-    /// Number of APL policies evaluated for this verdict.
+    /// Number of Dictum policies evaluated for this verdict.
     pub policies_evaluated: u32,
-    /// Names of APL policies that fired (i.e. matched and produced a
+    /// Names of Dictum policies that fired (i.e. matched and produced a
     /// verdict). Empty when the YAML baseline alone produced the
     /// decision.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -166,7 +166,7 @@ pub struct ReceiptBody {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pipeline_inputs_capture: Option<PipelineInputsCapture>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub apl_eval_trace: Option<AplEvalTrace>,
+    pub apl_eval_trace: Option<DictumEvalTrace>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ml_inference_inputs: Option<MlInferenceInputs>,
     /// 1.3.1 honesty flag. `Some(false)` on every OSS receipt because the

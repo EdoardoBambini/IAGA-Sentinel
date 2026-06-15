@@ -18,7 +18,7 @@ bidirectional integration possible:
 2. **A native rules engine (execpolicy).** Starlark `.rules` files with
    `prefix_rule(pattern, decision, justification, ...)` and strictest-wins
    semantics (`forbidden` > `prompt` > `allow`) — the same merge semantics as
-   the APL overlay, and a natural static compile target for APL bundles.
+   the Dictum overlay, and a natural static compile target for Dictum bundles.
 3. **Structured session telemetry.** Newline-delimited JSON events from
    `codex exec --json` (and persisted rollout files), ingestible as evidence.
 
@@ -40,25 +40,25 @@ never touches the pipeline, receipt schema, or crypto.
 Planned subcommands, shipped incrementally:
 
 - `iaga-codex hook` — the gate (minimal scope: PreToolUse only).
-- `iaga-codex export-rules` — APL bundle → execpolicy `.rules` compiler
-  (static defense-in-depth layer; consumes the public APL AST). Shipped.
+- `iaga-codex export-rules` — Dictum bundle → execpolicy `.rules` compiler
+  (static defense-in-depth layer; consumes the public Dictum AST). Shipped.
 - `iaga-codex ingest` — `codex exec --json` session telemetry → inspect
   calls, explicitly typed as live-ingest or post-hoc attestation in request
   metadata. Shipped.
 
 ### The compiler (`export-rules`)
 
-`iaga-codex export-rules --apl <bundle> --out <file>` compiles an APL bundle
-to a native execpolicy `.rules` file. It depends on `iaga-sentinel-apl`'s
+`iaga-codex export-rules --dictum <bundle> --out <file>` compiles a Dictum bundle
+to a native execpolicy `.rules` file. It depends on `iaga-sentinel-dictum`'s
 public front-end only (`compile()` + the AST), never the evaluator internals
 or the core pipeline.
 
 The bar is **faithfulness, not coverage**: a static `prefix_rule` is emitted
-only when the APL policy fires *exactly* when a shell command starts with a
+only when the Dictum policy fires *exactly* when a shell command starts with a
 literal prefix — `starts_with(<command-path>, "literal")`, optionally ANDed
 with the `action.kind == "shell"` gate. A "command path" is one whose last
-segment is `command`, `cmd`, or `argv` (the APL context exposes the command
-under `action.payload.*`, see `pipeline/apl_overlay.rs`). Verdicts map
+segment is `command`, `cmd`, or `argv` (the Dictum context exposes the command
+under `action.payload.*`, see `pipeline/dictum_overlay.rs`). Verdicts map
 `block → forbidden`, `review → prompt`, `allow → allow`. Anything with a
 runtime condition (risk score, `contains`, membership, `secret_ref`,
 ML/usage paths, disjunction, catch-all `when true`, multiple prefixes) is
@@ -79,7 +79,7 @@ syntax is confirmed against `codex execpolicy check` on the version pinned in
   only literal positions (plain strings).
 - `decision` ∈ {`allow`, `prompt`, `forbidden`} (`deny` is rejected).
 - `justification` is optional but must be non-empty when present; we always
-  emit it, carrying the originating APL policy name + reason.
+  emit it, carrying the originating Dictum policy name + reason.
 - `match` / `not_match` are optional **parse-time assertions** (shell-string
   or argv-list examples); a self-consistent file is itself a round-trip
   test. The generated examples are constructed to always hold.

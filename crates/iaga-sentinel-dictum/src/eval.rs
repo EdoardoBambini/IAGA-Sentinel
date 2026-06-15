@@ -15,7 +15,7 @@ use std::fmt;
 use serde_json::Value as Json;
 
 use crate::ast::*;
-use crate::errors::{AplError, Result};
+use crate::errors::{DictumError, Result};
 
 /// Runtime-tagged value produced by evaluating an expression.
 #[derive(Debug, Clone, PartialEq)]
@@ -98,7 +98,7 @@ impl EvalBudget {
     fn tick(&mut self) -> Result<()> {
         self.total += 1;
         if self.remaining == 0 {
-            return Err(AplError::BudgetExhausted { steps: self.total });
+            return Err(DictumError::BudgetExhausted { steps: self.total });
         }
         self.remaining -= 1;
         Ok(())
@@ -147,7 +147,7 @@ pub fn evaluate_program(
 }
 
 /// Evaluate a single expression. Exposed for hosts that want to evaluate
-/// expressions independently (e.g. for APL-as-filter use cases).
+/// expressions independently (e.g. for Dictum-as-filter use cases).
 pub fn eval_expr(e: &Expr, ctx: &Context, budget: &mut EvalBudget) -> Result<Value> {
     budget.tick()?;
     match e {
@@ -172,12 +172,12 @@ pub fn eval_expr(e: &Expr, ctx: &Context, budget: &mut EvalBudget) -> Result<Val
                 Value::Str(s) => match n {
                     Value::Str(sub) => s.contains(&sub),
                     _ => {
-                        return Err(AplError::Eval(
+                        return Err(DictumError::Eval(
                             "`in` against string requires string needle".into(),
                         ))
                     }
                 },
-                _ => return Err(AplError::Eval("`in` rhs must be list or string".into())),
+                _ => return Err(DictumError::Eval("`in` rhs must be list or string".into())),
             };
             Ok(Value::Bool(if *not { !contains } else { contains }))
         }
@@ -236,9 +236,9 @@ fn cmp_values(op: BinOp, a: &Value, b: &Value) -> Result<Value> {
         (Value::Int(x), Value::Float(y)) => (*x as f64).partial_cmp(y),
         (Value::Float(x), Value::Int(y)) => x.partial_cmp(&(*y as f64)),
         (Value::Str(x), Value::Str(y)) => x.partial_cmp(y),
-        _ => return Err(AplError::Eval(format!("cannot compare {} and {}", a, b))),
+        _ => return Err(DictumError::Eval(format!("cannot compare {} and {}", a, b))),
     };
-    let ord = ord.ok_or_else(|| AplError::Eval("NaN comparison".into()))?;
+    let ord = ord.ok_or_else(|| DictumError::Eval("NaN comparison".into()))?;
     Ok(Value::Bool(match op {
         BinOp::Lt => ord == std::cmp::Ordering::Less,
         BinOp::Gt => ord == std::cmp::Ordering::Greater,
@@ -295,7 +295,7 @@ fn eval_builtin(
     // over its serialized form. Still pure and deterministic.
     if name == "secret_ref" {
         if args.len() != 1 {
-            return Err(AplError::Eval(format!(
+            return Err(DictumError::Eval(format!(
                 "secret_ref takes 1 arg, got {}",
                 args.len()
             )));
@@ -324,7 +324,7 @@ fn eval_builtin(
         // per-host egress allowlist: `url_host(action.payload.destination) not
         // in workspace.allowlist`.
         ("url_host", [Value::Str(s)]) => Ok(Value::Str(extract_host(s))),
-        (other, args) => Err(AplError::Eval(format!(
+        (other, args) => Err(DictumError::Eval(format!(
             "unknown or mistyped call `{}` with {} arg(s)",
             other,
             args.len()
@@ -495,7 +495,7 @@ mod tests {
 
     #[test]
     fn combined_secret_and_offhost_policy_fires() {
-        // Mirrors the shipped no_pii_egress.apl example.
+        // Mirrors the shipped no_pii_egress.dictum example.
         let src = r#"policy "no_secrets_to_public_http" {
                        when url_host(action.payload.destination) not in workspace.allowlist
                         and secret_ref(action.payload)

@@ -1,4 +1,4 @@
-//! Lexer for APL. Implemented with `logos` for speed and compact
+//! Lexer for Dictum. Implemented with `logos` for speed and compact
 //! error handling. Whitespace and `//`-line comments are skipped.
 
 use logos::Logos;
@@ -105,8 +105,8 @@ fn unescape(raw: &str) -> Option<String> {
 /// Tokenize the input into `(Token, line, col)` tuples. Lines are
 /// 1-based; columns are 1-based and count the starting character of
 /// the token. Bad tokens raise a `ParseError` at the caller site.
-pub fn tokenize(src: &str) -> Result<Vec<(Token, u32, u32)>, crate::errors::AplError> {
-    use crate::errors::AplError;
+pub fn tokenize(src: &str) -> Result<Vec<(Token, u32, u32)>, crate::errors::DictumError> {
+    use crate::errors::DictumError;
 
     let mut lex = Token::lexer(src);
     let mut out = Vec::new();
@@ -116,7 +116,7 @@ pub fn tokenize(src: &str) -> Result<Vec<(Token, u32, u32)>, crate::errors::AplE
         match res {
             Ok(tok) => out.push((tok, line, col)),
             Err(_) => {
-                return Err(AplError::Parse {
+                return Err(DictumError::Parse {
                     line,
                     col,
                     msg: format!("unexpected character `{}`", &src[span]),

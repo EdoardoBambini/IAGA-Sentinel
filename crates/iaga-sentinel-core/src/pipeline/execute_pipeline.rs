@@ -670,7 +670,7 @@ pub async fn execute_pipeline(
     reasons.push(format!("agent-role:{:?}", profile.role).to_lowercase());
 
     // 1.5 cost-control: cumulative session spend so far + the configured budget,
-    // injected into the APL context and enforced by the non-APL fallback below.
+    // injected into the Dictum context and enforced by the non-Dictum fallback below.
     #[cfg(feature = "cost-control")]
     let (cost_session_usd, cost_budget_usd) = {
         let key = crate::modules::cost::spend_store::SpendKey::from_request(input);
@@ -682,14 +682,14 @@ pub async fn execute_pipeline(
     #[cfg(not(feature = "cost-control"))]
     let (cost_session_usd, cost_budget_usd): (Option<f64>, Option<f64>) = (None, None);
 
-    // 1.0 M6: APL live overlay. If a policy bundle is loaded on the
+    // 1.0 M6: Dictum live overlay. If a policy bundle is loaded on the
     // host, run it after the YAML risk score and merge stricter-wins.
-    // APL can tighten the verdict; it never relaxes it.
+    // Dictum can tighten the verdict; it never relaxes it.
     let mut decision = risk.decision;
-    #[cfg(feature = "apl")]
-    if let Some(overlay) = state.apl_overlay.as_ref() {
+    #[cfg(feature = "dictum")]
+    if let Some(overlay) = state.dictum_overlay.as_ref() {
         let ml_scores = ml_outcome.as_ref().map(|o| &o.scores);
-        let ctx = crate::pipeline::apl_overlay::build_overlay_context(
+        let ctx = crate::pipeline::dictum_overlay::build_overlay_context(
             input,
             risk.score,
             risk.decision,
@@ -700,14 +700,14 @@ pub async fn execute_pipeline(
             cost_budget_usd,
         );
         if let Some(fired) = overlay.evaluate(&ctx) {
-            let merged = crate::pipeline::apl_overlay::merge_decisions(decision, fired.verdict);
+            let merged = crate::pipeline::dictum_overlay::merge_decisions(decision, fired.verdict);
             let reason_str = fired.reason.unwrap_or_else(|| "fired".to_string());
-            reasons.push(format!("apl[{}]: {}", fired.policy_name, reason_str));
+            reasons.push(format!("dictum[{}]: {}", fired.policy_name, reason_str));
             decision = merged;
         }
     }
 
-    // 1.5 cost-control: enforce the session budget even without an APL policy.
+    // 1.5 cost-control: enforce the session budget even without a Dictum policy.
     // Tightens to Block once the session's prior cumulative spend exceeds the
     // configured limit (block-next semantics; this action's cost is added after
     // recording). Stricter-wins: this can only tighten the verdict.
@@ -742,7 +742,7 @@ pub async fn execute_pipeline(
     // LAYER 8, Telemetry
     // ═══════════════════════════════════════════════════════════════
     let duration_ms = pipeline_start.elapsed().as_millis() as u64;
-    // After M6: use the merged `decision` (YAML + APL stricter-wins) so
+    // After M6: use the merged `decision` (YAML + Dictum stricter-wins) so
     // telemetry reflects the actual final verdict.
     let decision_str = format!("{:?}", decision).to_lowercase();
 

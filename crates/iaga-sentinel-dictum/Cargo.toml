@@ -1,18 +1,18 @@
 [package]
-name = "iaga-sentinel-apl"
+name = "iaga-sentinel-dictum"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
-description = "IAGA Sentinel, Agent Policy Language (APL) parser, Hindley-Milner type checker, deterministic evaluator, optional WASM codegen"
+description = "IAGA Sentinel, Dictum parser, Hindley-Milner type checker, deterministic evaluator, optional WASM codegen"
 
 [lints]
 workspace = true
 
 [lib]
-name = "iaga_sentinel_apl"
+name = "iaga_sentinel_dictum"
 path = "src/lib.rs"
 
 [features]
@@ -23,7 +23,7 @@ default = []
 # entrypoint and the `wasm::compile_to_wasm` scaffolding. Enterprise
 # AOT-optimized codegen (cranelift opt-levels, JIT tuning, WASI
 # side-effect policies) is *not* in OSS, see ENTERPRISE.md.
-apl-wasm = ["dep:wasm-encoder"]
+dictum-wasm = ["dep:wasm-encoder"]
 
 [dependencies]
 serde = { workspace = true }
@@ -40,6 +40,6 @@ wasm-encoder = { version = "0.220", optional = true }
 [dev-dependencies]
 pretty_assertions = "1"
 proptest = "1.6"
-# Differential tests (tests/differential.rs, gated on `apl-wasm`): execute the
+# Differential tests (tests/differential.rs, gated on `dictum-wasm`): execute the
 # compiled WASM and assert it agrees with the tree-walk evaluator.
 wasmtime = { workspace = true }

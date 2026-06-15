@@ -135,9 +135,9 @@ enum Commands {
         #[arg(long, default_value_t = true)]
         seed_demo: bool,
 
-        /// 1.0 M6, load an APL policy file as an overlay on top of YAML.
-        /// Stricter wins: APL can tighten the verdict, never relax it.
-        #[cfg(feature = "apl")]
+        /// 1.0 M6, load a Dictum policy file as an overlay on top of YAML.
+        /// Stricter wins: Dictum can tighten the verdict, never relax it.
+        #[cfg(feature = "dictum")]
         #[arg(long, value_name = "FILE")]
         policy: Option<String>,
     },
@@ -239,8 +239,8 @@ enum Commands {
         seed_demo: bool,
     },
 
-    /// 1.0 M3, work with .apl policy files (parse, validate, dry-run)
-    #[cfg(feature = "apl")]
+    /// 1.0 M3, work with .dictum policy files (parse, validate, dry-run)
+    #[cfg(feature = "dictum")]
     Policy {
         #[command(subcommand)]
         command: PolicyCommands,
@@ -308,12 +308,12 @@ enum Commands {
     },
 }
 
-#[cfg(feature = "apl")]
+#[cfg(feature = "dictum")]
 #[derive(Subcommand)]
 enum PolicyCommands {
-    /// Parse, validate and optionally dry-run an .apl file.
+    /// Parse, validate and optionally dry-run an .dictum file.
     Test {
-        /// Path to the .apl source file
+        /// Path to the .dictum source file
         path: String,
 
         /// Optional JSON file providing the evaluation context
@@ -321,24 +321,24 @@ enum PolicyCommands {
         #[arg(long)]
         context: Option<String>,
     },
-    /// Lint an .apl file: parse + validate only, no execution.
+    /// Lint an .dictum file: parse + validate only, no execution.
     /// 1.0 M6, semantic alias for `iaga policy test <file>` without --context.
     Lint {
-        /// Path to the .apl source file
+        /// Path to the .dictum source file
         path: String,
     },
-    /// 1.2 OSS, type-check (Hindley-Milner) an .apl file.
+    /// 1.2 OSS, type-check (Hindley-Milner) an .dictum file.
     /// Reports per-policy `when`-clause types and any type errors
     /// (mismatch, occurs-check, builtin arity, non-bool when).
     Check {
-        /// Path to the .apl source file
+        /// Path to the .dictum source file
         path: String,
     },
-    /// 1.2 OSS, compile an .apl file to a WebAssembly module
+    /// 1.2 OSS, compile an .dictum file to a WebAssembly module
     /// (literal + boolean / numeric / comparison ops only; rejects
     /// Path / Call / Membership in the MVP 1.2 scope, see ADR 0014).
     Compile {
-        /// Path to the .apl source file
+        /// Path to the .dictum source file
         path: String,
 
         /// Path to write the WASM module bytes. Defaults to
@@ -456,7 +456,7 @@ async fn main() {
 
     match cli.command {
         None | Some(Commands::Serve { .. }) => {
-            #[cfg(feature = "apl")]
+            #[cfg(feature = "dictum")]
             let (port_override, seed_demo, policy_path) = match &cli.command {
                 Some(Commands::Serve {
                     port,
@@ -466,7 +466,7 @@ async fn main() {
                 }) => (*port, *seed_demo, policy.clone()),
                 _ => (None, true, None),
             };
-            #[cfg(not(feature = "apl"))]
+            #[cfg(not(feature = "dictum"))]
             let (port_override, seed_demo) = match &cli.command {
                 Some(Commands::Serve {
                     port, seed_demo, ..
@@ -477,7 +477,7 @@ async fn main() {
                 &db_url,
                 port_override,
                 seed_demo,
-                #[cfg(feature = "apl")]
+                #[cfg(feature = "dictum")]
                 policy_path.as_deref(),
             )
             .await;
@@ -550,7 +550,7 @@ async fn main() {
         Some(Commands::McpServer { seed_demo }) => {
             cmd_mcp_server(&db_url, seed_demo).await;
         }
-        #[cfg(feature = "apl")]
+        #[cfg(feature = "dictum")]
         Some(Commands::Policy { command }) => match command {
             PolicyCommands::Test { path, context } => {
                 let code = cmd_policy_test(&path, context.as_deref());
@@ -676,7 +676,7 @@ async fn cmd_serve(
     db_url: &str,
     port_override: Option<u16>,
     seed_demo: bool,
-    #[cfg(feature = "apl")] policy_path: Option<&str>,
+    #[cfg(feature = "dictum")] policy_path: Option<&str>,
 ) {
     let mut app_env = load_env();
     if let Some(p) = port_override {
@@ -862,37 +862,37 @@ async fn cmd_serve(
         "Threat intelligence feed loaded"
     );
 
-    // 1.0 M6: load APL overlay if --policy was provided. Fail-fast on any
-    // load error: if the operator asked for APL, they want APL. Loaded
+    // 1.0 M6: load Dictum overlay if --policy was provided. Fail-fast on any
+    // load error: if the operator asked for Dictum, they want Dictum. Loaded
     // *before* the receipt logger so the bundle digest can be embedded
     // in every receipt's `policy_hash` field.
-    #[cfg(feature = "apl")]
-    let apl_overlay: Option<Arc<iaga_sentinel::pipeline::apl_overlay::AplOverlay>> =
+    #[cfg(feature = "dictum")]
+    let dictum_overlay: Option<Arc<iaga_sentinel::pipeline::dictum_overlay::DictumOverlay>> =
         match policy_path {
             None => None,
             Some(p) => {
-                use iaga_sentinel::pipeline::apl_overlay::AplOverlay;
-                match AplOverlay::load(std::path::Path::new(p)) {
+                use iaga_sentinel::pipeline::dictum_overlay::DictumOverlay;
+                match DictumOverlay::load(std::path::Path::new(p)) {
                     Ok(o) => {
                         tracing::info!(
                             policies = o.policy_count(),
                             hash = o.policy_hash(),
                             source = %o.source_path().display(),
-                            "M6: APL policy overlay loaded"
+                            "M6: Dictum policy overlay loaded"
                         );
                         Some(Arc::new(o))
                     }
                     Err(e) => {
-                        eprintln!("APL load failed: {}", e);
+                        eprintln!("Dictum load failed: {}", e);
                         process::exit(2);
                     }
                 }
             }
         };
 
-    #[cfg(feature = "apl")]
-    let policy_hash_override = apl_overlay.as_ref().map(|o| o.policy_hash().to_string());
-    #[cfg(not(feature = "apl"))]
+    #[cfg(feature = "dictum")]
+    let policy_hash_override = dictum_overlay.as_ref().map(|o| o.policy_hash().to_string());
+    #[cfg(not(feature = "dictum"))]
     let policy_hash_override: Option<String> = None;
 
     let receipts = try_build_receipt_logger(db_url, policy_hash_override).await;
@@ -920,8 +920,8 @@ async fn cmd_serve(
         auth_cache: iaga_sentinel::auth::cache::AuthCache::from_env(),
         receipts,
         reasoning,
-        #[cfg(feature = "apl")]
-        apl_overlay,
+        #[cfg(feature = "dictum")]
+        dictum_overlay,
     });
 
     let router = create_router(state.clone());
@@ -1014,8 +1014,8 @@ async fn cmd_inspect(source: &str, db_url: &str) -> i32 {
 
     let receipts = try_build_receipt_logger(db_url, None).await;
     let reasoning = try_build_reasoning_engine();
-    #[cfg(feature = "apl")]
-    let apl_overlay: Option<Arc<iaga_sentinel::pipeline::apl_overlay::AplOverlay>> = None;
+    #[cfg(feature = "dictum")]
+    let dictum_overlay: Option<Arc<iaga_sentinel::pipeline::dictum_overlay::DictumOverlay>> = None;
 
     let state = Arc::new(AppState {
         audit_store: storage.audit_store,
@@ -1041,8 +1041,8 @@ async fn cmd_inspect(source: &str, db_url: &str) -> i32 {
         auth_cache: iaga_sentinel::auth::cache::AuthCache::from_env(),
         receipts,
         reasoning,
-        #[cfg(feature = "apl")]
-        apl_overlay,
+        #[cfg(feature = "dictum")]
+        dictum_overlay,
     });
 
     match execute_pipeline(&payload, &state).await {
@@ -1257,11 +1257,11 @@ fn cmd_plugins_validate(path: &str, format: &str) {
     }
 }
 
-// ── apl type check + wasm compile (1.2) ──
+// ── dictum type check + wasm compile (1.2) ──
 
-#[cfg(feature = "apl")]
+#[cfg(feature = "dictum")]
 fn cmd_policy_check(path: &str) -> i32 {
-    use iaga_sentinel_apl::compile_with_types;
+    use iaga_sentinel_dictum::compile_with_types;
 
     let src = match std::fs::read_to_string(path) {
         Ok(s) => s,
@@ -1290,9 +1290,9 @@ fn cmd_policy_check(path: &str) -> i32 {
     }
 }
 
-#[cfg(feature = "apl-wasm")]
+#[cfg(feature = "dictum-wasm")]
 fn cmd_policy_compile(path: &str, output: Option<&str>) -> i32 {
-    use iaga_sentinel_apl::{compile, compile_to_wasm};
+    use iaga_sentinel_dictum::{compile, compile_to_wasm};
 
     let src = match std::fs::read_to_string(path) {
         Ok(s) => s,
@@ -1313,7 +1313,7 @@ fn cmd_policy_compile(path: &str, output: Option<&str>) -> i32 {
         Err(e) => {
             eprintln!("policy compile: codegen failed: {e}");
             eprintln!(
-                "note: APL WASM MVP 1.2 supports literal + boolean / numeric / comparison ops \
+                "note: Dictum WASM MVP 1.2 supports literal + boolean / numeric / comparison ops \
 only. Path / Call / Membership remain on the tree-walk evaluator. \
 See ADR 0014."
             );
@@ -1336,10 +1336,10 @@ See ADR 0014."
     0
 }
 
-#[cfg(all(feature = "apl", not(feature = "apl-wasm")))]
+#[cfg(all(feature = "dictum", not(feature = "dictum-wasm")))]
 fn cmd_policy_compile(_path: &str, _output: Option<&str>) -> i32 {
     eprintln!(
-        "policy compile: requires building with `--features apl-wasm`. \
+        "policy compile: requires building with `--features dictum-wasm`. \
 The default OSS build ships the tree-walk evaluator only; WASM codegen \
 is an opt-in MVP primitive (ADR 0014)."
     );
@@ -1860,8 +1860,8 @@ async fn cmd_proxy(db_url: &str, agent_id: &str, command: &str, args: Vec<String
 
     let receipts = try_build_receipt_logger(db_url, None).await;
     let reasoning = try_build_reasoning_engine();
-    #[cfg(feature = "apl")]
-    let apl_overlay: Option<Arc<iaga_sentinel::pipeline::apl_overlay::AplOverlay>> = None;
+    #[cfg(feature = "dictum")]
+    let dictum_overlay: Option<Arc<iaga_sentinel::pipeline::dictum_overlay::DictumOverlay>> = None;
 
     let state = Arc::new(AppState {
         audit_store: storage.audit_store,
@@ -1885,8 +1885,8 @@ async fn cmd_proxy(db_url: &str, agent_id: &str, command: &str, args: Vec<String
         auth_cache: iaga_sentinel::auth::cache::AuthCache::from_env(),
         receipts,
         reasoning,
-        #[cfg(feature = "apl")]
-        apl_overlay,
+        #[cfg(feature = "dictum")]
+        dictum_overlay,
     });
 
     let config = McpProxyConfig {
@@ -1921,8 +1921,8 @@ async fn cmd_mcp_server(db_url: &str, seed_demo: bool) {
 
     let receipts = try_build_receipt_logger(db_url, None).await;
     let reasoning = try_build_reasoning_engine();
-    #[cfg(feature = "apl")]
-    let apl_overlay: Option<Arc<iaga_sentinel::pipeline::apl_overlay::AplOverlay>> = None;
+    #[cfg(feature = "dictum")]
+    let dictum_overlay: Option<Arc<iaga_sentinel::pipeline::dictum_overlay::DictumOverlay>> = None;
 
     let state = Arc::new(AppState {
         audit_store: storage.audit_store,
@@ -1946,8 +1946,8 @@ async fn cmd_mcp_server(db_url: &str, seed_demo: bool) {
         auth_cache: iaga_sentinel::auth::cache::AuthCache::from_env(),
         receipts,
         reasoning,
-        #[cfg(feature = "apl")]
-        apl_overlay,
+        #[cfg(feature = "dictum")]
+        dictum_overlay,
     });
 
     if let Err(e) = run_mcp_server(state).await {
@@ -2008,9 +2008,9 @@ async fn auto_import_config(policy_store: &Arc<dyn PolicyStore>) {
     }
 }
 
-#[cfg(feature = "apl")]
+#[cfg(feature = "dictum")]
 fn cmd_policy_test(path: &str, context_path: Option<&str>) -> i32 {
-    use iaga_sentinel_apl::{compile, evaluate_program, Context, EvalBudget};
+    use iaga_sentinel_dictum::{compile, evaluate_program, Context, EvalBudget};
 
     let src = match std::fs::read_to_string(path) {
         Ok(s) => s,
@@ -2165,8 +2165,8 @@ async fn cmd_kernel_run(db_url: &str, agent_id: &str, cwd: Option<&str>, cmd: &[
     seed_demo_data(&storage.policy_store).await;
     let receipts = try_build_receipt_logger(db_url, None).await;
     let reasoning = try_build_reasoning_engine();
-    #[cfg(feature = "apl")]
-    let apl_overlay: Option<Arc<iaga_sentinel::pipeline::apl_overlay::AplOverlay>> = None;
+    #[cfg(feature = "dictum")]
+    let dictum_overlay: Option<Arc<iaga_sentinel::pipeline::dictum_overlay::DictumOverlay>> = None;
     let event_bus = EventBus::new(16);
     let webhook_manager = Arc::new(WebhookManager::new(Arc::new(
         webhooks::DeadLetterQueue::new(),
@@ -2193,8 +2193,8 @@ async fn cmd_kernel_run(db_url: &str, agent_id: &str, cwd: Option<&str>, cmd: &[
         auth_cache: iaga_sentinel::auth::cache::AuthCache::from_env(),
         receipts,
         reasoning,
-        #[cfg(feature = "apl")]
-        apl_overlay,
+        #[cfg(feature = "dictum")]
+        dictum_overlay,
     });
 
     // Policy callback: synthesize an InspectRequest from the ProcessSpec
@@ -2459,15 +2459,15 @@ async fn cmd_replay(
         println!("RE-EXECUTE  run_id={}  receipts={}", rid, chain.len());
         for r in &chain {
             let capture_present = r.body.pipeline_inputs_capture.is_some();
-            let apl_trace_present = r.body.apl_eval_trace.is_some();
+            let dictum_trace_present = r.body.apl_eval_trace.is_some();
             let ml_inputs_present = r.body.ml_inference_inputs.is_some();
             let marker = if capture_present { "✓" } else { "·" };
             println!(
-                "  seq={:<4} verdict={:<8?} capture={} apl_trace={} ml_inputs={} reasons={:?}",
+                "  seq={:<4} verdict={:<8?} capture={} dictum_trace={} ml_inputs={} reasons={:?}",
                 r.body.seq,
                 r.body.verdict,
                 marker,
-                if apl_trace_present { "✓" } else { "·" },
+                if dictum_trace_present { "✓" } else { "·" },
                 if ml_inputs_present { "✓" } else { "·" },
                 r.body.reasons,
             );

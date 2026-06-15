@@ -78,7 +78,7 @@ tags:
   - name: Cost
     description: "1.5 cost-control: spend observability and budget (feature-gated)"
   - name: PolicyOverlay
-    description: "M6: APL live policy overlay status"
+    description: "M6: Dictum live policy overlay status"
   - name: Reasoning
     description: "M3.5: ML reasoning plane status"
   - name: Kernel
@@ -1691,7 +1691,7 @@ paths:
   /v1/policy/overlay:
     get:
       operationId: getPolicyOverlayStatus
-      summary: APL live policy overlay status (M6)
+      summary: Dictum live policy overlay status (M6)
       tags: [PolicyOverlay]
       responses:
         "200":
@@ -3183,7 +3183,7 @@ components:
       properties:
         enabled:
           type: boolean
-          description: False when compiled without the `apl` feature
+          description: False when compiled without the `dictum` feature
         loaded:
           type: boolean
         policyCount:
@@ -3194,7 +3194,7 @@ components:
         source:
           type: string
           nullable: true
-          description: Path of the loaded .apl bundle
+          description: Path of the loaded .dictum bundle
 
     ReasoningStatus:
       type: object

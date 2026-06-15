@@ -1,6 +1,6 @@
-// Example APL policy set. Run with:
-//   iaga policy test crates/iaga-sentinel-apl/examples/no_pii_egress.apl \
-//       --context crates/iaga-sentinel-apl/examples/sample_context.json
+// Example Dictum policy set. Run with:
+//   iaga policy test crates/iaga-sentinel-dictum/examples/no_pii_egress.dictum \
+//       --context crates/iaga-sentinel-dictum/examples/sample_context.json
 //
 // The first policy combines both runtime builtins:
 //   - url_host(...) parses the destination host for a real per-host allowlist,

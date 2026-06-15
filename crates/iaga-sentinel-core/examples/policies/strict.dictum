@@ -1,6 +1,6 @@
-// IAGA Sentinel 1.0, example "strict" APL overlay.
+// IAGA Sentinel 1.0, example "strict" Dictum overlay.
 // Load with:
-//   iaga serve --policy crates/iaga-sentinel-core/examples/policies/strict.apl
+//   iaga serve --policy crates/iaga-sentinel-core/examples/policies/strict.dictum
 //
 // All three policies tighten the YAML baseline. None of them relaxes:
 // the merge in execute_pipeline is "stricter wins" by design.

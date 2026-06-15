@@ -16,7 +16,7 @@ M5 includes:
 - Clearer CLI status for features that are scaffolds or optional.
 - Explicit demo seeding behavior instead of implicit production defaults.
 
-APL as the primary runtime policy source is deferred to a dedicated ADR. Full drift replay, managed mesh behavior, and authoritative kernel loading are not part of M5.
+Dictum as the primary runtime policy source is deferred to a dedicated ADR. Full drift replay, managed mesh behavior, and authoritative kernel loading are not part of M5.
 
 ## Consequences
 

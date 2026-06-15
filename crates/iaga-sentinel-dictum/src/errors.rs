@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
-pub enum AplError {
+pub enum DictumError {
     #[error("parse error at {line}:{col}: {msg}")]
     Parse { line: u32, col: u32, msg: String },
 
@@ -15,4 +15,4 @@ pub enum AplError {
     BudgetExhausted { steps: u64 },
 }
 
-pub type Result<T> = std::result::Result<T, AplError>;
+pub type Result<T> = std::result::Result<T, DictumError>;

@@ -80,7 +80,7 @@ work well in this repo:
 
 ```
 feat(receipts): add Postgres backend
-fix(apl): short-circuit `or` evaluating rhs eagerly
+fix(dictum): short-circuit `or` evaluating rhs eagerly
 docs(adr): clarify stricter-wins merge semantics
 chore(ci): cache cargo registry across jobs
 ```
@@ -115,7 +115,7 @@ here).
 What this means in practice for contributors:
 
 - A bug fix or feature in `crates/iaga-sentinel-core`, `crates/iaga-sentinel-receipts`,
-  `crates/iaga-sentinel-apl`, `crates/iaga-sentinel-reasoning`, or `crates/iaga-sentinel-kernel`
+  `crates/iaga-sentinel-dictum`, `crates/iaga-sentinel-reasoning`, or `crates/iaga-sentinel-kernel`
   benefits both OSS and Enterprise users. Welcome.
 - We will **never** silently move open-build features behind an
   Enterprise paywall. The public boundary is documented in

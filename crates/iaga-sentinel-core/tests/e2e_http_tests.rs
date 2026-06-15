@@ -117,8 +117,8 @@ async fn spawn_test_server_inner(
         auth_cache: iaga_sentinel::auth::cache::AuthCache::from_env(),
         receipts: None,
         reasoning: None,
-        #[cfg(feature = "apl")]
-        apl_overlay: None,
+        #[cfg(feature = "dictum")]
+        dictum_overlay: None,
     });
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")

@@ -45,9 +45,9 @@ Add **cost control** to the open build behind a `cost-control` cargo feature
 - **Budget enforcement**: a process-global, session-scoped `SpendStore`
   (cumulative micro-USD per `(agent_id, session_id)`, mirroring the
   session-graph state model) is read at decision time. The current spend and the
-  configured limit (`IAGA_SENTINEL_SESSION_BUDGET_USD`) are injected into the APL
+  configured limit (`IAGA_SENTINEL_SESSION_BUDGET_USD`) are injected into the Dictum
   context as `usage.session_cost_usd` and `budget.limit`, so a policy can write
-  `when usage.session_cost_usd > budget.limit then block`. A non-APL fallback
+  `when usage.session_cost_usd > budget.limit then block`. A non-Dictum fallback
   enforces the same limit even with no policy loaded. Both follow the existing
   stricter-wins merge: cost can only tighten a verdict. Semantics are
   "block-next": a session's prior cumulative spend is checked before the action,

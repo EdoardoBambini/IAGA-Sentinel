@@ -1,6 +1,6 @@
 # IAGA Sentinel Enterprise
 
-IAGA Sentinel Enterprise is the commercial edition built around the same evidence core as the open build. The open repository remains the source-verifiable runtime: signed receipts, deterministic replay, APL policies, local verification, the CLI, the HTTP API, and the default dashboard.
+IAGA Sentinel Enterprise is the commercial edition built around the same evidence core as the open build. The open repository remains the source-verifiable runtime: signed receipts, deterministic replay, Dictum policies, local verification, the CLI, the HTTP API, and the default dashboard.
 
 Enterprise is for teams that need managed deployment, compliance workflows, identity integration, platform-specific enforcement, or support obligations that go beyond the public runtime.
 
@@ -10,7 +10,7 @@ The open build includes the public governance primitives:
 
 - Signed receipt schema, Ed25519 signatures, and chain verification.
 - Deterministic replay and the standalone `iaga-verify` verifier.
-- Agent Policy Language parsing, validation, evaluation, and live overlay.
+- Dictum parsing, validation, evaluation, and live overlay.
 - Reasoning framework with bring-your-own ONNX models.
 - Cross-platform userspace governance and honest enforcement posture reporting.
 - BYOK through filesystem-mounted signing keys.

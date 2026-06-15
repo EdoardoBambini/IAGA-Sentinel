@@ -1,6 +1,6 @@
 //! Parser + validator happy paths and error cases.
 
-use iaga_sentinel_apl::{compile, parse, AplError, BinOp, Expr, Lit, UnOp, Verdict};
+use iaga_sentinel_dictum::{compile, parse, BinOp, DictumError, Expr, Lit, UnOp, Verdict};
 use pretty_assertions::assert_eq;
 
 #[test]
@@ -88,21 +88,21 @@ fn parse_rejects_duplicate_policy_names() {
         policy "x" { when false then block }
     "#;
     let err = compile(src).expect_err("duplicate");
-    assert!(matches!(err, AplError::Type(_)));
+    assert!(matches!(err, DictumError::Type(_)));
 }
 
 #[test]
 fn parse_rejects_unknown_token() {
     let src = r#"policy "x" { when @ then allow }"#;
     let err = parse(src).expect_err("bad token");
-    assert!(matches!(err, AplError::Parse { .. }));
+    assert!(matches!(err, DictumError::Parse { .. }));
 }
 
 #[test]
 fn parse_rejects_missing_verdict() {
     let src = r#"policy "x" { when true then }"#;
     let err = parse(src).expect_err("missing verdict");
-    assert!(matches!(err, AplError::Parse { .. }));
+    assert!(matches!(err, DictumError::Parse { .. }));
 }
 
 #[test]
@@ -110,7 +110,7 @@ fn parse_rejects_wrong_builtin_arity() {
     let src = r#"policy "x" { when contains("a") then allow }"#;
     let err = compile(src).expect_err("arity");
     match err {
-        AplError::Type(msg) => assert!(msg.contains("contains"), "msg={}", msg),
+        DictumError::Type(msg) => assert!(msg.contains("contains"), "msg={}", msg),
         other => panic!("expected Type err, got {:?}", other),
     }
 }

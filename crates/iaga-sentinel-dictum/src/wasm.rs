@@ -1,7 +1,7 @@
-//! OSS 1.2, APL → WebAssembly codegen scaffolding (ADR 0014).
+//! OSS 1.2, Dictum → WebAssembly codegen scaffolding (ADR 0014).
 //!
 //! **Scope MVP 1.2**: emit a valid WASM module for the subset of
-//! APL expressions that does not touch host context, literals,
+//! Dictum expressions that does not touch host context, literals,
 //! boolean / numeric / comparison binary ops, and unary `not`.
 //! The resulting module exports an `eval_policy_<n>(): i32` function
 //! per policy, returning `1` when the `when` clause evaluates to
@@ -13,7 +13,7 @@
 //! host-import ABI (read JSON context from linear memory, call
 //! host functions for string ops) that is out of scope for the
 //! 1.2 MVP. The tree-walk evaluator remains the canonical
-//! executor for the full APL surface; 1.2 only ships the codegen
+//! executor for the full Dictum surface; 1.2 only ships the codegen
 //! primitive needed to demonstrate the WASM lowering path.
 //!
 //! Enterprise AOT optimization (cranelift opt-levels, JIT tuning,
@@ -61,11 +61,15 @@ impl WasmProgram {
 /// be evaluated via the tree-walk path instead.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum WasmCompileError {
-    #[error("APL → WASM 1.2 MVP does not support path lookups (`{0}`); use tree-walk evaluator")]
+    #[error(
+        "Dictum → WASM 1.2 MVP does not support path lookups (`{0}`); use tree-walk evaluator"
+    )]
     UnsupportedPath(String),
-    #[error("APL → WASM 1.2 MVP does not support builtin calls (`{0}`); use tree-walk evaluator")]
+    #[error(
+        "Dictum → WASM 1.2 MVP does not support builtin calls (`{0}`); use tree-walk evaluator"
+    )]
     UnsupportedCall(String),
-    #[error("APL → WASM 1.2 MVP does not support membership tests; use tree-walk evaluator")]
+    #[error("Dictum → WASM 1.2 MVP does not support membership tests; use tree-walk evaluator")]
     UnsupportedMembership,
     #[error("type mismatch in WASM codegen: {0}")]
     TypeMismatch(String),

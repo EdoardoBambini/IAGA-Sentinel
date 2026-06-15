@@ -1,12 +1,12 @@
 //! Golden-file + I/O tests for `iaga-codex export-rules`.
 //!
 //! The golden (`tests/fixtures/sample_bundle.golden.rules`) is the exact
-//! output of compiling `tests/fixtures/sample_bundle.apl`. Regenerate it
+//! output of compiling `tests/fixtures/sample_bundle.dictum`. Regenerate it
 //! with:
 //!
 //! ```text
 //! iaga-codex export-rules \
-//!   --apl crates/iaga-sentinel-codex/tests/fixtures/sample_bundle.apl \
+//!   --dictum crates/iaga-sentinel-codex/tests/fixtures/sample_bundle.dictum \
 //!   --out crates/iaga-sentinel-codex/tests/fixtures/sample_bundle.golden.rules
 //! ```
 //!
@@ -37,10 +37,10 @@ fn read_fixture(name: &str) -> String {
 
 #[test]
 fn sample_bundle_matches_the_golden_rules() {
-    let src = read_fixture("sample_bundle.apl");
+    let src = read_fixture("sample_bundle.dictum");
     let bundle_sha256 = hex::encode(Sha256::digest(src.as_bytes()));
 
-    let program = iaga_sentinel_apl::compile(&src).expect("sample bundle compiles");
+    let program = iaga_sentinel_dictum::compile(&src).expect("sample bundle compiles");
     let report = compile_program(&program);
     let rendered = render_rules_file(&bundle_sha256, &report);
 
@@ -57,7 +57,7 @@ fn run_export_writes_a_file_and_reports_ok() {
     let out = std::env::temp_dir().join("iaga_codex_export_rules_test.rules");
     let _ = std::fs::remove_file(&out);
 
-    let code = run_export(&fixture_path("sample_bundle.apl"), &out);
+    let code = run_export(&fixture_path("sample_bundle.dictum"), &out);
     assert_eq!(code, EXIT_OK);
 
     let written = std::fs::read_to_string(&out).expect("output file exists");
@@ -71,13 +71,13 @@ fn run_export_writes_a_file_and_reports_ok() {
 #[test]
 fn missing_bundle_exits_io_error() {
     let out = std::env::temp_dir().join("iaga_codex_export_rules_missing.rules");
-    let code = run_export(&fixture_path("does_not_exist.apl"), &out);
+    let code = run_export(&fixture_path("does_not_exist.dictum"), &out);
     assert_eq!(code, EXIT_IO);
 }
 
 #[test]
-fn invalid_apl_exits_compile_error() {
-    let bad = std::env::temp_dir().join("iaga_codex_bad_bundle.apl");
+fn invalid_dictum_exits_compile_error() {
+    let bad = std::env::temp_dir().join("iaga_codex_bad_bundle.dictum");
     std::fs::write(&bad, "policy \"broken\" { when ").expect("write temp bundle");
     let out = std::env::temp_dir().join("iaga_codex_bad_out.rules");
 
@@ -114,7 +114,7 @@ fn generated_rules_pass_codex_execpolicy_check() {
     let out = std::env::temp_dir().join("iaga_codex_roundtrip.rules");
     let _ = std::fs::remove_file(&out);
     assert_eq!(
-        run_export(&fixture_path("sample_bundle.apl"), &out),
+        run_export(&fixture_path("sample_bundle.dictum"), &out),
         EXIT_OK
     );
 

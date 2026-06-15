@@ -13,7 +13,7 @@
 //! verdict and blocks denied actions with exit code 2, fail-closed by
 //! default. Every governed call mints one signed receipt server-side.
 //!
-//! **The compiler** (`iaga-codex export-rules`): compiles an APL bundle to
+//! **The compiler** (`iaga-codex export-rules`): compiles a Dictum bundle to
 //! a native execpolicy `.rules` file — a static command-prefix layer that
 //! holds even when hooks are disabled. Only policies that map *faithfully*
 //! onto a command prefix are emitted; the rest stay runtime-only (the gate
@@ -39,7 +39,7 @@
 //! - [`execpolicy_format`] — THE single place that knows execpolicy
 //!   `.rules` syntax. Provisional until validated against `codex
 //!   execpolicy check`.
-//! - [`rules_compiler`] — APL AST → execpolicy rules (pure, faithful subset).
+//! - [`rules_compiler`] — Dictum AST → execpolicy rules (pure, faithful subset).
 //! - [`rules_export`] — `export-rules` I/O orchestration.
 //! - [`exec_stream`] — THE single place that knows the `codex exec --json`
 //!   stream field names. Provisional until the stream spike lands real

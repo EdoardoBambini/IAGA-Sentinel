@@ -1,6 +1,6 @@
 //! Evaluator correctness + determinism tests.
 
-use iaga_sentinel_apl::{compile, evaluate_program, Context, EvalBudget, Value, Verdict};
+use iaga_sentinel_dictum::{compile, evaluate_program, Context, EvalBudget, Value, Verdict};
 use serde_json::json;
 
 fn ctx(v: serde_json::Value) -> Context {

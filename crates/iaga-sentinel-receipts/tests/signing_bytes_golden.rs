@@ -11,7 +11,7 @@
 //! verifiers must keep accepting receipts from newer builds.
 
 use iaga_sentinel_receipts::{
-    AplEvalTrace, CostSource, MlInferenceInputs, MlScoreBundle, MlTokenDigest, ModelDigest,
+    CostSource, DictumEvalTrace, MlInferenceInputs, MlScoreBundle, MlTokenDigest, ModelDigest,
     PipelineInputsCapture, PluginDigest, ReceiptBody, UsageData, Verdict,
 };
 
@@ -95,9 +95,9 @@ fn capture_body() -> ReceiptBody {
     }
 }
 
-fn apl_trace_body() -> ReceiptBody {
+fn dictum_trace_body() -> ReceiptBody {
     ReceiptBody {
-        apl_eval_trace: Some(AplEvalTrace {
+        apl_eval_trace: Some(DictumEvalTrace {
             policy_hash: "b".repeat(64),
             policies_evaluated: 3,
             policies_fired: vec!["high_risk".into()],
@@ -158,7 +158,7 @@ fn kitchen_sink_body() -> ReceiptBody {
         timestamp: "2026-01-01T00:00:00Z".into(),
         signer_key_id: "ed25519:golden".into(),
         pipeline_inputs_capture: capture_body().pipeline_inputs_capture,
-        apl_eval_trace: apl_trace_body().apl_eval_trace,
+        apl_eval_trace: dictum_trace_body().apl_eval_trace,
         ml_inference_inputs: ml_inputs_body().ml_inference_inputs,
         is_authoritative: Some(false),
         usage: Some(UsageData {
@@ -254,7 +254,7 @@ fn pipeline_inputs_capture_shape_is_frozen() {
 #[test]
 fn apl_eval_trace_shape_is_frozen() {
     assert_golden(
-        &apl_trace_body(),
+        &dictum_trace_body(),
         r#"{"run_id":"golden-run","seq":0,"parent_hash":null,"input_hash":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","policy_hash":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","verdict":"allow","risk_score":12,"timestamp":"2026-01-01T00:00:00Z","signer_key_id":"ed25519:golden","apl_eval_trace":{"policyHash":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","policiesEvaluated":3,"policiesFired":["high_risk"]}}"#,
         "2a1ed3f096107a4676d44a728681f3a2b965244fffb7bc947915732e7b1e3e29",
     );

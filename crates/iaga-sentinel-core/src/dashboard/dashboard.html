@@ -1081,12 +1081,12 @@
         <section class="panel">
           <div class="section-head">
             <div>
-              <div class="section-kicker">APL overlay</div>
+              <div class="section-kicker">Dictum overlay</div>
               <h2>Policy language</h2>
-              <p>Typed DSL merged stricter-wins over the YAML profile system: APL can tighten a verdict, never relax it.</p>
+              <p>Typed DSL merged stricter-wins over the YAML profile system: Dictum can tighten a verdict, never relax it.</p>
             </div>
           </div>
-          <div id="apl-overlay-panel" class="stack"></div>
+          <div id="dictum-overlay-panel" class="stack"></div>
         </section>
 
         <section class="panel">
@@ -1678,7 +1678,7 @@ function renderAll() {
   renderAgentDetail();
   renderReceipts();
   renderTelemetry();
-  renderAplOverlay();
+  renderDictumOverlay();
   renderPolicyPanel();
   renderKernel();
   renderReasoning();
@@ -2179,19 +2179,19 @@ function renderTelemetry() {
 
 /* ── Policy ── */
 
-function renderAplOverlay() {
-  const panel = $('apl-overlay-panel');
+function renderDictumOverlay() {
+  const panel = $('dictum-overlay-panel');
   const o = state.data.policyOverlay;
   if (!o) {
     panel.innerHTML = '<div class="empty">No data.</div>';
     return;
   }
   if (!o.enabled) {
-    panel.innerHTML = '<div class="empty">APL feature not compiled in this build.</div>';
+    panel.innerHTML = '<div class="empty">Dictum feature not compiled in this build.</div>';
     return;
   }
   if (!o.loaded) {
-    panel.innerHTML = '<div class="empty">No APL overlay loaded. Start with <code>iaga serve --policy &lt;file.apl&gt;</code> to enable.</div>';
+    panel.innerHTML = '<div class="empty">No Dictum overlay loaded. Start with <code>iaga serve --policy &lt;file.dictum&gt;</code> to enable.</div>';
     return;
   }
   const hash = esc((o.policyHash || '').slice(0, 32) + '…');

@@ -1,10 +1,10 @@
 //! Deterministic secret / credential detector backing the `secret_ref()`
-//! APL builtin.
+//! Dictum builtin.
 //!
 //! The pattern set mirrors the credential and PII subset of the core
 //! response-scanner (`iaga-sentinel-core` `pipeline::execute_pipeline`'s
-//! `SENSITIVE_PATTERNS`). It is duplicated here on purpose: `iaga-sentinel-apl`
-//! is a *dependency* of core (core depends on apl, never the reverse), and
+//! `SENSITIVE_PATTERNS`). It is duplicated here on purpose: `iaga-sentinel-dictum`
+//! is a *dependency* of core (core depends on dictum, never the reverse), and
 //! keeping detection self-contained means `iaga policy test` flags secrets
 //! standalone, with no host process required.
 //!
@@ -49,7 +49,7 @@ static COMPILED: Lazy<Vec<Regex>> =
 
 /// Returns true when `haystack` contains any known credential / PII signature.
 ///
-/// Hosts pass the serialized form of whatever an APL policy targets, typically
+/// Hosts pass the serialized form of whatever a Dictum policy targets, typically
 /// a flattened `action.payload` object, so a secret in *any* nested field is
 /// caught.
 pub fn contains_secret(haystack: &str) -> bool {

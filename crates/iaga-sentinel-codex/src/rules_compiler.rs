@@ -1,8 +1,8 @@
-//! APL bundle → execpolicy rules compiler (pure logic, no syntax, no I/O).
+//! Dictum bundle → execpolicy rules compiler (pure logic, no syntax, no I/O).
 //!
-//! Walks the public APL AST and extracts the subset that maps faithfully
+//! Walks the public Dictum AST and extracts the subset that maps faithfully
 //! onto an execpolicy command-prefix rule. The bar is **faithfulness**,
-//! not coverage: a static `prefix_rule` is emitted only when the APL
+//! not coverage: a static `prefix_rule` is emitted only when the Dictum
 //! policy fires *exactly* when a shell command starts with a literal
 //! prefix. Anything with a runtime condition (risk score, `contains`,
 //! membership, `secret_ref`, ML/usage paths, disjunction) stays
@@ -10,11 +10,11 @@
 //! emitting a looser-or-tighter static rule would silently change policy
 //! semantics, which we refuse to do.
 //!
-//! The APL context the core builds exposes the shell command under
-//! `action.payload.*` (see `pipeline/apl_overlay.rs`); a "command path"
+//! The Dictum context the core builds exposes the shell command under
+//! `action.payload.*` (see `pipeline/dictum_overlay.rs`); a "command path"
 //! here is a path whose last segment is `command`, `cmd`, or `argv`.
 
-use iaga_sentinel_apl::{BinOp, Expr, Lit, Program, Verdict};
+use iaga_sentinel_dictum::{BinOp, Expr, Lit, Program, Verdict};
 
 use crate::execpolicy_format::{ExecDecision, PrefixRule};
 
@@ -77,7 +77,7 @@ pub fn compile_program(program: &Program) -> CompileReport {
 
 /// Build a [`PrefixRule`] from a compilable policy.
 fn build_rule(
-    policy: &iaga_sentinel_apl::Policy,
+    policy: &iaga_sentinel_dictum::Policy,
     program: String,
     arg_prefix: Vec<String>,
 ) -> PrefixRule {
@@ -224,10 +224,10 @@ fn binop_str(op: BinOp) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use iaga_sentinel_apl::compile;
+    use iaga_sentinel_dictum::compile;
 
     fn report_for(src: &str) -> CompileReport {
-        let program = compile(src).expect("APL fixture must compile");
+        let program = compile(src).expect("Dictum fixture must compile");
         compile_program(&program)
     }
 

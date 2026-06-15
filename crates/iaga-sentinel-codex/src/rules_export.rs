@@ -1,4 +1,4 @@
-//! `iaga-codex export-rules` orchestration: read an APL bundle, compile it
+//! `iaga-codex export-rules` orchestration: read a Dictum bundle, compile it
 //! to execpolicy `.rules`, write the file, and print a coverage report.
 //!
 //! Thin by design (I/O + glue); the faithful-subset logic lives in
@@ -16,15 +16,15 @@ pub const EXIT_OK: i32 = 0;
 pub const EXIT_COMPILE: i32 = 2;
 pub const EXIT_IO: i32 = 3;
 
-/// Compile `apl_path` to a `.rules` file at `out_path`. Returns an exit
+/// Compile `dictum_path` to a `.rules` file at `out_path`. Returns an exit
 /// code; all diagnostics go to stderr, the report summary to stdout.
-pub fn run_export(apl_path: &Path, out_path: &Path) -> i32 {
-    let src = match std::fs::read_to_string(apl_path) {
+pub fn run_export(dictum_path: &Path, out_path: &Path) -> i32 {
+    let src = match std::fs::read_to_string(dictum_path) {
         Ok(src) => src,
         Err(e) => {
             eprintln!(
-                "[iaga-codex] cannot read APL bundle `{}`: {e}",
-                apl_path.display()
+                "[iaga-codex] cannot read Dictum bundle `{}`: {e}",
+                dictum_path.display()
             );
             return EXIT_IO;
         }
@@ -34,12 +34,12 @@ pub fn run_export(apl_path: &Path, out_path: &Path) -> i32 {
     // bundle is detectable from the generated file's header.
     let bundle_sha256 = hex::encode(Sha256::digest(src.as_bytes()));
 
-    let program = match iaga_sentinel_apl::compile(&src) {
+    let program = match iaga_sentinel_dictum::compile(&src) {
         Ok(program) => program,
         Err(e) => {
             eprintln!(
-                "[iaga-codex] APL compile error in `{}`: {e}",
-                apl_path.display()
+                "[iaga-codex] Dictum compile error in `{}`: {e}",
+                dictum_path.display()
             );
             return EXIT_COMPILE;
         }

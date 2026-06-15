@@ -1,4 +1,4 @@
-//! OSS 1.2, Hindley-Milner type checker for APL (ADR 0014).
+//! OSS 1.2, Hindley-Milner type checker for Dictum (ADR 0014).
 //!
 //! Algorithm W over the existing [`crate::ast::Expr`] enum with a
 //! substitution-based unification. Path references (`action.url.host`)

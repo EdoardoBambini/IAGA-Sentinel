@@ -11,7 +11,7 @@
 //!   ship a tokenizer alongside the model, wired in M3.5.1.
 //! - Inference produces a single scalar score per model, taken as the
 //!   first element of the output tensor. Models with richer outputs
-//!   are supported in M5 when APL gains `ml.*` evidence paths.
+//!   are supported in M5 when Dictum gains `ml.*` evidence paths.
 //!
 //! Failure policy: any per-model failure during `evaluate` is logged
 //! (via `tracing` if the host wires it) and contributes nothing to

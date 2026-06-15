@@ -190,7 +190,7 @@ fn no_verdict_outcome(config: &Config, detail: &str) -> GateOutcome {
 ///
 /// `risk.reasons` carries only the risk engine's generic lines (e.g. "shell
 /// execution requires elevated scrutiny"). The *specific* reason that drove
-/// the verdict — an APL overlay policy such as an egress rule — lands in the
+/// the verdict — a Dictum overlay policy such as an egress rule — lands in the
 /// signed audit event's `reasons`, which is also what the receipt records.
 /// Prefer those so the model learns why it was actually stopped; drop
 /// pure-metadata lines (`agent-role:*`) and fall back to `risk.reasons` when
@@ -241,7 +241,7 @@ mod tests {
                 "reasons": [
                     "shell execution requires elevated scrutiny",
                     "agent-role:builder",
-                    "apl[block_secret_exfil_via_egress]: egress of local secrets off-box is blocked"
+                    "dictum[block_secret_exfil_via_egress]: egress of local secrets off-box is blocked"
                 ]
             }
         }));

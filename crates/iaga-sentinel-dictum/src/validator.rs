@@ -1,8 +1,8 @@
-//! Structural validator for APL programs.
+//! Structural validator for Dictum programs.
 //!
 //! This is **not** a full type checker. For M3 the evaluator is
 //! dynamically typed against a JSON-ish `Value`, runtime errors from
-//! type mismatches are normal and produce `AplError::Eval`. What this
+//! type mismatches are normal and produce `DictumError::Eval`. What this
 //! validator enforces are *structural* invariants that catch obvious
 //! mistakes before eval time:
 //!
@@ -17,7 +17,7 @@
 use std::collections::HashSet;
 
 use crate::ast::*;
-use crate::errors::{AplError, Result};
+use crate::errors::{DictumError, Result};
 
 const BUILTIN_ARITIES: &[(&str, usize)] = &[
     ("contains", 2),
@@ -34,12 +34,15 @@ pub fn validate(program: &Program) -> Result<()> {
     let mut seen = HashSet::new();
     for p in &program.policies {
         if p.name.trim().is_empty() {
-            return Err(AplError::Type(
+            return Err(DictumError::Type(
                 "policy name must be a non-empty string".into(),
             ));
         }
         if !seen.insert(p.name.clone()) {
-            return Err(AplError::Type(format!("duplicate policy name: {}", p.name)));
+            return Err(DictumError::Type(format!(
+                "duplicate policy name: {}",
+                p.name
+            )));
         }
         validate_expr(&p.when)?;
         if let Some(ev) = &p.action.evidence {
@@ -54,14 +57,14 @@ fn validate_expr(e: &Expr) -> Result<()> {
         Expr::Lit(_) => Ok(()),
         Expr::Path(segs) => {
             if segs.is_empty() {
-                return Err(AplError::Type("empty identifier path".into()));
+                return Err(DictumError::Type("empty identifier path".into()));
             }
             Ok(())
         }
         Expr::Call(name, args) => {
             if let Some((_, arity)) = BUILTIN_ARITIES.iter().find(|(n, _)| n == name) {
                 if args.len() != *arity {
-                    return Err(AplError::Type(format!(
+                    return Err(DictumError::Type(format!(
                         "builtin `{}` takes {} args, got {}",
                         name,
                         arity,

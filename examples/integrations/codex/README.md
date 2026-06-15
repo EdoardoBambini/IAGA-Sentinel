@@ -143,18 +143,18 @@ posture is part of the signed evidence.
 
 The gate is cooperative: whoever controls the host can disable the hook.
 Codex's **native** execpolicy engine, by contrast, is evaluated by Codex
-itself and holds even then. `export-rules` compiles your APL bundle into a
+itself and holds even then. `export-rules` compiles your Dictum bundle into a
 native `.rules` file so the two layers reinforce each other (both merge
 strictest-wins: `forbidden` > `prompt` > `allow`).
 
 ```bash
 cargo build --release -p iaga-sentinel-codex
 ./target/release/iaga-codex export-rules \
-  --apl path/to/bundle.apl \
+  --dictum path/to/bundle.dictum \
   --out codex-sentinel.rules
 ```
 
-It emits one `prefix_rule` per APL policy that maps **faithfully** onto a
+It emits one `prefix_rule` per Dictum policy that maps **faithfully** onto a
 command prefix (e.g. `when starts_with(action.payload.command, "curl")` →
 `pattern = ["curl"]`, `block` → `forbidden`). Policies with runtime
 conditions (risk score, `contains`, membership, `secret_ref`, ML/usage) have
@@ -239,7 +239,7 @@ timeout, malformed stdin), the ingest tests drive the same mock from
 `*.provisional.jsonl` streams (advisory metadata, post-hoc attestation,
 malformed-line resilience, recorded-block, 404 abort, plus end-to-end binary
 runs covering the file/spawn input modes and every exit code), and the
-compiler has unit + golden-file tests (`tests/fixtures/sample_bundle.apl` →
+compiler has unit + golden-file tests (`tests/fixtures/sample_bundle.dictum` →
 `.golden.rules`). The `--ignored` round-trip shells out to `codex execpolicy
 check` to validate the generated syntax against the pinned Codex version.
 

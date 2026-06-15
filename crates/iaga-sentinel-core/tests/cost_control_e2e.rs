@@ -2,14 +2,14 @@
 //!
 //! These drive a live `axum` server over real `reqwest` calls (same harness as
 //! `e2e_http_tests.rs`): an inspect request carrying `usage` is captured into
-//! the cost ledger, surfaced through the `/v1/cost/*` API, and — with an APL
+//! the cost ledger, surfaced through the `/v1/cost/*` API, and — with a Dictum
 //! budget policy loaded — a session that exceeds its threshold is blocked while
 //! other sessions stay unaffected.
 //!
-//! Gated on `cost-control` + `apl` (both present in the default + cost-control
+//! Gated on `cost-control` + `dictum` (both present in the default + cost-control
 //! build the CI cost-control job runs).
 
-#![cfg(all(feature = "cost-control", feature = "apl"))]
+#![cfg(all(feature = "cost-control", feature = "dictum"))]
 
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -23,7 +23,7 @@ use iaga_sentinel::events::webhooks::{DeadLetterQueue, WebhookManager};
 use iaga_sentinel::modules::fingerprint::behavioral::BehavioralEngine;
 use iaga_sentinel::modules::rate_limit::limiter::RateLimiter;
 use iaga_sentinel::modules::threat_intel::feed::ThreatFeed;
-use iaga_sentinel::pipeline::apl_overlay::AplOverlay;
+use iaga_sentinel::pipeline::dictum_overlay::DictumOverlay;
 use iaga_sentinel::plugins::PluginRegistry;
 use iaga_sentinel::server::app_state::AppState;
 use iaga_sentinel::server::create_server::create_router;
@@ -51,27 +51,27 @@ impl Drop for TestServer {
     }
 }
 
-/// Compile an APL overlay whose only policy blocks once a session's prior
+/// Compile a Dictum overlay whose only policy blocks once a session's prior
 /// cumulative spend (injected by cost-control as `usage.session_cost_usd`)
-/// passes a literal $5 threshold — no env needed, fully deterministic. APL has
+/// passes a literal $5 threshold — no env needed, fully deterministic. Dictum has
 /// no float literals, so the threshold is the integer `5`; `cmp_values` compares
 /// the float spend against it correctly.
-fn budget_overlay() -> Arc<AplOverlay> {
+fn budget_overlay() -> Arc<DictumOverlay> {
     use std::io::Write;
     let mut file = tempfile::Builder::new()
-        .suffix(".apl")
+        .suffix(".dictum")
         .tempfile()
-        .expect("create temp apl file");
+        .expect("create temp dictum file");
     write!(
         file,
         "policy \"session_budget\" {{\n  when usage.session_cost_usd > 5\n  then block, reason=\"session budget exceeded\"\n}}\n"
     )
-    .expect("write apl policy");
-    let overlay = AplOverlay::load(file.path()).expect("load budget overlay");
+    .expect("write dictum policy");
+    let overlay = DictumOverlay::load(file.path()).expect("load budget overlay");
     Arc::new(overlay)
 }
 
-async fn spawn(apl_overlay: Option<Arc<AplOverlay>>) -> TestServer {
+async fn spawn(dictum_overlay: Option<Arc<DictumOverlay>>) -> TestServer {
     let db_url = format!(
         "sqlite:file:cost-e2e-{}?mode=memory&cache=shared",
         Uuid::new_v4()
@@ -124,7 +124,7 @@ async fn spawn(apl_overlay: Option<Arc<AplOverlay>>) -> TestServer {
         auth_cache: iaga_sentinel::auth::cache::AuthCache::from_env(),
         receipts: None,
         reasoning: None,
-        apl_overlay,
+        dictum_overlay,
     });
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
@@ -249,7 +249,7 @@ async fn cost_is_captured_and_aggregated_over_http() {
 }
 
 #[tokio::test]
-async fn apl_budget_blocks_session_over_threshold_but_not_others() {
+async fn dictum_budget_blocks_session_over_threshold_but_not_others() {
     let server = spawn(Some(budget_overlay())).await;
     let client = auth_client(&server.api_key);
     let base = server.base_url();
@@ -270,7 +270,7 @@ async fn apl_budget_blocks_session_over_threshold_but_not_others() {
         "first call is under budget, got {first:?}"
     );
 
-    // Second call, same session: prior spend $10 > $5 -> APL budget policy blocks.
+    // Second call, same session: prior spend $10 > $5 -> Dictum budget policy blocks.
     let second: Value = client
         .post(format!("{base}/v1/inspect"))
         .json(&inspect_body(session, 10.0))

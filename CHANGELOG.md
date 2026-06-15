@@ -14,6 +14,41 @@ Enterprise overview.
 
 ---
 
+## [1.5.6], 2026-06-15
+
+The policy DSL is renamed from APL (Agent Policy Language) to **Dictum**. This is a
+staged rebrand, not a blind search and replace: the language name, the `.dictum` file
+extension, and the code identifiers move to Dictum, while frozen wire artifacts stay
+byte-identical and historical references keep resolving. No governance, enforcement, or
+receipt behavior changes, and the signed-receipt format is preserved exactly.
+
+### Changed
+
+- **Language rebrand: APL / Agent Policy Language to Dictum.** Prose, comments, docs,
+  ADR bodies, dashboard strings, and CLI help now read "Dictum". One continuity note,
+  "Dictum (formerly APL / Agent Policy Language)", is kept at the canonical definition
+  point so existing references and the AISEC paper citation still resolve.
+- **File extension `.apl` to `.dictum`.** Every example, fixture, and end-to-end policy
+  file is renamed; loaders, glob patterns, CLI examples, and the Dockerfile follow.
+- **Crate, lib, and Cargo features renamed.** `iaga-sentinel-apl` to
+  `iaga-sentinel-dictum`, lib `iaga_sentinel_apl` to `iaga_sentinel_dictum`, features
+  `apl` to `dictum` and `apl-wasm` to `dictum-wasm`. Internal types follow: `AplError`
+  to `DictumError`, `AplOverlay` to `DictumOverlay`, module `apl_overlay` to
+  `dictum_overlay`.
+- **Runtime reason label `apl[...]` to `dictum[...]`** on audit events and signed receipts.
+- **ADR filenames** carrying `apl` renamed to the `dictum` form, with all
+  cross-references updated.
+
+### Compatibility
+
+- **Receipt wire format unchanged.** The receipt field `apl_eval_trace` is deliberately
+  preserved (the byte-frozen golden vectors pass), so receipts produced before 1.5.6
+  still verify bit-identically.
+- **`iaga-codex export-rules --apl`** keeps working as a hidden backward-compatible alias
+  for the new `--dictum` flag.
+
+See [ADR 0004](docs/adr/0004-dictum-mvp.md).
+
 ## [1.5.5], 2026-06-13
 
 A tooling and documentation release. It adds a self-contained demo recording kit
@@ -39,23 +74,23 @@ demo assets. Verdicts are deterministic and the receipt chain verifies offline.
 ## [1.5.4], 2026-06-13
 
 Makes the Armor Policy Language enforce what it advertised and hardens the core
-decision path. Two APL builtins become real, three core fixes land, and the
+decision path. Two Dictum builtins become real, three core fixes land, and the
 signed-receipt schema stays backward compatible: receipts from any prior release
 still verify, and a receipt minted without a session id is byte identical to a
 1.5.3 receipt.
 
 ### Added
 
-- **Functional `secret_ref()` APL builtin.** It now scans the serialized payload
+- **Functional `secret_ref()` Dictum builtin.** It now scans the serialized payload
   subtree for credentials and PII (AWS, OpenAI, and GitHub keys, PEM private
   keys, generic api_key and password assignments, bearer tokens, database
   connection strings, SSNs, and card numbers) with a fixed, deterministic
-  pattern set in `iaga-sentinel-apl`. Previously it was a placeholder that always
+  pattern set in `iaga-sentinel-dictum`. Previously it was a placeholder that always
   returned `false`, so secret-egress policies such as
-  `crates/iaga-sentinel-apl/examples/no_pii_egress.apl` could never fire. Object
+  `crates/iaga-sentinel-dictum/examples/no_pii_egress.dictum` could never fire. Object
   payloads are scanned correctly now, instead of flattening to null before the
   check.
-- **`url_host()` APL builtin.** Extracts the lowercased host from a URL
+- **`url_host()` Dictum builtin.** Extracts the lowercased host from a URL
   (stripping scheme, userinfo, port, and path), so a policy can express a true
   per-host egress allowlist, for example
   `url_host(action.payload.destination) not in workspace.allowlist`. This
@@ -81,7 +116,7 @@ still verify, and a receipt minted without a session id is byte identical to a
   unchanged (one receipt per run) and the receipt body stays byte identical to
   earlier releases.
 
-See [ADR 0023](docs/adr/0023-apl-secret-detection-host-egress.md).
+See [ADR 0023](docs/adr/0023-dictum-secret-detection-host-egress.md).
 
 ## [1.5.3], 2026-06-13
 
@@ -99,7 +134,7 @@ release still verify unchanged.
     the action inside Codex (exit 2) with the policy reason, and a signed receipt
     is minted either way. **Fail-closed by default** — this is an enforcement
     point, not an observer. (`agent-loop` tier.)
-  - **Compiler** (`iaga-codex export-rules`): compiles an APL bundle into Codex's
+  - **Compiler** (`iaga-codex export-rules`): compiles a Dictum bundle into Codex's
     native `execpolicy` `.rules` (a static command-prefix layer that holds even
     when hooks are off); strictest-wins merge. Syntax validated against the
     pinned Codex version.
@@ -168,7 +203,7 @@ tunable defaults to the previous hardcoded behavior.
   restrict NTFS ACLs.
 - **Test-coverage closure**: golden-vector tests freezing `signing_bytes()` for
   every receipt shape since 1.1; a live-Postgres receipts suite mirroring the
-  SQLite one; APL tree-walk ↔ WASM differential tests (fixed corpus + 256
+  SQLite one; Dictum tree-walk ↔ WASM differential tests (fixed corpus + 256
   property-based cases) plus clean-rejection checks for unsupported constructs;
   a mock-HTTP client suite for `iaga-sentinel-integrations` (verdict mapping +
   wire shape, no live sidecar needed); `iaga-verify` CLI smoke tests pinning
@@ -257,8 +292,8 @@ and pre-1.5 signed receipts verify unchanged.
 - **Observability**: `/v1/cost/{summary,by-agent,by-model,by-tool,over-time,budget,pricing}`,
   a "Cost Control" dashboard panel, and an `iaga cost` CLI.
 - **Budget enforcement**: per-session cumulative spend (`IAGA_SENTINEL_SESSION_BUDGET_USD`)
-  injected into the APL context as `usage.session_cost_usd` / `budget.limit`, so a
-  policy can `when usage.session_cost_usd > budget.limit then block`; a non-APL
+  injected into the Dictum context as `usage.session_cost_usd` / `budget.limit`, so a
+  policy can `when usage.session_cost_usd > budget.limit then block`; a non-Dictum
   fallback enforces the same cap. Stricter-wins: cost can only tighten a verdict
   (ADR 0020).
 - **Deterministic response cache**: the MCP proxy serves an identical, safe,
@@ -402,18 +437,18 @@ is reaffirmed, see [`ENTERPRISE.md`](ENTERPRISE.md).
   plugin; validates bundle well-formedness and confirms the payload
   digest matches the plugin bytes. New CLI subcmd
   `iaga plugin verify <path>`.
-- [`docs/adr/0014-apl-wasm-and-types.md`](docs/adr/0014-apl-wasm-and-types.md) -
-  Hindley-Milner type checker (Algorithm W) over the existing APL AST,
+- [`docs/adr/0014-dictum-wasm-and-types.md`](docs/adr/0014-dictum-wasm-and-types.md) -
+  Hindley-Milner type checker (Algorithm W) over the existing Dictum AST,
   always-available via `compile_with_types(src)` and the CLI
-  `iaga policy check <file.apl>`. New Cargo feature `apl-wasm`
+  `iaga policy check <file.dictum>`. New Cargo feature `dictum-wasm`
   (default off) adds a WASM codegen scaffolding for literal +
   boolean / numeric / comparison operations; `iaga policy compile`
   emits the module. The tree-walk evaluator remains canonical for the
-  full APL surface, Path / Call / Membership are rejected by the WASM
+  full Dictum surface, Path / Call / Membership are rejected by the WASM
   MVP with clear errors.
 - New CLI subcmds (additive): `iaga replay --re-execute`,
-  `iaga plugin verify <path>`, `iaga policy check <file.apl>`,
-  `iaga policy compile <file.apl> [--output bundle.wasm]`.
+  `iaga plugin verify <path>`, `iaga policy check <file.dictum>`,
+  `iaga policy compile <file.dictum> [--output bundle.wasm]`.
 
 ### Changed
 
@@ -432,11 +467,11 @@ is reaffirmed, see [`ENTERPRISE.md`](ENTERPRISE.md).
 
 ### Deferred (still OSS-eligible, no schedule)
 
-- `iaga policy migrate` (YAML → APL converter), debt closure for
+- `iaga policy migrate` (YAML → Dictum converter), debt closure for
   ADR 0008, not a primitive evolution. Lands in 1.2.x or 1.3.
 - Address the 3 RUSTSEC ignores in CI (`RUSTSEC-2023-0071`,
   `-2025-0057`, `-2024-0436`) via dependency hardening pass.
-- APL WASM codegen full support for Path / Call / Membership +
+- Dictum WASM codegen full support for Path / Call / Membership +
   parity proptest tree-walk vs WASM. The 1.2 MVP ships scaffolding
   (literal + ops only); full coverage is 1.3.
 - Postgres + macOS / Windows full CI matrix (1.2 adds compile
@@ -455,7 +490,7 @@ IAGA Sentinel Enterprise per ADR 0010 §2 (20 categories), including:
   temporal queries) vs OSS's input-capture-only drift replay.
 - Hosted plugin marketplace + supply-chain SLA + signed threat-intel
   feed integration vs OSS's offline-only Sigstore / SBOM primitive.
-- APL AOT optimized codegen (cranelift opt-levels, WASI side-effects)
+- Dictum AOT optimized codegen (cranelift opt-levels, WASI side-effects)
   + curated rule library + LSP / language server.
 - All other ADR 0010 §2 categories: eIDAS qualified signature, managed
   key lifecycle, mesh tier-2, multi-tenant, Enterprise SSO, SIEM
@@ -479,7 +514,7 @@ product.
 
 The 1.0 GA shipped the full governance kernel concept: enforcement
 kernel scaffold + `UserspaceKernel` cross-platform, signed Merkle
-receipts, APL DSL with live overlay, probabilistic reasoning
+receipts, Dictum DSL with live overlay, probabilistic reasoning
 framework, audit pipeline. That is the OSS contract preserved by
 the **never retroactively remove** covenant in `ENTERPRISE.md`.
 
@@ -493,7 +528,7 @@ Capabilities originally listed under "Deferred to 1.0.x" or
 "Deferred to 1.1" in the 1.0.0 entry below have been re-scoped:
 
 - **Reinstated to OSS 1.2 roadmap** (no fixed date; ships when
-  ready, no breaking changes): APL WASM codegen + Hindley-Milner
+  ready, no breaking changes): Dictum WASM codegen + Hindley-Milner
   type checker (was 1.0.3), Sigstore + SBOM CycloneDX plugin
   attestation primitive (was 1.1), drift replay additivo + `iaga
   replay --re-execute` (was 1.1), `Signer` trait +
@@ -555,7 +590,7 @@ the concise Enterprise overview.
 ### Unchanged
 
 - Runtime behaviour, verdict logic, receipt format (Ed25519 +
-  Merkle), on-disk schema, APL/policy formats, feature flags, and
+  Merkle), on-disk schema, Dictum/policy formats, feature flags, and
   the HTTP API contract (endpoints, camelCase JSON, Bearer auth) are
   identical to 1.0.0; existing API keys still validate. **Only
   identifiers were renamed (see Renamed above), behaviour did not
@@ -597,7 +632,7 @@ deterministic policy decides on.
 ### Added
 
 - **Workspace split** into 5 crates under `crates/`: `iaga-sentinel-core`,
-  `iaga-sentinel-receipts`, `iaga-sentinel-apl`, `iaga-sentinel-reasoning`, `iaga-sentinel-kernel`.
+  `iaga-sentinel-receipts`, `iaga-sentinel-dictum`, `iaga-sentinel-reasoning`, `iaga-sentinel-kernel`.
   Single workspace `Cargo.toml` at the root.
 - **M2, Signed Action Receipts.** Ed25519-signed records of every
   governance verdict, hash-chained per `run_id` (Merkle append-log).
@@ -605,11 +640,11 @@ deterministic policy decides on.
   `iaga replay <run_id>`, `iaga replay <run_id> --verify-only`.
   Signer key auto-generated at `~/.iaga-sentinel/keys/receipt_signer.ed25519`
   on first run, override via `IAGA_SENTINEL_SIGNER_KEY_PATH`.
-- **M3, Agent Policy Language (APL).** Typed DSL with deterministic
+- **M3, Dictum.** Typed DSL with deterministic
   tree-walk evaluator, instruction budget, short-circuit boolean
-  evaluation, hash-linked replay safety. New crate `iaga-sentinel-apl`. CLI:
-  `iaga policy test <file.apl>` and `iaga policy lint <file.apl>`.
-  WASM codegen for APL is tracked for 1.0.3.
+  evaluation, hash-linked replay safety. New crate `iaga-sentinel-dictum`. CLI:
+  `iaga policy test <file.dictum>` and `iaga policy lint <file.dictum>`.
+  WASM codegen for Dictum is tracked for 1.0.3.
 - **M3.5, Probabilistic Reasoning Plane.** New crate `iaga-sentinel-reasoning`
   with always-available `NoopEngine` plus `TractEngine` (pure-Rust
   ONNX via `tract-onnx`) behind opt-in `ml` feature. Model SHA-256
@@ -628,9 +663,9 @@ deterministic policy decides on.
   is wired automatically based on the `DATABASE_URL` scheme.
   Cargo feature composition: `iaga-sentinel-core/sqlite|postgres` transitively
   enables the matching `iaga-sentinel-receipts` feature.
-- **M6, APL as live policy engine.** `iaga serve --policy <file.apl>`
+- **M6, Dictum as live policy engine.** `iaga serve --policy <file.dictum>`
   loads an overlay merged stricter-wins with the YAML profile system.
-  Receipts embed the SHA-256 of the active APL bundle in
+  Receipts embed the SHA-256 of the active Dictum bundle in
   `policy_hash`. New CLI `iaga policy lint`.
 - **UI embedded** in the binary via `rust-embed` behind `ui-embed`
   feature.
@@ -654,7 +689,7 @@ deterministic policy decides on.
   scaffolding.
 - **All paths** `community/` → `crates/iaga-sentinel-core/`.
 - **Cargo `default` features** for `iaga-sentinel-core`:
-  `["demo", "sqlite", "receipts", "apl", "reasoning", "kernel"]`.
+  `["demo", "sqlite", "receipts", "dictum", "reasoning", "kernel"]`.
 
 ### Re-scoped after 1.0 GA (boundary clarification, see 1.1.0 entry above)
 
@@ -675,7 +710,7 @@ deterministic policy decides on.
   prompt-injection / anomaly-seq, plus pluggable tokenizers shipped
   alongside model files. **Re-scoped → Enterprise** (curated ML
   model library with threat-intel feed + GPU acceleration).
-- ~~**1.0.3**~~: WASM codegen for APL via `wasm-encoder`; full
+- ~~**1.0.3**~~: WASM codegen for Dictum via `wasm-encoder`; full
   Hindley-Milner type checker. **Reinstated → OSS 1.2 roadmap.**
 
 #### Originally deferred to 1.1
@@ -704,7 +739,7 @@ deterministic policy decides on.
 - HuggingFace tokenizers in `iaga-sentinel-reasoning`. **Re-scoped →
   Enterprise** (curated ML model library, paired with the curated
   ONNX models).
-- `iaga policy migrate` (YAML → APL converter). **OSS-eligible**
+- `iaga policy migrate` (YAML → Dictum converter). **OSS-eligible**
   (small utility, debt closure for ADR 0008); not yet scheduled.
 
 ### Newly added to OSS 1.2 roadmap (reinstated primitives)

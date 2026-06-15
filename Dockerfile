@@ -36,7 +36,7 @@ WORKDIR /app
 
 COPY --from=builder /app/target/release/iaga ./iaga
 COPY crates/iaga-sentinel-core/iaga-sentinel.example.yaml ./iaga-sentinel.yaml
-COPY crates/iaga-sentinel-apl/examples /app/examples/apl
+COPY crates/iaga-sentinel-dictum/examples /app/examples/dictum
 COPY crates/iaga-sentinel-core/examples/policies /app/examples/policies
 
 RUN mkdir -p /app/data /home/iaga/.iaga-sentinel/keys && \

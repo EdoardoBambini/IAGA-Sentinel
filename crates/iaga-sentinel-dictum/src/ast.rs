@@ -1,8 +1,8 @@
-//! Abstract syntax tree for APL (Agent Policy Language).
+//! Abstract syntax tree for Dictum.
 
 use serde::{Deserialize, Serialize};
 
-/// A top-level APL program is a list of independent policies. The
+/// A top-level Dictum program is a list of independent policies. The
 /// evaluator runs them in declaration order; the first policy whose
 /// `when` fires produces the verdict (unless the host opts into
 /// "run all, collect evidence" mode).

@@ -15,8 +15,8 @@
 //!    and the verifier reads them back identically.
 
 use iaga_sentinel_receipts::{
-    AplEvalTrace, CostSource, MlInferenceInputs, MlTokenDigest, PipelineInputsCapture, ReceiptBody,
-    UsageData, Verdict,
+    CostSource, DictumEvalTrace, MlInferenceInputs, MlTokenDigest, PipelineInputsCapture,
+    ReceiptBody, UsageData, Verdict,
 };
 
 fn legacy_11_body() -> ReceiptBody {
@@ -105,7 +105,7 @@ fn capture_fields_populated_roundtrip_through_signing_bytes() {
         framework: "iaga-sentinel-core".into(),
         payload_sha256: "c".repeat(64),
     });
-    body.apl_eval_trace = Some(AplEvalTrace {
+    body.apl_eval_trace = Some(DictumEvalTrace {
         policy_hash: "b".repeat(64),
         policies_evaluated: 3,
         policies_fired: vec!["no-pii-egress".into()],
@@ -147,7 +147,7 @@ fn body_hash_differs_when_capture_populated() {
     // expected (capture data participates in signing).
     let body_legacy = legacy_11_body();
     let mut body_with_capture = legacy_11_body();
-    body_with_capture.apl_eval_trace = Some(AplEvalTrace {
+    body_with_capture.apl_eval_trace = Some(DictumEvalTrace {
         policy_hash: "b".repeat(64),
         policies_evaluated: 1,
         policies_fired: vec!["p".into()],

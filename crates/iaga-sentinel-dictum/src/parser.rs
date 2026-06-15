@@ -1,4 +1,4 @@
-//! Recursive-descent parser for APL.
+//! Recursive-descent parser for Dictum.
 //!
 //! Precedence (low → high):
 //!   or
@@ -9,7 +9,7 @@
 //!   primary (literal | call | path | parenthesized)
 
 use crate::ast::*;
-use crate::errors::{AplError, Result};
+use crate::errors::{DictumError, Result};
 use crate::lexer::{tokenize, Token};
 
 struct P {
@@ -51,7 +51,7 @@ impl P {
 
     fn err<T>(&self, msg: impl Into<String>) -> Result<T> {
         let (line, col) = self.peek_lc();
-        Err(AplError::Parse {
+        Err(DictumError::Parse {
             line,
             col,
             msg: msg.into(),

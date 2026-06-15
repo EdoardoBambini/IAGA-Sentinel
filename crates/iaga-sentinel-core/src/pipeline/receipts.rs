@@ -68,7 +68,7 @@ pub trait ReceiptLogger: Send + Sync {
 ///   startup path).
 ///
 /// `policy_hash` is the SHA-256 hex digest of the active policy
-/// bundle. When the host has an APL overlay loaded (M6) it should
+/// bundle. When the host has a Dictum overlay loaded (M6) it should
 /// pass `Some(overlay.policy_hash().to_string())` so receipts can
 /// be replayed against the exact policy that produced them. Pass
 /// `None` for the default placeholder (M2 behavior preserved).
@@ -97,8 +97,8 @@ mod signed {
 
     use async_trait::async_trait;
     use iaga_sentinel_receipts::{
-        chain_link, AplEvalTrace, LocalDiskSigner, MlInferenceInputs, MlScoreBundle, MlTokenDigest,
-        PipelineInputsCapture, ReceiptBody, ReceiptStore, Signer, Verdict,
+        chain_link, DictumEvalTrace, LocalDiskSigner, MlInferenceInputs, MlScoreBundle,
+        MlTokenDigest, PipelineInputsCapture, ReceiptBody, ReceiptStore, Signer, Verdict,
     };
     use sha2::{Digest, Sha256};
     use tokio::sync::Mutex;
@@ -236,7 +236,7 @@ mod signed {
                         framework: "iaga-sentinel-core".into(),
                         payload_sha256: input_h.clone(),
                     };
-                    let apl_trace = AplEvalTrace {
+                    let dictum_trace = DictumEvalTrace {
                         policy_hash: self.policy_hash.clone(),
                         policies_evaluated: 0,
                         policies_fired: Vec::new(),
@@ -251,7 +251,7 @@ mod signed {
                             })
                             .collect(),
                     });
-                    (Some(capture), Some(apl_trace), ml_inputs)
+                    (Some(capture), Some(dictum_trace), ml_inputs)
                 } else {
                     (None, None, None)
                 };
@@ -353,7 +353,7 @@ mod signed {
         )
     }
 
-    /// Default policy hash placeholder for M2. In M3 APL will replace this
+    /// Default policy hash placeholder for M2. In M3 Dictum will replace this
     /// with the SHA-256 of the compiled policy bundle.
     pub fn default_policy_hash() -> String {
         let mut hasher = Sha256::new();
@@ -377,7 +377,7 @@ mod signed {
 
     /// Public helper called from `pipeline::receipts::try_build_receipt_logger`.
     /// M5: supports `sqlite:` and `postgres://`/`postgresql://` URLs.
-    /// M6: accepts an optional `policy_hash` override so APL-loaded
+    /// M6: accepts an optional `policy_hash` override so Dictum-loaded
     /// hosts can embed the bundle digest in every receipt body.
     pub(super) async fn try_build(
         database_url: &str,

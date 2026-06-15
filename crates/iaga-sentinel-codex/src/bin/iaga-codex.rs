@@ -30,14 +30,15 @@ enum Commands {
     /// examples/integrations/codex/README.md.
     Hook,
 
-    /// Compile an APL bundle to a native Codex execpolicy `.rules` file:
+    /// Compile a Dictum bundle to a native Codex execpolicy `.rules` file:
     /// a static command-prefix layer that holds even when hooks are
     /// disabled. Only policies that map faithfully onto a command prefix
     /// are emitted; the rest are reported as runtime-only.
     ExportRules {
-        /// Path to the APL bundle (`.apl` source file).
-        #[arg(long)]
-        apl: PathBuf,
+        /// Path to the Dictum bundle (`.dictum` source file). `--apl` is
+        /// accepted as a hidden backward-compatible alias.
+        #[arg(long, alias = "apl")]
+        dictum: PathBuf,
 
         /// Path to write the generated `.rules` file.
         #[arg(long)]
@@ -72,7 +73,7 @@ fn main() {
     let cli = Cli::parse();
     match cli.command {
         Commands::Hook => exit(run_hook()),
-        Commands::ExportRules { apl, out } => exit(rules_export::run_export(&apl, &out)),
+        Commands::ExportRules { dictum, out } => exit(rules_export::run_export(&dictum, &out)),
         Commands::Ingest { from, command } => exit(run_ingest(from, command)),
     }
 }

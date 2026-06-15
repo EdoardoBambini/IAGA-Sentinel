@@ -1,14 +1,14 @@
-//! Integration test for the live APL overlay's new runtime builtins
+//! Integration test for the live Dictum overlay's new runtime builtins
 //! (`secret_ref` + `url_host`), exercised through the real
-//! `build_overlay_context` -> `AplOverlay::evaluate` path the inspect pipeline
-//! uses. Gated on the `apl` feature (default-on).
-#![cfg(feature = "apl")]
+//! `build_overlay_context` -> `DictumOverlay::evaluate` path the inspect pipeline
+//! uses. Gated on the `dictum` feature (default-on).
+#![cfg(feature = "dictum")]
 
 use std::collections::HashMap;
 
 use iaga_sentinel::core::types::{ActionDetail, ActionType, GovernanceDecision, InspectRequest};
-use iaga_sentinel::pipeline::apl_overlay::{build_overlay_context, AplOverlay};
-use iaga_sentinel_apl::Verdict;
+use iaga_sentinel::pipeline::dictum_overlay::{build_overlay_context, DictumOverlay};
+use iaga_sentinel_dictum::Verdict;
 
 fn http_request(payload: HashMap<String, serde_json::Value>) -> InspectRequest {
     InspectRequest {
@@ -30,7 +30,7 @@ fn http_request(payload: HashMap<String, serde_json::Value>) -> InspectRequest {
 
 fn write_tmp(name: &str, src: &str) -> std::path::PathBuf {
     let path = std::env::temp_dir().join(name);
-    std::fs::write(&path, src).expect("write tmp apl");
+    std::fs::write(&path, src).expect("write tmp dictum");
     path
 }
 
@@ -40,13 +40,13 @@ fn write_tmp(name: &str, src: &str) -> std::path::PathBuf {
 #[test]
 fn secret_ref_overlay_blocks_payload_with_aws_key() {
     let path = write_tmp(
-        "iaga_overlay_secret_ref.apl",
+        "iaga_overlay_secret_ref.dictum",
         r#"policy "block_secret_egress" {
              when secret_ref(action.payload)
              then block, reason="payload carries a credential"
            }"#,
     );
-    let overlay = AplOverlay::load(&path).expect("overlay loads");
+    let overlay = DictumOverlay::load(&path).expect("overlay loads");
 
     // Secret present -> Block.
     let mut secret_payload = HashMap::new();
@@ -96,13 +96,13 @@ fn secret_ref_overlay_blocks_payload_with_aws_key() {
 #[test]
 fn url_host_overlay_enforces_per_host_allowlist() {
     let path = write_tmp(
-        "iaga_overlay_url_host.apl",
+        "iaga_overlay_url_host.dictum",
         r#"policy "block_offhost" {
              when url_host(action.payload.destination) not in workspace.allowlist
              then block, reason="off-allowlist host"
            }"#,
     );
-    let overlay = AplOverlay::load(&path).expect("overlay loads");
+    let overlay = DictumOverlay::load(&path).expect("overlay loads");
     let allowlist = vec!["api.github.com".to_string()];
 
     // Off-allowlist host -> Block.

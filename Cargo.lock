@@ -1388,29 +1388,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "iaga-sentinel-apl"
-version = "1.5.5"
-dependencies = [
- "logos",
- "once_cell",
- "pretty_assertions",
- "proptest",
- "regex",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "wasm-encoder 0.220.1",
- "wasmtime",
-]
-
-[[package]]
 name = "iaga-sentinel-codex"
-version = "1.5.5"
+version = "1.5.6"
 dependencies = [
  "axum",
  "clap",
  "hex",
- "iaga-sentinel-apl",
+ "iaga-sentinel-dictum",
  "iaga-sentinel-integrations",
  "reqwest",
  "serde",
@@ -1422,7 +1406,7 @@ dependencies = [
 
 [[package]]
 name = "iaga-sentinel-core"
-version = "1.5.5"
+version = "1.5.6"
 dependencies = [
  "argon2",
  "async-trait",
@@ -1434,8 +1418,8 @@ dependencies = [
  "futures-core",
  "hex",
  "hmac",
- "iaga-sentinel-apl",
  "iaga-sentinel-cost",
+ "iaga-sentinel-dictum",
  "iaga-sentinel-kernel",
  "iaga-sentinel-reasoning",
  "iaga-sentinel-receipts",
@@ -1463,15 +1447,31 @@ dependencies = [
 
 [[package]]
 name = "iaga-sentinel-cost"
-version = "1.5.5"
+version = "1.5.6"
 dependencies = [
  "serde",
  "serde_json",
 ]
 
 [[package]]
+name = "iaga-sentinel-dictum"
+version = "1.5.6"
+dependencies = [
+ "logos",
+ "once_cell",
+ "pretty_assertions",
+ "proptest",
+ "regex",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "wasm-encoder 0.220.1",
+ "wasmtime",
+]
+
+[[package]]
 name = "iaga-sentinel-integrations"
-version = "1.5.5"
+version = "1.5.6"
 dependencies = [
  "axum",
  "iaga-sentinel-cost",
@@ -1484,7 +1484,7 @@ dependencies = [
 
 [[package]]
 name = "iaga-sentinel-kernel"
-version = "1.5.5"
+version = "1.5.6"
 dependencies = [
  "async-trait",
  "serde",
@@ -1498,7 +1498,7 @@ dependencies = [
 
 [[package]]
 name = "iaga-sentinel-reasoning"
-version = "1.5.5"
+version = "1.5.6"
 dependencies = [
  "async-trait",
  "hex",
@@ -1514,7 +1514,7 @@ dependencies = [
 
 [[package]]
 name = "iaga-sentinel-receipts"
-version = "1.5.5"
+version = "1.5.6"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1534,7 +1534,7 @@ dependencies = [
 
 [[package]]
 name = "iaga-sentinel-verify"
-version = "1.5.5"
+version = "1.5.6"
 dependencies = [
  "ed25519-dalek",
  "hex",

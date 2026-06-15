@@ -2,8 +2,8 @@
 //!
 //! Mirrors the in-memory, process-global model of the session graph and taint
 //! trackers (`session_dag::SESSIONS`, `taint_tracker`): spend is held as integer
-//! micro-USD per session and read at governance time so an APL policy or the
-//! non-APL fallback can block once a session's cumulative spend exceeds its
+//! micro-USD per session and read at governance time so a Dictum policy or the
+//! non-Dictum fallback can block once a session's cumulative spend exceeds its
 //! budget.
 //!
 //! Scope for 1.5: session-scoped, in-memory only (lost on restart). Durable

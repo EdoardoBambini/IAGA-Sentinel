@@ -26,7 +26,7 @@ name = "iaga"
 path = "src/main.rs"
 
 [features]
-default = ["demo", "sqlite", "receipts", "apl", "reasoning", "kernel"]
+default = ["demo", "sqlite", "receipts", "dictum", "reasoning", "kernel"]
 demo = []
 sqlite = ["sqlx/sqlite", "iaga-sentinel-receipts?/sqlite"]
 postgres = ["sqlx/postgres", "iaga-sentinel-receipts?/postgres"]
@@ -35,13 +35,13 @@ plugins = ["wasmtime"]
 # Backend currently bound to SQLite; postgres backend exposed via
 # iaga-sentinel-receipts/postgres (wired in a follow-up milestone).
 receipts = ["dep:iaga-sentinel-receipts"]
-# M3: Agent Policy Language (APL) parser + evaluator. When enabled,
-# `iaga policy test` can compile and dry-run .apl files.
-apl = ["dep:iaga-sentinel-apl"]
-# OSS 1.2, forward the apl-wasm feature on iaga-sentinel-apl
+# M3: Dictum parser + evaluator. When enabled,
+# `iaga policy test` can compile and dry-run .dictum files.
+dictum = ["dep:iaga-sentinel-dictum"]
+# OSS 1.2, forward the dictum-wasm feature on iaga-sentinel-dictum
 # (Hindley-Milner type checker + WASM codegen, ADR 0014). Implies
-# `apl`. Default off, the tree-walk evaluator remains canonical.
-apl-wasm = ["apl", "iaga-sentinel-apl/apl-wasm"]
+# `dictum`. Default off, the tree-walk evaluator remains canonical.
+dictum-wasm = ["dictum", "iaga-sentinel-dictum/dictum-wasm"]
 # M3.5: Probabilistic Reasoning Plane wiring. `reasoning` adds the
 # trait surface and the always-available NoopEngine. `ml` additionally
 # pulls in the tract-onnx backend so real ONNX models can be loaded.
@@ -67,7 +67,7 @@ otel-receipts = ["receipts"]
 # signer) and pulls ed25519-dalek for verification.
 plugin-manifest-signing = ["receipts", "dep:ed25519-dalek"]
 # 1.5 cost-control (ADR 0020): token/cost metering, the receipts + audit cost
-# ledger, the /v1/cost API, APL budget enforcement, and the response cache.
+# ledger, the /v1/cost API, Dictum budget enforcement, and the response cache.
 # Default OFF, so the default build stays byte-identical to 1.4.0. Pure marker
 # feature: iaga-sentinel-cost is a non-optional leaf dependency.
 cost-control = []
@@ -106,7 +106,7 @@ futures-core = "0.3"
 # optional features
 wasmtime = { workspace = true, optional = true }
 iaga-sentinel-receipts = { path = "../iaga-sentinel-receipts", optional = true }
-iaga-sentinel-apl = { path = "../iaga-sentinel-apl", optional = true }
+iaga-sentinel-dictum = { path = "../iaga-sentinel-dictum", optional = true }
 iaga-sentinel-reasoning = { path = "../iaga-sentinel-reasoning", optional = true }
 iaga-sentinel-kernel = { path = "../iaga-sentinel-kernel", optional = true }
 base64 = { version = "0.22", optional = true }

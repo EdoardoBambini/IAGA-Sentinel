@@ -1,6 +1,6 @@
 # IAGA Sentinel, workspace root
-# 1.0 ("Fortezza") shipped M1-M6: workspace split + Receipts + APL +
-# Reasoning + Kernel scaffold + APL live overlay. 1.1 is a
+# 1.0 ("Fortezza") shipped M1-M6: workspace split + Receipts + Dictum +
+# Reasoning + Kernel scaffold + Dictum live overlay. 1.1 is a
 # consolidation release: binary swap, runtime behaviour identical to
 # 1.0.0, public docs reconciled to make the OSS↔Enterprise boundary
 # unambiguous (see CHANGELOG.md + docs/adr/0010-oss-enterprise-boundary.md).
@@ -14,7 +14,7 @@ members = [
     "crates/iaga-sentinel-core",
     "crates/iaga-sentinel-receipts",
     "crates/iaga-sentinel-cost",
-    "crates/iaga-sentinel-apl",
+    "crates/iaga-sentinel-dictum",
     "crates/iaga-sentinel-reasoning",
     "crates/iaga-sentinel-kernel",
     "crates/iaga-sentinel-verify",
@@ -23,7 +23,7 @@ members = [
 ]
 
 [workspace.package]
-version = "1.5.5"
+version = "1.5.6"
 edition = "2021"
 # Minimum Supported Rust Version. Floor set by transitive deps in Cargo.lock
 # (`home 0.5.12` needs 1.88); bump deliberately, note it in CHANGELOG.md.
@@ -60,8 +60,8 @@ rand = "0.8"
 hex = "0.4"
 # database access
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "chrono", "uuid", "macros", "migrate"] }
-# APL lexer
+# Dictum lexer
 logos = "0.14"
-# WASM runtime: optional plugin engine in core, dev-dep of iaga-sentinel-apl
+# WASM runtime: optional plugin engine in core, dev-dep of iaga-sentinel-dictum
 # for the tree-walk ↔ WASM differential tests (single workspace version).
 wasmtime = "36.0.8"

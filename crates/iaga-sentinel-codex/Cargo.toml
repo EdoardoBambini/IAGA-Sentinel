@@ -32,9 +32,9 @@ hex = { workspace = true }
 # The plug-in deliberately depends only on this leaf client crate, never on the
 # core pipeline: Codex stays a hyper-specific adapter, `iaga` stays Codex-free.
 iaga-sentinel-integrations = { path = "../iaga-sentinel-integrations" }
-# Public APL front-end (compile -> Program AST). The compiler walks the public
+# Public Dictum front-end (compile -> Program AST). The compiler walks the public
 # AST only; it never reaches into the core pipeline or the evaluator internals.
-iaga-sentinel-apl = { path = "../iaga-sentinel-apl" }
+iaga-sentinel-dictum = { path = "../iaga-sentinel-dictum" }
 
 [dev-dependencies]
 # Mock /v1/inspect server for gate tests (same axum line as core).

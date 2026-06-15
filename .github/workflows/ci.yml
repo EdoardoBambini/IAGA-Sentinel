@@ -96,8 +96,8 @@ jobs:
       - name: Validate example plugin path
         run: cargo test -p iaga-sentinel-core --features plugins --test plugin_example_tests
 
-      - name: Run iaga-sentinel-apl tests with `apl-wasm` feature (1.2)
-        run: cargo test -p iaga-sentinel-apl --features apl-wasm
+      - name: Run iaga-sentinel-dictum tests with `dictum-wasm` feature (1.2)
+        run: cargo test -p iaga-sentinel-dictum --features dictum-wasm
 
       - name: Run iaga-sentinel-core lib tests with `plugin-attestation` feature (1.2)
         run: cargo test -p iaga-sentinel-core --features plugins,plugin-attestation --lib
@@ -126,7 +126,7 @@ jobs:
 
       - name: Run workspace tests with all features combined (1.5.2)
         # First job that compiles every feature together (sqlite+postgres+ml+
-        # plugins+apl-wasm+linux-bpf+cost-control+…) to catch feature-gate
+        # plugins+dictum-wasm+linux-bpf+cost-control+…) to catch feature-gate
         # interactions no single-feature step can see.
         run: cargo test --workspace --all-features
         env:
@@ -196,8 +196,8 @@ jobs:
           ./target/release/iaga --help
           ./target/release/iaga kernel status
           ./target/release/iaga reasoning info
-          ./target/release/iaga policy lint crates/iaga-sentinel-apl/examples/no_pii_egress.apl
-          ./target/release/iaga policy test crates/iaga-sentinel-apl/examples/no_pii_egress.apl --context crates/iaga-sentinel-apl/examples/sample_context.json
+          ./target/release/iaga policy lint crates/iaga-sentinel-dictum/examples/no_pii_egress.dictum
+          ./target/release/iaga policy test crates/iaga-sentinel-dictum/examples/no_pii_egress.dictum --context crates/iaga-sentinel-dictum/examples/sample_context.json
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4

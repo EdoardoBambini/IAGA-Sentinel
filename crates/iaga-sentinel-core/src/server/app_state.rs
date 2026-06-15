@@ -6,8 +6,8 @@ use crate::events::webhooks::WebhookManager;
 use crate::modules::fingerprint::behavioral::BehavioralEngine;
 use crate::modules::rate_limit::limiter::RateLimiter;
 use crate::modules::threat_intel::feed::ThreatFeed;
-#[cfg(feature = "apl")]
-use crate::pipeline::apl_overlay::AplOverlay;
+#[cfg(feature = "dictum")]
+use crate::pipeline::dictum_overlay::DictumOverlay;
 use crate::pipeline::reasoning::ReasoningHandle;
 use crate::pipeline::receipts::ReceiptLogger;
 use crate::plugins::PluginRegistry;
@@ -43,9 +43,9 @@ pub struct AppState {
     /// 1.0 M3.5, probabilistic reasoning plane (optional; `None`
     /// when the `reasoning` feature is disabled or no engine wired).
     pub reasoning: Option<Arc<dyn ReasoningHandle>>,
-    /// 1.0 M6, APL live policy overlay (optional). When present,
+    /// 1.0 M6, Dictum live policy overlay (optional). When present,
     /// the pipeline consults it after the YAML risk score and merges
-    /// with stricter-wins. See `pipeline::apl_overlay`.
-    #[cfg(feature = "apl")]
-    pub apl_overlay: Option<Arc<AplOverlay>>,
+    /// with stricter-wins. See `pipeline::dictum_overlay`.
+    #[cfg(feature = "dictum")]
+    pub dictum_overlay: Option<Arc<DictumOverlay>>,
 }

@@ -1,5 +1,5 @@
 //! Types exchanged between the reasoning plane and its consumers
-//! (the receipt logger and, in M5, the APL evaluator).
+//! (the receipt logger and, in M5, the Dictum evaluator).
 
 use serde::{Deserialize, Serialize};
 

@@ -1,4 +1,4 @@
-# ADR 0023: APL Secret Detection, Host-Aware Egress, and Session Receipt Chains
+# ADR 0023: Dictum Secret Detection, Host-Aware Egress, and Session Receipt Chains
 
 - **Status:** Accepted
 - **Date:** 2026-06-13
@@ -10,20 +10,20 @@ calls against a running sidecar.
 
 1. **`secret_ref()` was a placeholder.** The Armor Policy Language exposed a
    `secret_ref(x)` builtin and shipped an example policy
-   (`crates/iaga-sentinel-apl/examples/no_pii_egress.apl`) that depended on it,
+   (`crates/iaga-sentinel-dictum/examples/no_pii_egress.dictum`) that depended on it,
    but the evaluator returned a hardcoded `false`. The advertised "block secret
    egress" policy could never fire. A second, latent bug compounded it: the
    evaluator flattened a builtin's arguments to a runtime `Value` before
    dispatch, and object subtrees flatten to `Null`, so `secret_ref(action.payload)`
    never saw the payload at all.
 
-2. **APL could not parse URLs.** The only string operations were substring
+2. **Dictum could not parse URLs.** The only string operations were substring
    matches (`contains`, `starts_with`). A per-host egress allowlist was
    impossible: a substring check for `hooks.slack.com` also matches the
    look-alike `hooks.slack.com.attacker.tld`, and the core workspace allowlist
    (`evaluate_policy`) compared the *raw* `destination` string against bare-host
    `allowed_domains`, so a full URL such as `https://api.github.com/x` failed
-   the match and was force-blocked. Because the APL overlay only tightens a
+   the match and was force-blocked. Because the Dictum overlay only tightens a
    verdict, that core over-block could not be relaxed by a policy.
 
 3. **Signed receipts never chained.** The receipt `run_id` was the per-action
@@ -37,14 +37,14 @@ calls against a running sidecar.
 
 ## Decision
 
-- **Detect secrets in the APL crate.** Add a private `secrets` module to
-  `iaga-sentinel-apl` holding a fixed, lookaround-free credential/PII regex set
+- **Detect secrets in the Dictum crate.** Add a private `secrets` module to
+  `iaga-sentinel-dictum` holding a fixed, lookaround-free credential/PII regex set
   (mirroring the core response-scanner) compiled once. `secret_ref` is
   special-cased before argument flattening: it resolves the argument's raw JSON
   subtree, serializes it, and runs the detector. Matching is pure (no I/O,
   clock, or RNG), so the evaluator stays deterministic for receipt replay. The
-  detector lives in the APL crate, not the core, because core depends on the
-  APL crate and never the reverse, and because `iaga policy test` must detect
+  detector lives in the Dictum crate, not the core, because core depends on the
+  Dictum crate and never the reverse, and because `iaga policy test` must detect
   secrets standalone.
 
 - **Add a hand-rolled `url_host()` builtin.** It extracts the lowercased host
@@ -53,8 +53,8 @@ calls against a running sidecar.
   deterministic. Unparsable input yields `""`, which matches no allowlist entry
   and therefore blocks under a `not in` rule (fail-safe). The core
   `evaluate_policy` egress check is made host-aware the same way, with a small
-  duplicated `host_of` helper (the APL crate is an optional dependency and that
-  module compiles in every feature configuration, so it cannot import the APL
+  duplicated `host_of` helper (the Dictum crate is an optional dependency and that
+  module compiles in every feature configuration, so it cannot import the Dictum
   function).
 
 - **Group receipts by session and surface causes.** `StoredAuditEvent` gains an
@@ -70,13 +70,13 @@ calls against a running sidecar.
 ## Consequences
 
 - Secret-egress and per-host-allowlist policies now enforce as documented;
-  `no_pii_egress.apl` fires on a real credential.
+  `no_pii_egress.dictum` fires on a real credential.
 - A full URL to an allowed host is no longer over-blocked, and look-alike-domain
   bypasses are caught by `url_host()`.
 - A multi-action session produces one hash-chained run that `iaga-verify`
   validates end to end and that breaks at the exact tampered `seq`.
 - Backward compatibility is preserved: the default build is unaffected by the
   optional `session_id` field, receipts without a session id are byte identical
-  to 1.5.3, and the APL crate gains only `regex` and `once_cell` (already in the
+  to 1.5.3, and the Dictum crate gains only `regex` and `once_cell` (already in the
   workspace lock). The duplicated `host_of` in core is a deliberate, documented
   copy to keep `evaluate_policy` free of a feature-gated dependency.

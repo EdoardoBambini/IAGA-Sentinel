@@ -372,8 +372,8 @@ mod tests {
             auth_cache: crate::auth::cache::AuthCache::from_env(),
             receipts: None,
             reasoning: None,
-            #[cfg(feature = "apl")]
-            apl_overlay: None,
+            #[cfg(feature = "dictum")]
+            dictum_overlay: None,
         })
     }
 

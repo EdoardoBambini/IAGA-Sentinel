@@ -14,9 +14,9 @@
 //! like `2 and 1` would disagree (1 vs true). Int literals stay in i32 range
 //! because the MVP codegen truncates i64 → i32.
 
-#![cfg(feature = "apl-wasm")]
+#![cfg(feature = "dictum-wasm")]
 
-use iaga_sentinel_apl::{
+use iaga_sentinel_dictum::{
     compile, compile_to_wasm, evaluate_program, Action, Context, EvalBudget, Expr, Lit, Policy,
     Program, UnOp, Verdict, WasmCompileError,
 };
@@ -55,7 +55,7 @@ fn run_tree_walk(program: &Program) -> bool {
 }
 
 fn assert_paths_agree(src: &str) {
-    let program = compile(src).expect("compile APL source");
+    let program = compile(src).expect("compile Dictum source");
     let tree = run_tree_walk(&program);
     let wasm = run_wasm_policy(&program) != 0;
     assert_eq!(
@@ -170,7 +170,7 @@ fn unsupported_constructs_reject_cleanly_and_tree_walk_still_works() {
 
 fn bool_expr() -> impl Strategy<Value = Expr> {
     let cmp = (any::<i32>(), any::<i32>(), 0..6u8).prop_map(|(a, b, op)| {
-        use iaga_sentinel_apl::BinOp;
+        use iaga_sentinel_dictum::BinOp;
         let op = match op {
             0 => BinOp::Eq,
             1 => BinOp::Neq,
@@ -189,12 +189,12 @@ fn bool_expr() -> impl Strategy<Value = Expr> {
     leaf.prop_recursive(4, 32, 2, |inner| {
         prop_oneof![
             (inner.clone(), inner.clone()).prop_map(|(l, r)| Expr::Binary(
-                iaga_sentinel_apl::BinOp::And,
+                iaga_sentinel_dictum::BinOp::And,
                 Box::new(l),
                 Box::new(r)
             )),
             (inner.clone(), inner.clone()).prop_map(|(l, r)| Expr::Binary(
-                iaga_sentinel_apl::BinOp::Or,
+                iaga_sentinel_dictum::BinOp::Or,
                 Box::new(l),
                 Box::new(r)
             )),

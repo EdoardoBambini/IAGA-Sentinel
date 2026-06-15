@@ -38,7 +38,7 @@ pub use errors::{ReceiptError, Result};
 pub use export::ChainExport;
 pub use merkle::{chain_link, next_parent_hash, verify_chain};
 pub use receipt::{
-    AplEvalTrace, ChainStatus, MlInferenceInputs, MlScoreBundle, MlTokenDigest, ModelDigest,
+    ChainStatus, DictumEvalTrace, MlInferenceInputs, MlScoreBundle, MlTokenDigest, ModelDigest,
     PipelineInputsCapture, PluginDigest, Receipt, ReceiptBody, RunSummary, Verdict,
 };
 pub use replay::{replay, verify_only, CurrentOutcome, DriftRecord, ReplayReport};

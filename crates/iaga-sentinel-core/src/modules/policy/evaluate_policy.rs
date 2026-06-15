@@ -94,7 +94,7 @@ pub fn evaluate_policy(
     // Check destination domain. Host-aware: a full URL like
     // `https://api.github.com/x` is normalized to its host before being matched
     // (case-insensitively) against the bare-host allowlist, so structured URLs
-    // are no longer spuriously blocked. Mirrors the APL `url_host()` builtin.
+    // are no longer spuriously blocked. Mirrors the Dictum `url_host()` builtin.
     if let Some(destination) = extract_destination(&input.action.payload) {
         let host = host_of(&destination);
         let allowed = workspace_policy
@@ -130,10 +130,10 @@ fn extract_destination(
 
 /// Extract the lowercased host from a URL or bare-host string.
 ///
-/// Pure mirror of `iaga_sentinel_apl::extract_host`. It is duplicated here on
-/// purpose: `iaga-sentinel-apl` is an *optional* dependency (behind the default
-/// `apl` feature) and this module compiles in every feature configuration, so
-/// it cannot import the APL one. Strips scheme, userinfo, port, and
+/// Pure mirror of `iaga_sentinel_dictum::extract_host`. It is duplicated here on
+/// purpose: `iaga-sentinel-dictum` is an *optional* dependency (behind the default
+/// `dictum` feature) and this module compiles in every feature configuration, so
+/// it cannot import the Dictum one. Strips scheme, userinfo, port, and
 /// path/query/fragment; preserves a bracketed IPv6 literal. A bare host is
 /// returned unchanged (lowercased), so existing bare-host allowlists keep
 /// working; unparseable input yields "" (matches no allowlist entry).

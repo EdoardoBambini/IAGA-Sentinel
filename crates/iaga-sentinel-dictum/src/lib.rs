@@ -1,8 +1,8 @@
-//! # iaga-sentinel-apl
+//! # iaga-sentinel-dictum
 //!
-//! Agent Policy Language (APL), MVP for 1.0 M3.
+//! Dictum (formerly APL / Agent Policy Language), MVP for 1.0 M3.
 //!
-//! APL is a typed DSL that replaces 0.4.0's YAML + template pipeline
+//! Dictum is a typed DSL that replaces 0.4.0's YAML + template pipeline
 //! for policy authoring. This crate ships:
 //!
 //! - a `logos`-based lexer,
@@ -10,7 +10,7 @@
 //! - a structural validator (see [`validate`]),
 //! - a deterministic tree-walk evaluator with an instruction budget.
 //!
-//! **Scope note (M3 MVP)**: the long-term APL design calls for
+//! **Scope note (M3 MVP)**: the long-term Dictum design calls for
 //! WASM bytecode as an execution target. For M3 we ship a tree-walk
 //! interpreter that is pure and deterministic (no I/O, no wall clock,
 //! no RNG, single-threaded). This is already sufficient for receipt
@@ -29,7 +29,7 @@
 //! }
 //! ```
 //!
-//! See `docs/adr/0004-apl-mvp.md` for the full design rationale.
+//! See `docs/adr/0004-dictum-mvp.md` for the full design rationale.
 
 pub mod ast;
 pub mod errors;
@@ -40,17 +40,17 @@ mod secrets;
 pub mod types;
 pub mod validator;
 
-#[cfg(feature = "apl-wasm")]
+#[cfg(feature = "dictum-wasm")]
 pub mod wasm;
 
 pub use ast::{Action, BinOp, Expr, Lit, Policy, Program, UnOp, Verdict};
-pub use errors::{AplError, Result};
+pub use errors::{DictumError, Result};
 pub use eval::{eval_expr, evaluate_program, Context, EvalBudget, PolicyFired, Value};
 pub use parser::parse;
 pub use types::{infer, Ty, TypeEnv, TypeError};
 pub use validator::validate;
 
-#[cfg(feature = "apl-wasm")]
+#[cfg(feature = "dictum-wasm")]
 pub use wasm::{compile_to_wasm, WasmCompileError, WasmProgram};
 
 /// Parse and validate in one shot. Most hosts want this:
@@ -68,27 +68,27 @@ pub fn compile(src: &str) -> Result<Program> {
 /// `when` types.
 ///
 /// Type errors are reported as [`TypeError`] alongside the standard
-/// [`AplError`] (parse / validate). Hosts that only want the syntactic
+/// [`DictumError`] (parse / validate). Hosts that only want the syntactic
 /// pipeline should keep using [`compile`].
 pub fn compile_with_types(src: &str) -> std::result::Result<(Program, TypeEnv), CompileError> {
-    let program = parse(src).map_err(CompileError::Apl)?;
-    validate(&program).map_err(CompileError::Apl)?;
+    let program = parse(src).map_err(CompileError::Dictum)?;
+    validate(&program).map_err(CompileError::Dictum)?;
     let env = infer(&program).map_err(CompileError::Type)?;
     Ok((program, env))
 }
 
 /// Aggregate error for [`compile_with_types`]: either a parse/validate
-/// failure ([`AplError`]) or a type-inference failure ([`TypeError`]).
+/// failure ([`DictumError`]) or a type-inference failure ([`TypeError`]).
 #[derive(Debug)]
 pub enum CompileError {
-    Apl(AplError),
+    Dictum(DictumError),
     Type(TypeError),
 }
 
 impl std::fmt::Display for CompileError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CompileError::Apl(e) => write!(f, "{e}"),
+            CompileError::Dictum(e) => write!(f, "{e}"),
             CompileError::Type(e) => write!(f, "{e}"),
         }
     }
