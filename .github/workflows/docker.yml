@@ -1,0 +1,34 @@
+# ponytail: minimal ghcr.io publish. Builds the existing Dockerfile and pushes
+# on tag. No build matrix, no cargo-dist, no crates.io — Docker already covers
+# the Packages tab AND users without Rust. Add other artifacts only if someone
+# actually needs a non-Docker one.
+name: docker
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          # ghcr.io requires a lowercase image name; hardcoded so it never
+          # depends on the repo owner's casing. ref_name on a tag push is e.g. v1.6.0.
+          tags: |
+            ghcr.io/edoardobambini/iaga-sentinel:${{ github.ref_name }}
+            ghcr.io/edoardobambini/iaga-sentinel:latest
