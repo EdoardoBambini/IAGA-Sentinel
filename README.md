@@ -75,13 +75,18 @@ iaga-verify chain.json                      # -> CHAIN OK
 
 The operator dashboard is at <http://localhost:4010/> the moment the server is up. Docker (`docker compose up -d`) and Postgres (`--features postgres` + `DATABASE_URL`) are covered in the docs.
 
-### Install without cloning
+### Run it in one command (Docker, no Rust)
+
+Don't want to clone the repo or install a toolchain? Pull the published image and run it with the demo data already seeded:
 
 ```bash
-# Pull the published image (no Rust needed):
-docker run -p 4010:4010 ghcr.io/edoardobambini/iaga-sentinel:latest
+docker run -p 4010:4010 -e IAGA_SENTINEL_OPEN_MODE=true \
+  ghcr.io/edoardobambini/iaga-sentinel:latest serve --seed-demo
+```
 
-# Or build from source with Cargo:
+The dashboard comes up at <http://localhost:4010/>, and the same `/v1/inspect` call from the Quickstart above works against it unchanged. Prefer Cargo over Docker?
+
+```bash
 cargo install --git https://github.com/EdoardoBambini/IAGA-Sentinel --tag v1.6.0 --locked iaga-sentinel-core
 ```
 
