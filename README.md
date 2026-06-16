@@ -193,7 +193,7 @@ Research-validated, not marketing-validated.
 ### Recognition
 
 - **École des Ponts.** 1st place out of 21 startups in the startup competition run by the École nationale des ponts et chaussées (École des Ponts).
-- **Leonard (VINCI Group).** A win in the competition run by Leonard (the innovation and foresight platform of the VINCI Group), which earned the team two passes to Slush in Helsinki.
+- **HackRome.** IAGA Sentinel won the €1,000 prize, and Edoardo Bambini was named best solo builder of the competition, having entered, built and presented it on his own.
 
 ---
 
