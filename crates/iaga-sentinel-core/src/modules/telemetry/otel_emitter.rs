@@ -163,6 +163,15 @@ impl SpanBuilder {
         self
     }
 
+    /// Bulk-set attributes, extending (and overriding on key collision) the
+    /// builder's current set. Lets callers pass a fully-populated attribute
+    /// map (e.g. the governance decision + every layer detail) instead of
+    /// chaining one `.attr()` per key.
+    pub fn attrs(mut self, attrs: HashMap<String, serde_json::Value>) -> Self {
+        self.attributes.extend(attrs);
+        self
+    }
+
     pub fn event(mut self, name: &str, attrs: HashMap<String, serde_json::Value>) -> Self {
         self.events.push(SpanEvent {
             name: name.to_string(),
@@ -293,7 +302,7 @@ pub fn emit_governance_span(
 
     SpanBuilder::new("iaga_sentinel.governance")
         .with_kind("SERVER")
-        .attr("agent.id", serde_json::json!(agent_id))
+        .attrs(attrs)
         .finish(status.0, status.1)
 }
 
@@ -449,6 +458,7 @@ mod receipt_span_tests {
             parent_hash: None,
             input_hash: "a".repeat(64),
             policy_hash: "b".repeat(64),
+            threat_feed_hash: None,
             plugin_digests: vec![],
             model_digests: vec![],
             ml_scores: None,
@@ -507,5 +517,36 @@ mod receipt_span_tests {
             .and_then(|v| v.as_str())
             .expect("iaga.chain.head present");
         assert_eq!(chain_head.len(), 64, "chain head is a hex SHA-256");
+    }
+}
+
+#[cfg(test)]
+mod governance_span_tests {
+    use super::*;
+
+    /// OBS-OTEL-SPAN-1: the governance span must carry the full decision
+    /// context, not just `agent.id`. Before the fix it dropped every
+    /// attribute except the agent id.
+    #[test]
+    fn governance_span_carries_decision_and_layers() {
+        let mut layers = HashMap::new();
+        layers.insert("adaptive".into(), serde_json::json!(42));
+        let span = emit_governance_span("agent-xyz", "bash", "shell", "block", 91, 7, layers);
+        assert_eq!(
+            span.attributes.get("governance.decision"),
+            Some(&serde_json::json!("block"))
+        );
+        assert_eq!(
+            span.attributes.get("risk.score"),
+            Some(&serde_json::json!(91))
+        );
+        assert_eq!(
+            span.attributes.get("agent.id"),
+            Some(&serde_json::json!("agent-xyz"))
+        );
+        assert_eq!(
+            span.attributes.get("layer.adaptive"),
+            Some(&serde_json::json!(42))
+        );
     }
 }

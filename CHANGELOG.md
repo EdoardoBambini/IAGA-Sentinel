@@ -14,6 +14,192 @@ Enterprise overview.
 
 ---
 
+## [1.6.0], 2026-06-16
+
+Hardening pass on the two product guarantees — a reproducible signed verdict and
+a real, verifiable proof. **No open-core ↔ Enterprise boundary moved** (ADR 0010):
+where the faithful fix is Enterprise, OSS ships an honest workaround and the
+Enterprise value is left intact.
+
+### Changed (signed-bytes / wire format — new receipts only)
+
+- **Receipt `input_hash` now binds the action payload.** It was
+  `SHA256(event_id ‖ agent_id ‖ tool_name)` with a *random* `event_id`, so it
+  bound nothing about *what* the action did and was not reproducible. It is now
+  `SHA256(agent_id ‖ tool_name ‖ input_sha256)`, where `input_sha256` is the
+  SHA-256 of the canonical action payload (PROOF-INPUTHASH-BIND-3). The raw
+  payload stays out of the receipt (privacy); only the digest is bound.
+- **Signed verdict is now a pure function of (request + resolved policy +
+  `decision_time` + ML digest).** A single `decision_time` is computed once per
+  request, used as the receipt timestamp, and is the only clock the signed
+  off-hours signal reads (DET-CLOCK-1). Signals derived from unregistered
+  process-global mutable state — session/temporal burst, prior-block history,
+  behavioral-fingerprint novelty/unusual-hours, adaptive baseline velocity —
+  **no longer enter the signed score/decision/reasons**; they are surfaced as
+  **advisory** on `GovernanceResult.advisory` for dashboards/alerts
+  (DET-SESSION-2 / DET-BEHAVIORAL-2). Full session-state capture remains
+  Enterprise.
+- **ML tokenizer hash is now versioned and stable.** The reasoning-plane
+  tokenizer (feature `ml`) replaced `std`'s `DefaultHasher` (SipHash, not stable
+  across toolchains/targets) with vendored FNV-1a, so the signed `ml_scores`
+  reproduce across builds and machines (DET-REASONING-1).
+- **`policy_hash` now binds the real resolved policy.** With no Dictum overlay
+  it was a constant placeholder (`SHA256("iaga-sentinel-policy-v0")`), so the
+  workspace YAML that decides most verdicts was never digested. It is now the
+  SHA-256 of the canonicalized resolved `WorkspacePolicy` (id, protocols,
+  domains, tools + action types/decisions, block/review thresholds), stable
+  under list reordering (CRYPTO-POLICYHASH-7a). With an overlay loaded the
+  compiled Dictum bundle digest is still used.
+- **`DictumEvalTrace` carries the real evaluation.** Its `policiesEvaluated` /
+  `policiesFired` were hardcoded `0` / `[]`; they now reflect the actual
+  evaluation, and a new optional `evidenceSha256` binds the SHA-256 of the fired
+  policy's evidence value (not the raw evidence) into the signed bytes
+  (PIP-DICTUM-UNBOUND / CRYPTO-POLICYHASH-7c). The trace stays capture-gated
+  (`IAGA_SENTINEL_RECEIPT_CAPTURE=1`); `evidenceSha256` is elided when absent, so
+  existing receipts are byte-identical.
+- **Receipts bind the active threat-intel feed.** A new optional
+  `threatFeedHash` records the SHA-256 of the active threat-feed indicator set
+  (sorted by id), so the signed score is reproducible against the exact feed that
+  produced it (DET-THREAT-1). Elided when absent, so older receipts stay
+  byte-identical.
+- **`run_id` is qualified by the agent.** A session-grouped run_id is now
+  `agent_id:session_id` instead of the bare `session_id`, so two principals that
+  pick the same `sessionId` can no longer interleave into one chain that verifies
+  as Valid. `run_id` is in the signed bytes and the verifier already checks it is
+  consistent across the chain, so this binds the principal with no new field
+  (PIP-RUNID-COLLISION). `iaga replay <sessionId>` still resolves a bare session
+  to its unique run. Tenant-scoped isolation remains Enterprise; session-less
+  callers (run_id = event_id) are unchanged.
+
+  These change the signed bytes of **new** receipts. **Receipts written by
+  earlier releases still verify unchanged** — verification reads the stored
+  bytes; only the derivation of newly written receipts changed.
+
+### Added / Fixed
+
+- **Chain integrity under concurrency.** The receipt store's `append` now
+  validates the link against the current head inside the persistence layer and
+  rejects an out-of-order `seq` / bad parent with `ChainViolation`; a concurrent
+  `(run_id, seq)` collision surfaces as `DuplicateSeq`. The pipeline logger
+  retries on a lost-head race instead of silently dropping the receipt, and
+  emits `iaga_sentinel.receipts.signed` / `iaga_sentinel.receipts.dropped`
+  counters (+`error!`) so a divergence between the audit trail and the signed
+  chain is observable (SND-APPEND-RACE/DROP/NOCHECK, OBS-RECEIPT-DROP).
+- **First-gate DoS fix** carried in: char-boundary-safe truncation in the
+  injection firewall (attacker-controlled multibyte payloads no longer panic).
+- **Honest attestation/verification:** plugin attestation separates
+  "digest matches" from "signature verified" and supports operator-pinned-key
+  Ed25519 verification; the offline verifier binds the printed `signer=` to the
+  key that actually verified. Keyless Fulcio/Rekor identity remains Enterprise.
+- **Dictum → WASM codegen declassed to non-canonical.** The tree-walk evaluator
+  (`eval.rs`) is documented as the sole canonical executor; the feature-gated
+  WASM codegen is labelled an experimental, non-canonical scaffold
+  (i32-truncated, bitwise `and`/`or`) and removed from any proof claim. A
+  faithful i64 codegen remains Enterprise.
+- **Performance on the verdict hot path:** static risk regexes compile once
+  (`Lazy`); the action payload is serialized once per request instead of three
+  times.
+- **Determinism is now tested:** an integration test re-runs the real pipeline
+  twice with a pinned `decision_time` and asserts byte-identical
+  `ReceiptBody::signing_bytes()`, plus a guard that `serde_json` keeps object
+  keys ordered (`preserve_order` off). The governance OpenTelemetry span now
+  carries the full decision context instead of only `agent.id`.
+- **Stronger test coverage:** a labelled firewall corpus asserts an aggregate
+  detection rate / false-positive baseline (TESTS-NO-ACCURACY-ASSERT-7); the
+  chain tamper tests are parametrized over genesis/middle/head positions plus
+  tail-truncation and middle-deletion (PROOF-CHAIN-EDGE-POS-5); and a property
+  test asserts `signing_bytes` is a serialize→parse fixpoint
+  (TESTS-FUZZ-NO-DETERMINISM-10). The demo's Allow→Review→Block flow and offline
+  `CHAIN OK` are now end-to-end test-backed over real HTTP + the real offline
+  verifier, so the recorded narration can't diverge from behaviour.
+- **Operator dashboard surfaces the proof posture.** The live feed now shows the
+  top signed *reason* on a Review/Block row, and **advisory** signals
+  (burst/velocity/fingerprint novelty) as visually distinct dashed chips
+  explicitly labelled *not part of the signed verdict* (advisory is now carried
+  on the SSE event). The telemetry panel shows `receipts.signed` /
+  `receipts.dropped`, flagging when the audit trail and the signed chain diverge.
+  No new dependencies; the existing aesthetic is preserved.
+- **Dictum overlay fails closed.** An eval error in a Block/Review policy's
+  `when` now applies that policy's verdict (with reason `dictum-eval-error`)
+  instead of being silently treated as no-fire — an attacker can no longer craft
+  a payload that errors a guard to disable it (PIP-DICTUM-FAILOPEN). An erroring
+  Allow policy cannot tighten, so evaluation keeps scanning for a stricter later
+  policy; an `evidence` error keeps the verdict and drops the evidence (never a
+  downgrade).
+- **Per-policy Dictum budgets.** Each policy's `when` gets its own instruction
+  budget and the fired policy's `evidence` a separate one, so one expensive
+  expression can't starve later policies into a fail-open (DET-DICTUM-2).
+- **Bundle-hash serialization error is fatal.** Computing a Dictum bundle's
+  `policy_hash` no longer falls back to a constant on a serialization error
+  (which would have signed a fake-but-valid hash); the host fails to load
+  instead (CRYPTO-POLICYHASH-7b).
+- **More wall-clock removed from the signed path.** Time-window policy rules now
+  evaluate against the pipeline's single `decision_time` (not a fresh
+  `Utc::now()`), and the configured `timezone` is honored for fixed offsets
+  (`+02:00`, `Z`, …) — an IANA name falls back to UTC explicitly rather than
+  silently guessing (DET-DICTUM-3). The NHI master seed is resolved once per
+  process (was regenerated on every identity derivation when the env was unset),
+  so derived identities/trust are stable within a run (DET-NHI-4); a short
+  env-provided seed now warns (ERG-NHI-SEED-VALIDATION-1). Session-graph node
+  ids are derived from the session + position + content instead of a random
+  UUID, so the persisted/returned graph is reproducible (DET-SESSION-UUID-1).
+- **Deterministic cost + ML scoring.** Token cost rounds each component to
+  integer micro-USD and sums with `saturating_add` (specified, order-independent,
+  overflow-safe) (DET-COST-1, feature `cost-control`); ML model scores are
+  quantized onto a fixed `1e-6` grid before entering the signed `ml_scores`, so
+  ULP differences across microarchitectures don't change the signed bytes
+  (DET-REASONING-2, feature `ml`).
+- **Receipt read-time integrity.** The receipt store now asserts the ordering
+  `seq` column matches the `seq` inside the signed body on read, catching a
+  divergent row instead of silently reordering the chain (DET-SEQ-COLUMN-5).
+- **Codex command policies no longer silently bypass.** The Codex adapter
+  synthesizes `commandLine` from `command`, `cmd`, or `argv` (the same aliases
+  the Dictum compiler accepts), so a `contains(action.payload.commandLine, …)`
+  rule fires regardless of which key the payload used (SOUND-CODEX-2).
+- **Signed plugin manifest binds the verifying key.** Verification now requires
+  the trusted key that actually verifies the signature to be the one the
+  manifest *declares* (`signer_key_id`), so with more than one trusted key a
+  manifest signed by B can no longer claim `signer=A` and be reported as A
+  (CRYPTO-MANIFEST-1, feature `plugin-manifest-signing`).
+- **Offline verifier surfaces the chain range, honestly.** `iaga-verify` now
+  prints `seq=0..N-1` on a `CHAIN OK`, and DATA_HANDLING documents that a
+  `CHAIN OK` proves *prefix* integrity only — tail truncation is not detectable
+  offline without an external anchor (Enterprise eIDAS B-LTA) (CRYPTO-EXPORT-TRUNC-7).
+- **Codex ingest counts a missing receipt id as a gap.** An inspect verdict that
+  carries no `eventId` (no replayable receipt) is now recorded as a failure with
+  a non-OK exit, instead of a green `ATTESTED` line with an empty receipt id
+  (CRYPTO-CODEX-1).
+- **Codex gate distinguishes auth failures.** A 401/403 from the sidecar reports
+  an authentication failure with a key hint rather than the misleading "sidecar
+  unreachable", and a unit test pins that a Block/Review verdict produces the
+  exit code (2) that stops the pending Codex tool call (SOUND-CODEX-1).
+- **Kernel resolves the env denylist once.** The `UserspaceKernel` resolves the
+  sensitive-env denylist at construction instead of re-reading the env + TOML on
+  every launch, and logs a stable fingerprint of the scrubbed-variable set per
+  governed launch so the secret-scrubbing posture is recorded (SOUND-KERNEL-1).
+- **Secret detector no longer self-DoSes on benign numbers.** The Dictum
+  `secret_ref()` credit-card pattern now requires a valid Luhn checksum, and the
+  US SSN pattern requires an explicit SSN keyword, so an arbitrary 16-digit or
+  `ddd-dd-dddd` value in a payload no longer forces a deterministic Block
+  (CRYPTO-DICTUM-9).
+- **NHI identity is labelled honestly.** The misleading `public_key_hex` field is
+  renamed `key_commitment` (it is a symmetric HMAC commitment, not an asymmetric
+  public key; old `publicKeyHex` JSON still deserializes via a serde alias, the
+  DB column is unchanged), and the SPIFFE/PKI framing is removed from the module
+  docs. Verifiable, relying-party-checkable asymmetric NHI is Enterprise
+  (CRYPTO-NHI-2). The demo secret allowlist is clearly labelled as a demo, not a
+  real vault (CRYPTO-SECRETS-1).
+- **Receipt-store migration coexistence documented.** Investigated converting
+  the receipt store to `sqlx::migrate!` (SND-MIGRATION-SPLIT-6) and deliberately
+  kept the idempotent direct `CREATE … IF NOT EXISTS`: the receipt store can
+  share one database with `iaga-sentinel-core`'s storage, which owns the single
+  `_sqlx_migrations` table, so a second sqlx migrator would conflict and silently
+  disable receipts. The reason is now documented in the code.
+- **Rate-limit receipts declare non-replayability.** A rate-limit Block (which
+  depends on `Instant::now()` + an in-memory window) now carries a
+  `non-replayable:rate-limit` reason so the signed receipt is honest about not
+  being reproducible by replay (DET-RATELIMIT-1).
+
 ## [1.5.6], 2026-06-15
 
 The policy DSL is renamed from APL (Agent Policy Language) to **Dictum**. This is a

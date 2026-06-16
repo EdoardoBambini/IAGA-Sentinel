@@ -11,7 +11,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use once_cell::sync::Lazy;
 use serde::Serialize;
-use uuid::Uuid;
+use sha2::{Digest, Sha256};
 
 // ── Types ──
 
@@ -354,6 +354,14 @@ pub fn hydrate_session(session: SessionDAG) {
     store.insert(session.session_id.clone(), session);
 }
 
+/// Clear the in-memory session store (process-global). Exposed so deterministic
+/// tests can reset the shared `SESSIONS` map between runs; the durable session
+/// store is unaffected.
+pub fn reset_sessions() {
+    let mut store = SESSIONS.lock().unwrap_or_else(|e| e.into_inner());
+    store.clear();
+}
+
 // ── Analysis Result ──
 
 #[derive(Debug, Clone, Serialize)]
@@ -365,8 +373,16 @@ pub struct SessionAnalysisResult {
     pub previous_state: String,
     pub new_state: String,
     pub attacks_detected: Vec<AttackMatch>,
+    /// SIGNED structural anomaly score (tool diversity, taint accumulation,
+    /// depth, multi-step arcs). Feeds `layer_risks.session_graph`.
     pub anomaly_score: u32,
     pub anomaly_reasons: Vec<String>,
+    /// ADVISORY anomaly score (prior-block history + wall-clock burst).
+    /// Surfaced for dashboards/alerts; NOT folded into the signed verdict.
+    #[serde(default)]
+    pub advisory_score: u32,
+    #[serde(default)]
+    pub advisory_reasons: Vec<String>,
     #[serde(skip_serializing)]
     pub session_call_count: u32,
     #[serde(skip_serializing)]
@@ -374,6 +390,22 @@ pub struct SessionAnalysisResult {
 }
 
 // ── Core Engine ──
+
+/// Derive a stable, content-addressed node id (DET-SESSION-UUID-1). The session
+/// id makes it unique across sessions; the position makes it unique within a
+/// session even when the same tool is called twice; the call content ties the
+/// id to what the node represents. Deterministic — no RNG.
+fn derive_node_id(session_id: &str, index: usize, tool_name: &str, action_type: &str) -> String {
+    let mut h = Sha256::new();
+    h.update(session_id.as_bytes());
+    h.update([0x1f]);
+    h.update((index as u64).to_le_bytes());
+    h.update([0x1f]);
+    h.update(tool_name.as_bytes());
+    h.update([0x1f]);
+    h.update(action_type.as_bytes());
+    hex::encode(h.finalize())
+}
 
 pub fn add_tool_call_to_session(
     session_id: &str,
@@ -404,6 +436,8 @@ pub fn add_tool_call_to_session(
                     session.block_count,
                     session.block_reason.as_deref().unwrap_or("unknown")
                 )],
+                advisory_score: 0,
+                advisory_reasons: Vec::new(),
                 session_call_count: session.nodes.len() as u32,
                 recent_call_timestamps: collect_recent_timestamps(&session, 16),
             };
@@ -424,6 +458,8 @@ pub fn add_tool_call_to_session(
                     (*BLOCK_COOLDOWN_MS - elapsed) as f64 / 1000.0,
                     session.block_reason.as_deref().unwrap_or("unknown")
                 )],
+                advisory_score: 0,
+                advisory_reasons: Vec::new(),
                 session_call_count: session.nodes.len() as u32,
                 recent_call_timestamps: collect_recent_timestamps(&session, 16),
             };
@@ -437,37 +473,38 @@ pub fn add_tool_call_to_session(
         save_session(&session);
     }
 
-    // Create node
+    // Create node. DET-SESSION-UUID-1: derive a stable, content-addressed id
+    // from the session + position + call content instead of a random UUID, so
+    // the persisted/returned session graph is reproducible. (Node ids are not in
+    // the signed receipt today; this closes the latent non-determinism before
+    // any future capture extends to the session graph.)
     let mut node_taints = taint_labels;
+    let node_id = derive_node_id(session_id, session.nodes.len(), tool_name, action_type);
 
-    // Propagate taints from previous node
+    // Propagate taints from the previous node and record the sequence edge with
+    // the real target id directly (no placeholder fix-up needed).
     if let Some(prev) = session.nodes.last() {
-        for t in &prev.taint_labels {
+        let prev_id = prev.id.clone();
+        let prev_taints = prev.taint_labels.clone();
+        for t in &prev_taints {
             node_taints.insert(t.clone());
         }
         session.edges.push(DataFlowEdge {
-            from: prev.id.clone(),
-            to: Uuid::new_v4().to_string(), // temporary, overwritten below
+            from: prev_id,
+            to: node_id.clone(),
             data_keys: vec!["implicit_sequence".into()],
-            taint_propagated: prev.taint_labels.clone(),
+            taint_propagated: prev_taints,
         });
     }
 
     let node = ToolCallNode {
-        id: Uuid::new_v4().to_string(),
+        id: node_id,
         tool_name: tool_name.to_string(),
         action_type: action_type.to_string(),
         timestamp: now_ms(),
         taint_labels: node_taints.clone(),
         risk_score: 0,
     };
-
-    // Fix edge target
-    if let Some(edge) = session.edges.last_mut() {
-        if edge.to.len() == 36 && edge.to != node.id {
-            edge.to = node.id.clone();
-        }
-    }
 
     session.nodes.push(node.clone());
 
@@ -512,8 +549,10 @@ pub fn add_tool_call_to_session(
         transition_allowed = false;
     }
 
-    // Anomaly detection
-    let (anomaly_score, anomaly_reasons) = detect_anomalies(&session);
+    // Anomaly detection: structural signals are signed; block-history + burst
+    // are advisory (DET-SESSION-2).
+    let (anomaly_score, anomaly_reasons, advisory_score, advisory_reasons) =
+        detect_anomalies(&session);
 
     save_session(&session);
 
@@ -526,6 +565,8 @@ pub fn add_tool_call_to_session(
         attacks_detected: attacks,
         anomaly_score,
         anomaly_reasons,
+        advisory_score,
+        advisory_reasons,
         session_call_count: session.nodes.len() as u32,
         recent_call_timestamps: collect_recent_timestamps(&session, 16),
     }
@@ -630,34 +671,47 @@ fn is_staging_action(action_type: &str) -> bool {
     matches!(action_type, "shell" | "custom" | "file_write")
 }
 
-fn detect_anomalies(session: &SessionDAG) -> (u32, Vec<String>) {
+/// Returns `(structural_score, structural_reasons, advisory_score, advisory_reasons)`.
+///
+/// **Structural** signals (tool diversity, taint accumulation, depth, multi-step
+/// arcs) are a deterministic function of the session sequence and never read the
+/// clock, so they stay in the SIGNED `anomaly_score` (DET-SESSION-2). The
+/// **advisory** signals — prior-block history (process-global `block_count`) and
+/// the wall-clock burst — are surfaced for dashboards/alerts but EXCLUDED from
+/// the signed verdict, so the receipt stays reproducible from its recorded
+/// inputs without capturing session state (capture is Enterprise, ADR 0010).
+fn detect_anomalies(session: &SessionDAG) -> (u32, Vec<String>, u32, Vec<String>) {
     let mut score: u32 = 0;
     let mut reasons = Vec::new();
+    let mut advisory_score: u32 = 0;
+    let mut advisory_reasons: Vec<String> = Vec::new();
     let now = now_ms();
 
-    // Prior-block history: each previous block adds lingering suspicion
+    // ADVISORY: prior-block history (process-global, not bound in the receipt).
     if session.block_count > 0 {
         let history_penalty = (session.block_count * 15).min(45);
-        score += history_penalty;
-        reasons.push(format!(
+        advisory_score += history_penalty;
+        advisory_reasons.push(format!(
             "prior block history: {} strike(s) (+{})",
             session.block_count, history_penalty
         ));
     }
 
-    // Burst detection
+    // ADVISORY: burst (wall-clock vs session timestamps). DET-7: saturating_sub.
     let recent = session
         .nodes
         .iter()
-        .filter(|n| now - n.timestamp < 10_000)
+        .filter(|n| now.saturating_sub(n.timestamp) < 10_000)
         .count();
     if recent > 15 {
-        score += 30;
-        reasons.push(format!("burst: {} calls in 10s", recent));
+        advisory_score += 30;
+        advisory_reasons.push(format!("burst: {} calls in 10s", recent));
     } else if recent > 8 {
-        score += 15;
-        reasons.push(format!("elevated frequency: {} calls in 10s", recent));
+        advisory_score += 15;
+        advisory_reasons.push(format!("elevated frequency: {} calls in 10s", recent));
     }
+
+    // ── STRUCTURAL (signed): deterministic given the session sequence ──
 
     // Tool diversity
     let unique_tools: HashSet<_> = session.nodes.iter().map(|n| &n.tool_name).collect();
@@ -678,10 +732,11 @@ fn detect_anomalies(session: &SessionDAG) -> (u32, Vec<String>) {
     }
     if all_taints.len() >= 4 {
         score += 25;
-        reasons.push(format!(
-            "high taint accumulation: {}",
-            all_taints.into_iter().collect::<Vec<_>>().join(", ")
-        ));
+        // DET-SESSION-1: sort the HashSet labels before joining; this reason is
+        // signed into the receipt, so its order must be reproducible.
+        let mut labels: Vec<String> = all_taints.into_iter().collect();
+        labels.sort();
+        reasons.push(format!("high taint accumulation: {}", labels.join(", ")));
     }
 
     // Depth
@@ -748,7 +803,12 @@ fn detect_anomalies(session: &SessionDAG) -> (u32, Vec<String>) {
         }
     }
 
-    (score.min(100), reasons)
+    (
+        score.min(100),
+        reasons,
+        advisory_score.min(100),
+        advisory_reasons,
+    )
 }
 
 // ── Public Queries ──
@@ -821,14 +881,13 @@ pub fn prune_stale_sessions(ttl_ms: u64) -> usize {
 mod tests {
     use super::*;
 
-    fn clear_sessions() {
-        let mut store = SESSIONS.lock().unwrap_or_else(|e| e.into_inner());
-        store.clear();
-    }
+    // ponytail: each test uses a unique session_id, so it starts from a clean
+    // DAG without touching shared state. The old `clear_sessions()` helper wiped
+    // the WHOLE global SESSIONS map, which raced parallel sibling tests (one
+    // test's clear nuked another's in-flight nodes) — removed.
 
     #[test]
     fn detects_multi_step_collection_to_egress_arc() {
-        clear_sessions();
         let session_id = "session-arc-egress";
 
         let _ = add_tool_call_to_session(
@@ -866,7 +925,6 @@ mod tests {
 
     #[test]
     fn returns_real_session_context_for_pipeline() {
-        clear_sessions();
         let session_id = "session-context";
 
         let _ = add_tool_call_to_session(

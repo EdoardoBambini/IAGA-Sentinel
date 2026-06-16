@@ -146,6 +146,91 @@ pub fn evaluate_program(
     Ok(None)
 }
 
+/// Rich trace of evaluating a program for a *host overlay* that can only
+/// tighten a baseline verdict. Carries the first fired policy (if any), how
+/// many policies were evaluated, the names that fired, and whether an eval
+/// error forced a fail-closed decision.
+#[derive(Debug, Clone)]
+pub struct EvalTrace {
+    pub fired: Option<PolicyFired>,
+    pub policies_evaluated: u32,
+    pub policies_fired: Vec<String>,
+    pub eval_errored: bool,
+}
+
+/// Like [`evaluate_program`], but **never fails open** and never lets one
+/// policy's `when` starve another's budget — the properties an enforcing
+/// overlay needs (PIP-DICTUM-FAILOPEN, DET-DICTUM-2).
+///
+/// - Each policy's `when` gets its **own** fresh [`EvalBudget`]; the fired
+///   policy's `evidence` gets a **separate** budget.
+/// - An `evidence` eval error keeps the verdict and drops the evidence —
+///   evidence is observability, not a gate, so it must never downgrade.
+/// - A `when` eval error on a Block/Review policy is a **fail-closed fire**
+///   with that policy's verdict (an attacker must not be able to craft a
+///   payload that errors the guard and silently disables it). A `when` error
+///   on an Allow policy cannot tighten, so it is skipped (we keep scanning for
+///   a stricter later policy); `eval_errored` is still set so the host can
+///   surface a `dictum-eval-error` reason.
+pub fn evaluate_program_traced(program: &Program, ctx: &Context) -> EvalTrace {
+    let mut policies_evaluated = 0u32;
+    let mut eval_errored = false;
+    for p in &program.policies {
+        policies_evaluated += 1;
+        let mut when_budget = EvalBudget::default();
+        match eval_expr(&p.when, ctx, &mut when_budget) {
+            Ok(v) if v.is_truthy() => {
+                let mut evidence_budget = EvalBudget::default();
+                let evidence = match &p.action.evidence {
+                    // Evidence error -> None, never a verdict downgrade.
+                    Some(e) => eval_expr(e, ctx, &mut evidence_budget).ok(),
+                    None => None,
+                };
+                return EvalTrace {
+                    fired: Some(PolicyFired {
+                        policy_name: p.name.clone(),
+                        verdict: p.action.verdict.clone(),
+                        reason: p.action.reason.clone(),
+                        evidence,
+                    }),
+                    policies_evaluated,
+                    policies_fired: vec![p.name.clone()],
+                    eval_errored,
+                };
+            }
+            Ok(_) => continue,
+            Err(_e) => {
+                eval_errored = true;
+                match p.action.verdict {
+                    // An erroring Allow can't tighten; keep scanning so a later
+                    // Block/Review still applies.
+                    Verdict::Allow => continue,
+                    // Fail closed: apply the policy's own (stricter) verdict.
+                    Verdict::Review | Verdict::Block => {
+                        return EvalTrace {
+                            fired: Some(PolicyFired {
+                                policy_name: p.name.clone(),
+                                verdict: p.action.verdict.clone(),
+                                reason: Some("dictum-eval-error".to_string()),
+                                evidence: None,
+                            }),
+                            policies_evaluated,
+                            policies_fired: vec![p.name.clone()],
+                            eval_errored,
+                        };
+                    }
+                }
+            }
+        }
+    }
+    EvalTrace {
+        fired: None,
+        policies_evaluated,
+        policies_fired: Vec::new(),
+        eval_errored,
+    }
+}
+
 /// Evaluate a single expression. Exposed for hosts that want to evaluate
 /// expressions independently (e.g. for Dictum-as-filter use cases).
 pub fn eval_expr(e: &Expr, ctx: &Context, budget: &mut EvalBudget) -> Result<Value> {
@@ -512,5 +597,85 @@ mod tests {
         let f = fired(src, ctx).expect("must fire");
         assert_eq!(f.verdict, Verdict::Block);
         assert_eq!(f.policy_name, "no_secrets_to_public_http");
+    }
+
+    // ── evaluate_program_traced: fail-closed + budget isolation ───────────────
+
+    fn traced(src: &str, ctx_json: serde_json::Value) -> EvalTrace {
+        let program = compile(src).expect("compile");
+        let ctx = Context::from_value(ctx_json);
+        evaluate_program_traced(&program, &ctx)
+    }
+
+    #[test]
+    fn when_error_on_block_policy_fails_closed() {
+        // `"x" in <int>` is a runtime type error: the `when` of a Block policy
+        // must FAIL CLOSED (fire Block), not be silently disabled.
+        let t = traced(
+            r#"policy "p" { when "x" in action.payload.count then block }"#,
+            serde_json::json!({ "action": { "payload": { "count": 5 } } }),
+        );
+        let f = t.fired.expect("must fail closed");
+        assert_eq!(f.verdict, Verdict::Block);
+        assert_eq!(f.reason.as_deref(), Some("dictum-eval-error"));
+        assert!(t.eval_errored);
+        assert_eq!(t.policies_fired, vec!["p".to_string()]);
+    }
+
+    #[test]
+    fn when_error_on_allow_policy_keeps_scanning() {
+        // An erroring Allow policy cannot tighten, so evaluation continues and a
+        // later Block still applies (no fail-open on the later guard).
+        let t = traced(
+            r#"policy "skip" { when "x" in action.payload.count then allow }
+               policy "blk"  { when true then block }"#,
+            serde_json::json!({ "action": { "payload": { "count": 5 } } }),
+        );
+        let f = t.fired.expect("later block fires");
+        assert_eq!(f.verdict, Verdict::Block);
+        assert_eq!(f.policy_name, "blk");
+        assert!(t.eval_errored, "the allow policy's error is still recorded");
+        assert_eq!(t.policies_evaluated, 2);
+    }
+
+    #[test]
+    fn evidence_error_keeps_verdict_drops_evidence() {
+        // The `when` is true so the policy fires Block; the evidence expr errors,
+        // which must NOT downgrade the verdict — it just drops the evidence.
+        let t = traced(
+            r#"policy "p" { when true then block, evidence=("x" in action.payload.count) }"#,
+            serde_json::json!({ "action": { "payload": { "count": 5 } } }),
+        );
+        let f = t.fired.expect("must fire");
+        assert_eq!(f.verdict, Verdict::Block);
+        assert!(
+            f.evidence.is_none(),
+            "evidence error -> None, never downgrade"
+        );
+        assert!(!t.eval_errored, "a `when` did not error");
+    }
+
+    #[test]
+    fn evidence_captured_when_it_evaluates() {
+        let t = traced(
+            r#"policy "p" { when true then review, evidence=action.payload.note }"#,
+            serde_json::json!({ "action": { "payload": { "note": "see this" } } }),
+        );
+        let f = t.fired.expect("must fire");
+        assert_eq!(f.verdict, Verdict::Review);
+        assert_eq!(f.evidence, Some(Value::Str("see this".into())));
+    }
+
+    #[test]
+    fn no_fire_reports_evaluated_count() {
+        let t = traced(
+            r#"policy "a" { when false then block }
+               policy "b" { when false then review }"#,
+            serde_json::json!({}),
+        );
+        assert!(t.fired.is_none());
+        assert_eq!(t.policies_evaluated, 2);
+        assert!(t.policies_fired.is_empty());
+        assert!(!t.eval_errored);
     }
 }

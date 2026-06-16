@@ -25,6 +25,7 @@ fn body(signer: &ReceiptSigner, seq: u64, parent: Option<String>) -> ReceiptBody
         parent_hash: parent,
         input_hash: format!("{:064x}", seq),
         policy_hash: "p".repeat(64),
+        threat_feed_hash: None,
         plugin_digests: vec![],
         model_digests: vec![],
         ml_scores: None,

@@ -39,7 +39,9 @@ pub fn resolve_usage(report: &UsageReport, pricing: &PricingTable) -> UsageData 
         report
             .total_tokens
             .or(match (report.prompt_tokens, report.completion_tokens) {
-                (Some(p), Some(c)) => Some(p + c),
+                // saturating: caller-supplied counts must not panic (debug) or
+                // wrap (release) into an absurd signed ledger value (SOUND-COST-1).
+                (Some(p), Some(c)) => Some(p.saturating_add(c)),
                 _ => None,
             });
     let (cost_micros, cost_source) = match report.cost_usd {

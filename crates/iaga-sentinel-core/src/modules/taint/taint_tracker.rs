@@ -139,6 +139,15 @@ pub fn get_session_taint(session_id: &str) -> HashSet<String> {
         .unwrap_or_default()
 }
 
+/// Clear the process-global per-session taint accumulation. Exposed so
+/// deterministic tests can reset the shared `SESSION_TAINTS` map between runs.
+pub fn reset_sessions() {
+    SESSION_TAINTS
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clear();
+}
+
 pub fn update_session_taint(session_id: &str, labels: &HashSet<String>) {
     let mut store = SESSION_TAINTS.lock().unwrap_or_else(|e| e.into_inner());
     let entry = store
@@ -343,7 +352,12 @@ pub fn analyze_taint(
         .any(|v| v.description.contains("network") || v.description.contains("email"));
 
     let sink_str = sink.map(|s| s.to_string());
-    let labels_str: Vec<String> = accumulated.iter().cloned().collect();
+    // DET-TAINT-1: `accumulated` is a HashSet, so its iteration order is
+    // process-randomized. This `summary` is pushed into the signed receipt
+    // reasons (notably on the Block/exfiltration path), so sort the labels for a
+    // deterministic, reproducible signed string.
+    let mut labels_str: Vec<String> = accumulated.iter().cloned().collect();
+    labels_str.sort();
     let mut summary = format!("taints: [{}]", labels_str.join(", "));
     if let Some(ref s) = sink_str {
         summary.push_str(&format!(" → sink: {}", s));

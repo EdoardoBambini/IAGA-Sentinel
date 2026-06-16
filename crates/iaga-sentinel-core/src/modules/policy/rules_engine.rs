@@ -99,6 +99,7 @@ pub fn evaluate_rules(
     input: &InspectRequest,
     agent_role: AgentRole,
     current_risk_score: Option<u32>,
+    decision_time: chrono::DateTime<chrono::Utc>,
 ) -> Option<RuleMatch> {
     let mut sorted: Vec<&PolicyRule> = rules.iter().filter(|r| r.enabled).collect();
     sorted.sort_by_key(|r| r.priority);
@@ -107,7 +108,12 @@ pub fn evaluate_rules(
 
     for rule in sorted {
         if matches_criteria(&rule.match_criteria, input, agent_role)
-            && check_conditions(&rule.conditions, &payload_str, current_risk_score)
+            && check_conditions(
+                &rule.conditions,
+                &payload_str,
+                current_risk_score,
+                decision_time,
+            )
         {
             let reason = rule.reason.clone().unwrap_or_else(|| {
                 format!("policy rule '{}' matched → {:?}", rule.name, rule.decision)
@@ -173,10 +179,13 @@ fn check_conditions(
     conditions: &ConditionSet,
     payload_str: &str,
     current_risk: Option<u32>,
+    decision_time: chrono::DateTime<chrono::Utc>,
 ) -> bool {
-    // Time window
+    // Time window. DET-DICTUM-3: evaluate against the pipeline's single
+    // `decision_time`, not a fresh wall-clock read, so a matched (signed) rule
+    // replays identically.
     if let Some(ref tw) = conditions.time_window {
-        if !tw.is_active() {
+        if !tw.is_active_at(decision_time) {
             return false;
         }
     }
@@ -239,6 +248,12 @@ mod tests {
         }
     }
 
+    /// Fixed decision time for rule tests (none exercise time windows).
+    fn test_time() -> chrono::DateTime<chrono::Utc> {
+        use chrono::TimeZone;
+        chrono::Utc.with_ymd_and_hms(2026, 4, 14, 12, 0, 0).unwrap()
+    }
+
     #[test]
     fn test_simple_block_rule() {
         let rules = vec![PolicyRule {
@@ -256,7 +271,7 @@ mod tests {
         }];
 
         let req = make_request(ActionType::Email, "smtp.send");
-        let result = evaluate_rules(&rules, &req, AgentRole::Builder, None);
+        let result = evaluate_rules(&rules, &req, AgentRole::Builder, None, test_time());
         assert!(result.is_some());
         assert_eq!(result.unwrap().decision, GovernanceDecision::Block);
     }
@@ -278,7 +293,7 @@ mod tests {
         }];
 
         let req = make_request(ActionType::FileRead, "filesystem.read");
-        let result = evaluate_rules(&rules, &req, AgentRole::Builder, None);
+        let result = evaluate_rules(&rules, &req, AgentRole::Builder, None, test_time());
         assert!(result.is_none());
     }
 
@@ -300,9 +315,9 @@ mod tests {
 
         let req = make_request(ActionType::Shell, "terminal.exec");
         // Risk 20 → should match (under 30)
-        assert!(evaluate_rules(&rules, &req, AgentRole::Builder, Some(20)).is_some());
+        assert!(evaluate_rules(&rules, &req, AgentRole::Builder, Some(20), test_time()).is_some());
         // Risk 50 → should NOT match (over 30)
-        assert!(evaluate_rules(&rules, &req, AgentRole::Builder, Some(50)).is_none());
+        assert!(evaluate_rules(&rules, &req, AgentRole::Builder, Some(50), test_time()).is_none());
     }
 
     #[test]
@@ -331,7 +346,7 @@ mod tests {
         ];
 
         let req = make_request(ActionType::Shell, "terminal.exec");
-        let result = evaluate_rules(&rules, &req, AgentRole::Builder, None);
+        let result = evaluate_rules(&rules, &req, AgentRole::Builder, None, test_time());
         assert_eq!(result.unwrap().decision, GovernanceDecision::Block);
     }
 
@@ -349,7 +364,7 @@ mod tests {
         }];
 
         let req = make_request(ActionType::Shell, "terminal.exec");
-        assert!(evaluate_rules(&rules, &req, AgentRole::Builder, None).is_none());
+        assert!(evaluate_rules(&rules, &req, AgentRole::Builder, None, test_time()).is_none());
     }
 
     #[test]
@@ -369,9 +384,9 @@ mod tests {
         }];
 
         let req = make_request(ActionType::FileWrite, "filesystem.write");
-        assert!(evaluate_rules(&rules, &req, AgentRole::Builder, None).is_some());
+        assert!(evaluate_rules(&rules, &req, AgentRole::Builder, None, test_time()).is_some());
 
         let req2 = make_request(ActionType::Shell, "terminal.exec");
-        assert!(evaluate_rules(&rules, &req2, AgentRole::Builder, None).is_none());
+        assert!(evaluate_rules(&rules, &req2, AgentRole::Builder, None, test_time()).is_none());
     }
 }

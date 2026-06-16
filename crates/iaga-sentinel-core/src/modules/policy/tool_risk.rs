@@ -51,33 +51,18 @@ pub struct LayerRiskContributions {
     pub plugins: u32,
 }
 
-pub fn score_tool_risk(
-    input: &InspectRequest,
-    minimum_decision: GovernanceDecision,
-    policy_findings: &[String],
-    layers: &LayerRiskContributions,
-) -> RiskScore {
-    score_tool_risk_with_thresholds(
-        input,
-        minimum_decision,
-        policy_findings,
-        layers,
-        THRESHOLD_BLOCK,
-        THRESHOLD_REVIEW,
-    )
-}
-
 pub fn score_tool_risk_with_thresholds(
     input: &InspectRequest,
     minimum_decision: GovernanceDecision,
     policy_findings: &[String],
     layers: &LayerRiskContributions,
+    // PERF-PAYLOAD-3X-1: the canonical payload string is serialized once in the
+    // pipeline and threaded in, instead of being re-serialized here.
+    payload_text: &str,
     threshold_block: u32,
     threshold_review: u32,
 ) -> RiskScore {
     let mut reasons: Vec<String> = Vec::new();
-
-    let payload_text = serde_json::to_string(&input.action.payload).unwrap_or_default();
 
     // ── Local pattern scoring (fast, deterministic) ──
     let mut pattern_score: u32 = 0;
@@ -88,14 +73,14 @@ pub fn score_tool_risk_with_thresholds(
     }
 
     for pattern in HIGH_RISK_PATTERNS.iter() {
-        if pattern.is_match(&payload_text) {
+        if pattern.is_match(payload_text) {
             pattern_score += 40;
             reasons.push(format!("matched high-risk pattern: {}", pattern.as_str()));
         }
     }
 
     for pattern in SUSPICIOUS_URL_PATTERNS.iter() {
-        if pattern.is_match(&payload_text) {
+        if pattern.is_match(payload_text) {
             pattern_score += 25;
             reasons.push(format!(
                 "matched suspicious destination: {}",
@@ -221,9 +206,96 @@ pub fn score_tool_risk_with_thresholds(
         reasons.push("no high-risk rule matched".to_string());
     }
 
+    // DET-REASONS-MERGE: `reasons` is copied verbatim into the signed ReceiptBody,
+    // so its order is part of the bit-exact-replay guarantee. Several upstream
+    // layers build reason strings from HashSet/HashMap iteration (taint summary,
+    // session-graph taint accumulation, firewall categories), whose order is
+    // process-randomized. Canonicalize once here, the single choke point where
+    // every layer's findings converge, so identical inputs yield byte-identical
+    // signed receipts.
+    reasons.sort();
+    reasons.dedup();
+
     RiskScore {
         score,
         decision: final_decision,
         reasons,
+    }
+}
+
+#[cfg(test)]
+mod reasons_determinism_tests {
+    use super::*;
+    use crate::core::types::{ActionDetail, ActionType, InspectRequest};
+    use std::collections::HashMap;
+
+    fn shell_rm_rf_request() -> InspectRequest {
+        let mut payload = HashMap::new();
+        payload.insert("cmd".to_string(), serde_json::json!("rm -rf /"));
+        InspectRequest {
+            agent_id: "a".into(),
+            tenant_id: None,
+            workspace_id: None,
+            framework: "test".into(),
+            protocol: None,
+            action: ActionDetail {
+                action_type: ActionType::Shell,
+                tool_name: "bash".into(),
+                payload,
+            },
+            requested_secrets: None,
+            metadata: None,
+            usage: None,
+        }
+    }
+
+    /// DET-REASONS-MERGE: the signed `reasons` vector must be canonical (sorted,
+    /// no consecutive duplicates) and identical across runs for identical input.
+    #[test]
+    fn reasons_are_sorted_deduped_and_reproducible() {
+        let req = shell_rm_rf_request();
+        let payload_text = serde_json::to_string(&req.action.payload).unwrap_or_default();
+        let layers = LayerRiskContributions::default();
+        // Intentionally unsorted + duplicated policy findings.
+        let findings = vec![
+            "zzz policy finding".to_string(),
+            "aaa policy finding".to_string(),
+            "zzz policy finding".to_string(),
+        ];
+
+        let r1 = score_tool_risk_with_thresholds(
+            &req,
+            GovernanceDecision::Block,
+            &findings,
+            &layers,
+            &payload_text,
+            THRESHOLD_BLOCK,
+            THRESHOLD_REVIEW,
+        );
+
+        let mut expected_sorted = r1.reasons.clone();
+        expected_sorted.sort();
+        assert_eq!(r1.reasons, expected_sorted, "reasons must be sorted");
+
+        let mut expected_dedup = r1.reasons.clone();
+        expected_dedup.dedup();
+        assert_eq!(
+            r1.reasons, expected_dedup,
+            "reasons must have no consecutive duplicates"
+        );
+
+        let r2 = score_tool_risk_with_thresholds(
+            &req,
+            GovernanceDecision::Block,
+            &findings,
+            &layers,
+            &payload_text,
+            THRESHOLD_BLOCK,
+            THRESHOLD_REVIEW,
+        );
+        assert_eq!(
+            r1.reasons, r2.reasons,
+            "identical input must yield identical reason order"
+        );
     }
 }

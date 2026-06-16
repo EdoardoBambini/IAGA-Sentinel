@@ -179,6 +179,33 @@ impl ThreatFeed {
         removed
     }
 
+    /// Hex SHA-256 of the indicator set (DET-THREAT-1), so a receipt can bind
+    /// *which* threat-feed version produced its verdict. Indicators are sorted
+    /// by id and only the decision-relevant fields (id, type, pattern, active)
+    /// are hashed, so cosmetic edits (description/source/timestamp) don't churn
+    /// it. Deterministic — no clock, no RNG.
+    pub fn feed_hash(&self) -> String {
+        use sha2::{Digest, Sha256};
+        let mut inds = self
+            .indicators
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
+        inds.sort_by(|a, b| a.id.cmp(&b.id));
+        let mut h = Sha256::new();
+        for i in &inds {
+            h.update(i.id.as_bytes());
+            h.update([0x1f]);
+            h.update(i.indicator_type.to_string().as_bytes());
+            h.update([0x1f]);
+            h.update(i.pattern.as_bytes());
+            h.update([0x1f]);
+            h.update([u8::from(i.active)]);
+            h.update([0x1e]);
+        }
+        hex::encode(h.finalize())
+    }
+
     /// List all indicators.
     pub fn list_indicators(&self) -> Vec<ThreatIndicator> {
         self.indicators

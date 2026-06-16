@@ -20,6 +20,35 @@ use async_trait::async_trait;
 use crate::core::types::StoredAuditEvent;
 use crate::pipeline::reasoning::ReasoningOutcome;
 
+/// Real Dictum evaluation summary threaded from the pipeline into the receipt
+/// (PIP-DICTUM-UNBOUND / CRYPTO-POLICYHASH-7c): which policies ran, which
+/// fired, and a digest of the fired policy's evidence. Replaces the formerly
+/// hardcoded `0/[]` capture. Populated only when a Dictum overlay is active.
+#[derive(Debug, Clone, Default)]
+pub struct DictumTraceData {
+    pub policies_evaluated: u32,
+    pub policies_fired: Vec<String>,
+    pub evidence_sha256: Option<String>,
+}
+
+/// Per-request context bound into the signed receipt. Grouped into one struct
+/// (with named fields) so the two same-typed digests can never be passed in the
+/// wrong positional order — a swap would silently bind the wrong hash into the
+/// proof.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ReceiptContext<'a> {
+    /// Digest of the resolved policy that decided. `Some(workspace YAML digest)`
+    /// when no Dictum overlay is loaded; `None` keeps the logger's configured
+    /// hash (the compiled Dictum bundle digest) — CRYPTO-POLICYHASH-7a.
+    pub policy_hash: Option<&'a str>,
+    /// Digest of the active threat-intel feed that contributed to the verdict
+    /// (DET-THREAT-1).
+    pub threat_feed_hash: Option<&'a str>,
+    /// Real per-request Dictum evaluation summary (capture mode only); `None`
+    /// when no overlay ran.
+    pub dictum_trace: Option<&'a DictumTraceData>,
+}
+
 #[async_trait]
 pub trait ReceiptLogger: Send + Sync {
     /// Append a signed receipt for the given audit event. Must not panic
@@ -31,11 +60,14 @@ pub trait ReceiptLogger: Send + Sync {
     /// `usage` carries the optional cost/token ledger for this verdict
     /// (1.5 cost-control); `None` when cost tracking is off, which leaves the
     /// receipt byte-identical to a pre-1.5 receipt.
+    /// `ctx` carries the per-request signed bindings (resolved policy digest,
+    /// threat-feed digest, Dictum trace).
     async fn record(
         &self,
         event: &StoredAuditEvent,
         evidence: Option<&ReasoningOutcome>,
         usage: Option<&iaga_sentinel_cost::UsageData>,
+        ctx: ReceiptContext<'_>,
     );
 
     /// 1.0 read surface for the dashboard / HTTP API. Implementations
@@ -98,11 +130,12 @@ mod signed {
     use async_trait::async_trait;
     use iaga_sentinel_receipts::{
         chain_link, DictumEvalTrace, LocalDiskSigner, MlInferenceInputs, MlScoreBundle,
-        MlTokenDigest, PipelineInputsCapture, ReceiptBody, ReceiptStore, Signer, Verdict,
+        MlTokenDigest, PipelineInputsCapture, ReceiptBody, ReceiptError, ReceiptStore, Signer,
+        Verdict,
     };
     use sha2::{Digest, Sha256};
     use tokio::sync::Mutex;
-    use tracing::warn;
+    use tracing::{error, warn};
 
     use super::ReceiptLogger;
     use crate::core::types::{GovernanceDecision, StoredAuditEvent};
@@ -139,10 +172,18 @@ mod signed {
         }
 
         fn input_hash(event: &StoredAuditEvent) -> String {
+            // PROOF-INPUTHASH-BIND-3: bind the action *content*, not the random
+            // `event_id`. `input_sha256` is the SHA-256 of the canonical payload
+            // (computed once in the pipeline). Folding it in with agent + tool
+            // makes the receipt's `input_hash` both content-binding (`rm -rf /`
+            // and `ls` now differ) and reproducible on replay (no random UUID).
+            // The raw payload stays out of the receipt for privacy; only the
+            // digest is bound. NB: this changes the signed bytes of *new*
+            // receipts (see CHANGELOG); old receipts verify unchanged.
             let mut hasher = Sha256::new();
-            hasher.update(event.event_id.as_bytes());
             hasher.update(event.agent_id.as_bytes());
             hasher.update(event.tool_name.as_bytes());
+            hasher.update(event.input_sha256.as_bytes());
             hex::encode(hasher.finalize())
         }
 
@@ -158,14 +199,24 @@ mod signed {
             // Group a logical session into ONE hash-chained run: when the caller
             // supplied an explicit `metadata.sessionId`, every action in that
             // session shares a run_id, so receipts chain seq 0,1,2... with
-            // parent_hash links. When absent we fall back to `event_id` (one
-            // receipt per run), which keeps the receipt body byte-identical to
-            // earlier releases for session-less callers.
-            event
-                .session_id
-                .clone()
-                .filter(|s| !s.is_empty())
-                .unwrap_or_else(|| event.event_id.clone())
+            // parent_hash links.
+            //
+            // PIP-RUNID-COLLISION: qualify the run_id with the agent so two
+            // principals choosing the same `sessionId` ("session-1") can't
+            // interleave into one chain that `verify_chain` would report Valid.
+            // `run_id` is part of the signed bytes and the verifier checks it is
+            // consistent across the chain, so this binds the principal into the
+            // proof with no new field. Tenant-scoped isolation (multi-tenant DB
+            // separation) stays Enterprise; agent qualification is a different,
+            // single-tenant axis and does not move that boundary.
+            //
+            // When no session is supplied we fall back to `event_id` (one
+            // receipt per run), which keeps the body byte-identical to earlier
+            // releases for session-less callers.
+            match event.session_id.as_deref().filter(|s| !s.is_empty()) {
+                Some(session) => format!("{}:{}", event.agent_id, session),
+                None => event.event_id.clone(),
+            }
         }
     }
 
@@ -176,31 +227,23 @@ mod signed {
             event: &StoredAuditEvent,
             evidence: Option<&super::ReasoningOutcome>,
             usage: Option<&iaga_sentinel_cost::UsageData>,
+            ctx: super::ReceiptContext<'_>,
         ) {
             let run_id = Self::run_id(event);
-
-            // Serialize append within this logger instance.
-            let _guard = self.append_guard.lock().await;
-
-            let head = match self.store.head(&run_id).await {
-                Ok(h) => h,
-                Err(e) => {
-                    warn!(run_id = %run_id, error = %e, "receipt head lookup failed");
-                    return;
-                }
-            };
-            let (parent_hash, seq) = match chain_link(head.as_ref()) {
-                Ok(v) => v,
-                Err(e) => {
-                    warn!(run_id = %run_id, error = %e, "receipt chain_link failed");
-                    return;
-                }
-            };
+            let input_hash = Self::input_hash(event);
+            // CRYPTO-POLICYHASH-7a: when the host has no Dictum overlay, the
+            // caller passes the digest of the resolved workspace policy so the
+            // receipt binds the YAML that actually decided. With an overlay
+            // loaded the override is `None` and we keep the compiled bundle
+            // digest configured at construction.
+            let policy_hash = ctx.policy_hash.unwrap_or(&self.policy_hash);
+            let dictum_trace = ctx.dictum_trace;
 
             // M3.5: lift ML evidence (model digests + scores) into the
             // receipt body. Empty / None when no reasoning engine is
             // wired or the engine produced no evidence, receipt stays
-            // bit-identical to M2 in that case.
+            // bit-identical to M2 in that case. Head-independent: computed
+            // once and reused across retries.
             let (model_digests, ml_scores) = match evidence {
                 Some(ev)
                     if !ev.model_digests.is_empty()
@@ -228,18 +271,23 @@ mod signed {
             // elided from signing_bytes, 1.1 byte-equality preserved.
             let (pipeline_inputs_capture, apl_eval_trace, ml_inference_inputs) =
                 if capture_enabled() {
-                    let input_h = Self::input_hash(event);
                     let request_json =
                         serde_json::to_value(event).unwrap_or(serde_json::Value::Null);
                     let capture = PipelineInputsCapture {
                         request_json,
                         framework: "iaga-sentinel-core".into(),
-                        payload_sha256: input_h.clone(),
+                        payload_sha256: input_hash.clone(),
                     };
-                    let dictum_trace = DictumEvalTrace {
-                        policy_hash: self.policy_hash.clone(),
-                        policies_evaluated: 0,
-                        policies_fired: Vec::new(),
+                    // PIP-DICTUM-UNBOUND / CRYPTO-POLICYHASH-7c: populate the
+                    // real evaluation summary (was hardcoded 0/[]), and mirror
+                    // the resolved policy hash.
+                    let dictum_eval_trace = DictumEvalTrace {
+                        policy_hash: policy_hash.to_string(),
+                        policies_evaluated: dictum_trace.map(|d| d.policies_evaluated).unwrap_or(0),
+                        policies_fired: dictum_trace
+                            .map(|d| d.policies_fired.clone())
+                            .unwrap_or_default(),
+                        evidence_sha256: dictum_trace.and_then(|d| d.evidence_sha256.clone()),
                     };
                     let ml_inputs = evidence.map(|ev| MlInferenceInputs {
                         tokenized_digests: ev
@@ -251,53 +299,105 @@ mod signed {
                             })
                             .collect(),
                     });
-                    (Some(capture), Some(dictum_trace), ml_inputs)
+                    (Some(capture), Some(dictum_eval_trace), ml_inputs)
                 } else {
                     (None, None, None)
                 };
 
-            let body = ReceiptBody {
-                run_id: run_id.clone(),
-                seq,
-                parent_hash,
-                input_hash: Self::input_hash(event),
-                policy_hash: self.policy_hash.clone(),
-                plugin_digests: vec![],
-                model_digests,
-                ml_scores,
-                verdict: Self::map_verdict(event.decision),
-                reasons: event.reasons.clone(),
-                risk_score: event.risk_score,
-                timestamp: event.timestamp.clone(),
-                signer_key_id: self.signer.key_id().to_string(),
-                pipeline_inputs_capture,
-                apl_eval_trace,
-                ml_inference_inputs,
-                // 1.3.1: OSS enforcement is soft (no authoritative kernel
-                // ships in the community build), so every OSS receipt
-                // honestly records is_authoritative = false.
-                is_authoritative: Some(false),
-                // 1.5 cost-control: the resolved usage/cost ledger when the
-                // host reported usage for this action; `None` otherwise, which
-                // keeps the receipt byte-identical to pre-1.5.
-                usage: usage.cloned(),
-            };
+            // Serialize append within this logger instance.
+            let _guard = self.append_guard.lock().await;
 
-            let receipt = match self.signer.sign_body(body).await {
-                Ok(r) => r,
-                Err(e) => {
-                    warn!(run_id = %run_id, error = %e, "receipt signing failed");
-                    return;
+            // SND-APPEND-DROP / SND-APPEND-RACE / OBS-RECEIPT-DROP: re-read the
+            // head, rebuild the link, re-sign and re-append on a lost-head race
+            // (DuplicateSeq / ChainViolation from a concurrent writer on the
+            // same DB) instead of silently dropping the receipt. On success
+            // emit `receipts.signed`; on a terminal error or retry exhaustion
+            // emit `receipts.dropped` + error! so the operator has a signal
+            // that the audit trail and the signed chain diverged.
+            const MAX_ATTEMPTS: usize = 5;
+            for attempt in 0..MAX_ATTEMPTS {
+                let head = match self.store.head(&run_id).await {
+                    Ok(h) => h,
+                    Err(e) => {
+                        warn!(run_id = %run_id, error = %e, "receipt head lookup failed");
+                        break;
+                    }
+                };
+                let (parent_hash, seq) = match chain_link(head.as_ref()) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        warn!(run_id = %run_id, error = %e, "receipt chain_link failed");
+                        break;
+                    }
+                };
+
+                let body = ReceiptBody {
+                    run_id: run_id.clone(),
+                    seq,
+                    parent_hash,
+                    input_hash: input_hash.clone(),
+                    policy_hash: policy_hash.to_string(),
+                    threat_feed_hash: ctx.threat_feed_hash.map(str::to_string),
+                    plugin_digests: vec![],
+                    model_digests: model_digests.clone(),
+                    ml_scores: ml_scores.clone(),
+                    verdict: Self::map_verdict(event.decision),
+                    reasons: event.reasons.clone(),
+                    risk_score: event.risk_score,
+                    timestamp: event.timestamp.clone(),
+                    signer_key_id: self.signer.key_id().to_string(),
+                    pipeline_inputs_capture: pipeline_inputs_capture.clone(),
+                    apl_eval_trace: apl_eval_trace.clone(),
+                    ml_inference_inputs: ml_inference_inputs.clone(),
+                    // 1.3.1: OSS enforcement is soft (no authoritative kernel
+                    // ships in the community build), so every OSS receipt
+                    // honestly records is_authoritative = false.
+                    is_authoritative: Some(false),
+                    // 1.5 cost-control: the resolved usage/cost ledger when the
+                    // host reported usage for this action; `None` otherwise,
+                    // which keeps the receipt byte-identical to pre-1.5.
+                    usage: usage.cloned(),
+                };
+
+                let receipt = match self.signer.sign_body(body).await {
+                    Ok(r) => r,
+                    Err(e) => {
+                        warn!(run_id = %run_id, error = %e, "receipt signing failed");
+                        break;
+                    }
+                };
+
+                // Additive, opt-in: surface the receipt in the OpenTelemetry feed.
+                #[cfg(feature = "otel-receipts")]
+                crate::modules::telemetry::otel_emitter::emit_receipt_span(&receipt);
+
+                match self.store.append(&receipt).await {
+                    Ok(()) => {
+                        emit_receipt_metric("iaga_sentinel.receipts.signed");
+                        return;
+                    }
+                    Err(ReceiptError::DuplicateSeq { .. })
+                    | Err(ReceiptError::ChainViolation { .. }) => {
+                        warn!(
+                            run_id = %run_id,
+                            seq,
+                            attempt,
+                            "receipt append lost the head race; retrying"
+                        );
+                        continue;
+                    }
+                    Err(e) => {
+                        warn!(run_id = %run_id, error = %e, "receipt append failed");
+                        break;
+                    }
                 }
-            };
-
-            // Additive, opt-in: surface the receipt in the OpenTelemetry feed.
-            #[cfg(feature = "otel-receipts")]
-            crate::modules::telemetry::otel_emitter::emit_receipt_span(&receipt);
-
-            if let Err(e) = self.store.append(&receipt).await {
-                warn!(run_id = %run_id, error = %e, "receipt append failed");
             }
+
+            error!(
+                run_id = %run_id,
+                "receipt dropped (append error or retries exhausted); audit trail and signed chain may diverge"
+            );
+            emit_receipt_metric("iaga_sentinel.receipts.dropped");
         }
 
         async fn list_runs_json(&self, limit: u32) -> serde_json::Value {
@@ -341,6 +441,19 @@ mod signed {
         fn policy_hash(&self) -> Option<String> {
             Some(self.policy_hash.clone())
         }
+    }
+
+    /// Emit a receipt-outcome counter into the OTel feed. `signed` on a
+    /// successful append, `dropped` when the receipt was lost (append error
+    /// or retry exhaustion). Kept attribute-free to avoid run_id cardinality
+    /// blowup; the `error!` log carries the run_id for the dropped case.
+    fn emit_receipt_metric(name: &str) {
+        crate::modules::telemetry::otel_emitter::emit_counter(
+            name,
+            "IAGA Sentinel signed-receipt append outcome",
+            1.0,
+            std::collections::HashMap::new(),
+        );
     }
 
     /// 1.2: opt-in trigger for the drift-replay capture. Default off.
@@ -464,6 +577,7 @@ mod signed {
                 framework: "test".into(),
                 action_type: ActionType::Http,
                 tool_name: "t".into(),
+                input_sha256: "deadbeef".into(),
                 decision: GovernanceDecision::Allow,
                 timestamp: "2026-06-13T00:00:00Z".into(),
                 reasons: vec![],
@@ -475,11 +589,13 @@ mod signed {
         }
 
         #[test]
-        fn run_id_prefers_session_then_falls_back_to_event_id() {
-            // Explicit session -> all actions in it share one run_id (chained).
+        fn run_id_qualifies_session_with_agent_then_falls_back_to_event_id() {
+            // Explicit session -> all actions in it share one run_id (chained),
+            // qualified by the agent so two principals can't collide on the same
+            // session id (PIP-RUNID-COLLISION). The test event's agent_id is "a".
             assert_eq!(
                 SignedReceiptLogger::run_id(&event(Some("sess-42"))),
-                "sess-42"
+                "a:sess-42"
             );
             // No session -> event_id (one receipt per run; byte-equality preserved).
             assert_eq!(SignedReceiptLogger::run_id(&event(None)), "evt-123");

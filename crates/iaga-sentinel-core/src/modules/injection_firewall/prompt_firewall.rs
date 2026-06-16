@@ -85,6 +85,27 @@ fn now_ms() -> u64 {
         .as_millis() as u64
 }
 
+/// Truncate `s` to at most `max_bytes`, snapping the end down to a UTF-8 char
+/// boundary so the slice can never split a multi-byte codepoint.
+///
+/// SND-FIREWALL-PANIC: the firewall is the first gate on every `/v1/inspect`
+/// over a fully attacker-controlled payload. The previous `&text[start..start+N]`
+/// truncation panicked ("byte index is not a char boundary") when a match longer
+/// than the cap had a multi-byte char straddling byte `start+N`, turning a crafted
+/// payload into a per-request DoS before any verdict was produced. This helper is
+/// allocation-free and boundary-safe; the result is diagnostic text only and never
+/// feeds scoring or the signed receipt.
+fn truncate_on_char_boundary(s: &str, max_bytes: usize) -> &str {
+    if s.len() <= max_bytes {
+        return s;
+    }
+    let mut end = max_bytes;
+    while end > 0 && !s.is_char_boundary(end) {
+        end -= 1;
+    }
+    &s[..end]
+}
+
 // ── Stage 1: Signature Scan ──
 
 struct InjectionSignature {
@@ -305,7 +326,7 @@ fn run_stage1(text: &str) -> StageResult {
 
     for sig in COMPILED_SIGNATURES.iter() {
         if let Some(m) = sig.regex.find(text) {
-            let matched = &text[m.start()..m.end().min(m.start() + 80)];
+            let matched = truncate_on_char_boundary(m.as_str(), 80);
             matches.push(PatternMatch {
                 pattern_name: sig.name.to_string(),
                 severity: sig.severity.to_string(),
@@ -559,7 +580,7 @@ fn run_stage3(text: &str) -> StageResult {
 
     for sp in SEMANTIC_PATTERNS.iter() {
         if let Some(m) = sp.regex.find(text) {
-            let matched = &text[m.start()..m.end().min(m.start() + 100)];
+            let matched = truncate_on_char_boundary(m.as_str(), 100);
             matches.push(PatternMatch {
                 pattern_name: sp.name.to_string(),
                 severity: sp.severity.to_string(),
@@ -723,4 +744,44 @@ pub fn scan_prompt(text: &str) -> FirewallResult {
 pub fn quick_scan(text: &str) -> (bool, u32) {
     let result = scan_prompt(text);
     (result.blocked, result.risk_score)
+}
+
+#[cfg(test)]
+mod char_boundary_tests {
+    use super::*;
+
+    #[test]
+    fn truncate_snaps_down_to_char_boundary() {
+        // "é" is two bytes (0xC3 0xA9). Capping at 1 byte must snap to 0, not
+        // split the codepoint.
+        assert_eq!(truncate_on_char_boundary("é", 1), "");
+        assert_eq!(truncate_on_char_boundary("aé", 2), "a");
+        assert_eq!(truncate_on_char_boundary("abc", 2), "ab");
+        assert_eq!(truncate_on_char_boundary("abc", 10), "abc");
+        assert_eq!(truncate_on_char_boundary("", 5), "");
+    }
+
+    #[test]
+    fn scan_prompt_does_not_panic_on_multibyte_straddling_the_caps() {
+        // Pre-fix, run_stage1 / run_stage3 sliced `&text[start..start+80|100]`,
+        // which panicked when a multi-byte char straddled the cap. This payload
+        // matches a Stage-1 signature (hypothetical_framing → execute) so Stage 3
+        // also runs (steal … data), with multi-byte chars filling both match
+        // spans so the 80- and 100-byte caps land mid-codepoint.
+        let payload = format!(
+            "hypothetically {} execute, then steal {} data",
+            "é".repeat(60),
+            "ü".repeat(60)
+        );
+        let result = scan_prompt(&payload);
+        assert!(result.risk_score <= 100);
+        assert!(result.stages_run >= 2);
+        // Sanity: matched_text snippets are valid UTF-8 (they always are, but this
+        // confirms the truncation produced real strings, not a panic-avoided empty).
+        for stage in &result.stage_results {
+            for m in &stage.matches {
+                assert!(m.matched_text.chars().count() <= m.matched_text.len());
+            }
+        }
+    }
 }

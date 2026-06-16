@@ -56,7 +56,7 @@ linux-bpf = ["kernel", "iaga-sentinel-kernel/linux-bpf"]
 # for plugin supply-chain integrity (ADR 0013). Default off, the trust-on-path
 # model remains the 1.0/1.1 default. Enterprise hosted marketplace + supply-chain
 # SLA + curated threat-intel feed are *not* in OSS; see ENTERPRISE.md.
-plugin-attestation = ["plugins", "dep:base64"]
+plugin-attestation = ["plugins", "dep:base64", "dep:ed25519-dalek"]
 # OSS roadmap primitive: emit each signed receipt as an OpenTelemetry span
 # into the in-process telemetry feed (surfaced on /v1/telemetry/spans and
 # /v1/telemetry/export). Default off, no new dependency. Implies `receipts`.
@@ -117,3 +117,13 @@ proptest = "1.6"
 tokio = { workspace = true, features = ["test-util"] }
 wat = "1"
 tempfile = "3"
+# Used by determinism tests to inject a fixed `decision_time` into the pipeline.
+chrono = { workspace = true }
+# DET-REPLAY-REALPIPELINE-2: build a real receipt store/logger in-test so the
+# determinism test can assert `ReceiptBody::signing_bytes()` byte-equality.
+iaga-sentinel-receipts = { path = "../iaga-sentinel-receipts", features = ["sqlite"] }
+# TASK C demo E2E: verify the demo's exported receipt chain with the SAME
+# offline verifier `iaga-verify` ships, so the demo's "CHAIN OK" is test-backed.
+iaga-sentinel-verify = { path = "../iaga-sentinel-verify" }
+# Hex-encode the signer verifying key for the offline ChainExport in the demo E2E.
+hex = "0.4"

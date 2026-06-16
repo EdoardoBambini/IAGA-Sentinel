@@ -142,6 +142,19 @@ Ed25519 signatures and the Merkle links. It opens no database, starts no server,
 no network call. It reuses the same `verify_chain` routine the runtime uses, so an external
 auditor can confirm a chain on an air-gapped machine.
 
+**What a `CHAIN OK` proves — and what it does not.** A `CHAIN OK` result proves the
+**integrity of the prefix it was given**: every signature verifies, every `parent_hash`
+links the previous body, the `seq` runs `0..N-1`, and one `run_id` owns the whole chain.
+It does **not** prove **completeness**. Dropping the last *k* receipts from an export yields
+a shorter chain that still verifies as `CHAIN OK` with `receipts=N-k`. There is no anchor
+inside the open-build chain that records how many receipts *should* exist, so an offline
+verifier cannot distinguish a complete short run from a truncated tail. `iaga-verify`
+therefore prints the verified range (`seq=0..N-1`) so an auditor holding an externally
+recorded expected count or head sequence can catch a truncation. A self-anchoring guarantee
+— a sealed head sequence or recurring archival timestamp (eIDAS B-LTA) that makes tail
+truncation detectable with no external bookkeeping — is part of IAGA Sentinel Enterprise,
+not this open build.
+
 ## Governed-process environment
 
 When `iaga run` launches a child process, the child gets a scoped environment: an allowlist

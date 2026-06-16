@@ -481,6 +481,16 @@
   .badge.block { background: var(--red-weak); color: var(--red); }
   .badge.pending { background: var(--violet-weak); color: var(--violet); }
   .badge.neutral { background: var(--panel-2); color: var(--muted); }
+  /* Advisory: unsigned signals. Deliberately distinct from the solid,
+     UPPERCASE signed-verdict badges — dashed, lowercase, muted — so it can
+     never be mistaken for the signed decision. */
+  .badge.advisory {
+    background: transparent;
+    color: var(--muted);
+    border-style: dashed;
+    text-transform: none;
+    letter-spacing: 0.02em;
+  }
 
   /* ── Detail + lists ── */
 
@@ -1258,6 +1268,12 @@
             <button type="button" class="btn ghost small" id="live-toggle-button">Pause</button>
             <button type="button" class="btn ghost small" id="live-clear-button">Clear</button>
           </div>
+        </div>
+        <div class="feed-legend small muted" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:2px 0 8px;">
+          <span><span class="badge allow">allow</span> proceeds</span>
+          <span><span class="badge review">review</span> held for a human</span>
+          <span><span class="badge block">block</span> denied</span>
+          <span style="opacity:0.85;"><span class="badge advisory">adv …</span> advisory signal — <strong>not</strong> part of the signed verdict</span>
         </div>
         <div class="small" id="live-status">Stream idle.</div>
         <div class="feed" id="live-feed"></div>
@@ -2164,7 +2180,21 @@ function renderTelemetry() {
   const spans = state.data.telemetrySpans || [];
   const metrics = state.data.telemetryMetrics || [];
   const recent = spans.slice(-6).reverse();
+  // Receipt-append outcome: signed = a receipt was appended to the chain;
+  // dropped = a governed action produced NO receipt. dropped > 0 means the
+  // audit trail and the signed chain have diverged — surface it loudly.
+  const sumMetric = (needle) =>
+    metrics.filter((m) => m.name && m.name.includes(needle))
+      .reduce((acc, m) => acc + (Number(m.value) || 0), 0);
+  const signed = sumMetric('receipts.signed');
+  const dropped = sumMetric('receipts.dropped');
+  const droppedCell = dropped > 0
+    ? `<span class="badge block">${formatNumber(dropped)} · chain diverged</span>`
+    : formatNumber(dropped);
   panel.innerHTML = `
+    <div class="kv-row"><span class="kv-key">Receipts signed (recent)</span><span class="kv-val">${formatNumber(signed)}</span></div>
+    <div class="kv-row"><span class="kv-key">Receipts dropped (recent)</span><span class="kv-val">${droppedCell}</span></div>
+    <div class="small muted" style="margin:2px 0 6px;">signed = appended to the signed chain · dropped = governed action with no receipt (audit trail and signed chain diverge). From the in-process telemetry buffer.</div>
     <div class="kv-row"><span class="kv-key">Spans buffered</span><span class="kv-val">${formatNumber(spans.length)}</span></div>
     <div class="kv-row"><span class="kv-key">Metrics</span><span class="kv-val">${formatNumber(metrics.length)}</span></div>
     ${recent.length
@@ -2580,9 +2610,15 @@ function renderIdentities() {
 function liveEventLabel(event) {
   if (!event || !event.type) return { tone: 'neutral', text: 'event' };
   if (event.type === 'action_governed') {
+    // Surface the *why* of a non-allow verdict: the top signed reason that drove
+    // the decision (the same reason recorded in the receipt).
+    const decision = String(event.decision || '').toLowerCase();
+    const why = decision !== 'allow' && Array.isArray(event.reasons) && event.reasons.length
+      ? ` — ${event.reasons[0]}`
+      : '';
     return {
-      tone: String(event.decision || '').toLowerCase(),
-      text: `${event.agent_id} · ${event.tool_name} · risk ${event.risk_score}`
+      tone: decision,
+      text: `${event.agent_id} · ${event.tool_name} · risk ${event.risk_score}${why}`
     };
   }
   if (event.type === 'review_created') {
@@ -2592,6 +2628,30 @@ function liveEventLabel(event) {
     return { tone: String(event.status) === 'approved' ? 'allow' : 'block', text: `review ${event.status} · ${event.review_id}` };
   }
   return { tone: 'neutral', text: event.type };
+}
+
+/* Flatten the advisory object { adaptive:[{name,score}], session:{score},
+   behavioralFingerprint:[] } into dashed "adv …" chips. These are UNSIGNED
+   signals and are never part of the signed verdict. Returns '' when nothing
+   fired, or a leading-space HTML string of chips otherwise. */
+function advisoryChips(advisory) {
+  if (!advisory || typeof advisory !== 'object') return '';
+  const labels = [];
+  if (Array.isArray(advisory.adaptive)) {
+    advisory.adaptive
+      .filter((s) => s && Number(s.score) > 0)
+      .forEach((s) => labels.push(`adv ${s.name} ${s.score}`));
+  }
+  if (advisory.session && Number(advisory.session.score) > 0) {
+    labels.push(`adv session ${advisory.session.score}`);
+  }
+  if (Array.isArray(advisory.behavioralFingerprint) && advisory.behavioralFingerprint.length) {
+    labels.push('adv fingerprint');
+  }
+  if (labels.length === 0) return '';
+  return ' ' + labels
+    .map((c) => `<span class="badge advisory" title="advisory only — NOT in the signed verdict">${esc(c)}</span>`)
+    .join(' ');
 }
 
 function renderLiveFeed() {
@@ -2607,7 +2667,12 @@ function renderLiveFeed() {
     const badge = entry.event.type === 'action_governed'
       ? `<span class="badge ${label.tone || 'neutral'}">${esc(decision || entry.event.type)}</span> `
       : `<span class="badge ${label.tone}">${esc(entry.event.type.replace('review_', 'review '))}</span> `;
-    return `<div class="feed-row"><span class="t">${esc(entry.at)}</span><span class="body">${badge}${esc(label.text)}</span></div>`;
+    // Advisory signals are UNSIGNED (burst/velocity/fingerprint novelty) and are
+    // NOT part of the signed verdict — render them visually distinct ("adv …")
+    // so an operator never mistakes them for the signed decision. The advisory
+    // is an object: { adaptive: [{name,score}], session: {score}, behavioralFingerprint: [] }.
+    const advisoryHtml = advisoryChips(entry.event.advisory);
+    return `<div class="feed-row"><span class="t">${esc(entry.at)}</span><span class="body">${badge}${esc(label.text)}${advisoryHtml}</span></div>`;
   }).join('');
 }
 

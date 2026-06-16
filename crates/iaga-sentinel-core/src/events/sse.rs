@@ -26,7 +26,14 @@ pub async fn sse_handler(
             };
             Some(Ok(Event::default().event(event_type).data(json)))
         }
-        Err(_) => None,
+        // OBS-SSE-LAG-1: a lagging subscriber dropped `n` events. Surface it as
+        // a `lagged` frame (+ log) instead of silently losing Blocks/Reviews.
+        Err(tokio_stream::wrappers::errors::BroadcastStreamRecvError::Lagged(n)) => {
+            tracing::warn!(missed = n, "SSE subscriber lagged; events dropped");
+            Some(Ok(Event::default()
+                .event("lagged")
+                .data(format!("{{\"missed\":{n}}}"))))
+        }
     });
 
     Sse::new(stream).keep_alive(KeepAlive::default())

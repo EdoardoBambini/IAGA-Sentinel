@@ -1,18 +1,21 @@
-//! Differential tests: tree-walk evaluator vs WASM codegen (1.5.2).
+//! WASM-codegen smoke check (NOT a semantic-equivalence proof).
 //!
-//! Two executors for the same language is a semantics-drift hazard: a policy
-//! could fire under one and not the other without anyone noticing. These
-//! tests run the SAME program through both paths and assert identical
-//! fired-ness, plus a clean, actionable error (and a working tree-walk
-//! fallback) for every construct the WASM MVP deliberately rejects.
+//! The tree-walk evaluator in `eval.rs` is the canonical executor; the WASM
+//! codegen is a non-canonical experimental scaffold (see `wasm.rs` module
+//! docs: i32-truncated integers, bitwise `and`/`or`). These tests are
+//! therefore a **smoke check**: they confirm the MVP codegen still emits a
+//! valid, instantiable module that agrees with the tree-walk *on the narrow
+//! typed subset where the two happen to coincide*, and that every unsupported
+//! construct is rejected with a clean, actionable error (with a working
+//! tree-walk fallback). They do **not** prove the two executors are
+//! semantically equivalent, and must not be read as evidence for any verdict.
 //!
-//! Scope note: the corpus only combines `and`/`or`/`not` over BOOLEAN
-//! subexpressions (literals and integer comparisons). That mirrors what the
-//! Hindley-Milner checker accepts and sidesteps a known, intentional MVP
-//! divergence: WASM lowers `and`/`or` to bitwise `i32.and`/`i32.or`, while
-//! the tree-walk evaluator applies logical truthiness, so untyped operands
-//! like `2 and 1` would disagree (1 vs true). Int literals stay in i32 range
-//! because the MVP codegen truncates i64 → i32.
+//! Scope: the corpus only combines `and`/`or`/`not` over BOOLEAN
+//! subexpressions (literals and integer comparisons), the subset the
+//! Hindley-Milner checker accepts. It deliberately avoids the known MVP
+//! divergences (bitwise `and`/`or` vs truthiness; i64 → i32 truncation), which
+//! are intentional properties of the non-canonical scaffold, not bugs to
+//! assert against. Faithful i64 codegen is Enterprise.
 
 #![cfg(feature = "dictum-wasm")]
 

@@ -89,3 +89,6 @@ crates/iaga-sentinel-core/*.sqlite
 
 # Demo recording kit: the exported receipt chain is regenerated every run.
 chain.json
+
+# Local-only audit report (senior read-only review). Never committed.
+/AUDIT.md

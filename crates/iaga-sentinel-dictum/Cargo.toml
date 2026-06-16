@@ -18,10 +18,13 @@ path = "src/lib.rs"
 [features]
 default = []
 # OSS 1.2, Hindley-Milner type checker + WASM codegen (ADR 0014).
-# Default off: the tree-walk evaluator at `eval.rs` remains the
-# canonical entrypoint. Enabling this feature adds the `types::infer`
-# entrypoint and the `wasm::compile_to_wasm` scaffolding. Enterprise
-# AOT-optimized codegen (cranelift opt-levels, JIT tuning, WASI
+# Default off: the tree-walk evaluator at `eval.rs` is the single CANONICAL
+# executor and the only one a governed verdict/receipt goes through. Enabling
+# this feature adds the `types::infer` entrypoint and the
+# `wasm::compile_to_wasm` scaffolding, which is an experimental NON-CANONICAL
+# codegen (i32-truncated integers, bitwise and/or) and must never be used as
+# proof of a verdict (see wasm.rs module docs). A semantically faithful,
+# AOT-optimized codegen (i64-correct, cranelift opt-levels, JIT tuning, WASI
 # side-effect policies) is *not* in OSS, see ENTERPRISE.md.
 dictum-wasm = ["dep:wasm-encoder"]
 

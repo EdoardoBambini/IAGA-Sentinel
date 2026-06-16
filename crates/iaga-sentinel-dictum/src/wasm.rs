@@ -12,13 +12,22 @@
 //! **explicitly rejected** by `compile_to_wasm`. Those cases need a
 //! host-import ABI (read JSON context from linear memory, call
 //! host functions for string ops) that is out of scope for the
-//! 1.2 MVP. The tree-walk evaluator remains the canonical
-//! executor for the full Dictum surface; 1.2 only ships the codegen
-//! primitive needed to demonstrate the WASM lowering path.
+//! 1.2 MVP.
 //!
-//! Enterprise AOT optimization (cranelift opt-levels, JIT tuning,
-//! WASI side-effect policies) is **not** in OSS, see
-//! ENTERPRISE.md.
+//! # NON-CANONICAL: not a proof, not semantically faithful
+//!
+//! The **tree-walk evaluator in `eval.rs` is the single canonical executor**
+//! of Dictum, and the only one the governed verdict and its receipt ever go
+//! through. This WASM codegen is an **experimental, non-canonical scaffold**:
+//! it does **not** reproduce the tree-walk semantics. Two deliberate
+//! divergences in the OSS MVP: integers are **truncated to i32** (the tree-walk
+//! keeps i64), so `2^32 == 0` under WASM but not under the canonical evaluator;
+//! and `and`/`or` lower to **bitwise** `i32.and`/`i32.or`, not the tree-walk's
+//! short-circuit truthiness, so untyped operands like `2 and 1` disagree.
+//! Therefore the WASM path must **never** be presented as evidence/proof of a
+//! verdict, nor relied on to match a receipt. A semantically faithful,
+//! AOT-optimized codegen (i64-correct, cranelift opt-levels, JIT tuning, WASI
+//! side-effect policies) lives in IAGA Sentinel Enterprise, see ENTERPRISE.md.
 
 use thiserror::Error;
 use wasm_encoder::{
@@ -139,7 +148,9 @@ fn emit_expr(expr: &Expr, f: &mut Function) -> Result<(), WasmCompileError> {
             f.instruction(&Instruction::I32Const(if *b { 1 } else { 0 }));
         }
         Expr::Lit(Lit::Int(n)) => {
-            // Truncate to i32, full i64 path is 1.2.x follow-up.
+            // Non-canonical scaffold (see module docs): integers truncate to
+            // i32 here while the canonical tree-walk keeps i64. Intentional, not
+            // a TODO; an i64-faithful codegen is Enterprise.
             let n32 = *n as i32;
             f.instruction(&Instruction::I32Const(n32));
         }
@@ -171,6 +182,8 @@ fn emit_expr(expr: &Expr, f: &mut Function) -> Result<(), WasmCompileError> {
                 BinOp::Gt => Instruction::I32GtS,
                 BinOp::Le => Instruction::I32LeS,
                 BinOp::Ge => Instruction::I32GeS,
+                // Non-canonical scaffold: bitwise, not the tree-walk's
+                // short-circuit truthiness (see module docs). Intentional.
                 BinOp::And => Instruction::I32And,
                 BinOp::Or => Instruction::I32Or,
             };

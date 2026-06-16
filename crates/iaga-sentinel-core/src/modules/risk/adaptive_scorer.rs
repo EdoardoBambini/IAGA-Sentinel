@@ -5,8 +5,8 @@
 
 use std::collections::HashMap;
 use std::sync::Mutex;
-use std::time::{SystemTime, UNIX_EPOCH};
 
+use chrono::{DateTime, Timelike, Utc};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Serialize;
@@ -29,7 +29,16 @@ pub struct RiskSignal {
 pub struct AdaptiveRiskResult {
     pub total_score: u32,
     pub decision: String,
+    /// Signed signals that drive `total_score`/`decision`: a pure function of
+    /// (request + resolved policy + decision_time + ML). static, context,
+    /// off-hours, reputation.
     pub signals: Vec<RiskSignal>,
+    /// Advisory signals derived from unregistered, process-global mutable
+    /// state (baseline novelty/velocity, session burst). Computed for
+    /// dashboards/alerts but EXCLUDED from `total_score`/`decision`, so the
+    /// signed verdict stays reproducible from the receipt alone (D1 / DET-*).
+    #[serde(default)]
+    pub advisory: Vec<RiskSignal>,
 }
 
 #[derive(Debug, Clone)]
@@ -104,23 +113,12 @@ pub fn update_baseline(agent_id: &str, tool_name: &str, action_type: &str, call_
 
 // ── Static Risk ──
 
-fn static_risk(action_type: &str, tool_name: &str, payload_str: &str) -> RiskSignal {
-    let w = WEIGHTS.lock().unwrap_or_else(|e| e.into_inner());
-    let mut score: u32 = match action_type {
-        "file_read" => 15,
-        "file_write" => 40,
-        "shell" => 60,
-        "http" => 30,
-        "db_query" => 35,
-        "email" => 45,
-        "custom" => 25,
-        _ => 20,
-    };
-    let mut reasons = vec![format!("base risk for {}: {}", action_type, score)];
-    let text = format!("{} {}", tool_name, payload_str).to_lowercase();
-
-    let patterns: Vec<(&str, u32, &str)> = vec![
-        (r"database\.delete", 90, "database deletion"),
+/// High-risk payload patterns, compiled once (PERF-STATIC-REGEX-1). Previously
+/// these 10 regexes were recompiled on every `/v1/inspect`. Behavior is
+/// byte-identical: same patterns, same order, same bonuses.
+static STATIC_RISK_PATTERNS: Lazy<Vec<(Regex, u32, &'static str)>> = Lazy::new(|| {
+    [
+        (r"database\.delete", 90u32, "database deletion"),
         (r"database\.drop", 95, "database drop"),
         (r"rm\s+-rf", 85, "recursive force delete"),
         (r"chmod\s+777", 75, "world-writable permissions"),
@@ -134,14 +132,30 @@ fn static_risk(action_type: &str, tool_name: &str, payload_str: &str) -> RiskSig
         (r"passwd|shadow", 60, "system auth files"),
         (r"\.ssh", 55, "SSH keys access"),
         (r"\.env", 50, "environment secrets"),
-    ];
+    ]
+    .into_iter()
+    .filter_map(|(pat, bonus, reason)| Regex::new(pat).ok().map(|re| (re, bonus, reason)))
+    .collect()
+});
 
-    for (pat, bonus, reason) in &patterns {
-        if let Ok(re) = Regex::new(pat) {
-            if re.is_match(&text) {
-                score = (score + bonus / 2).min(100);
-                reasons.push(reason.to_string());
-            }
+fn static_risk(w: &Weights, action_type: &str, tool_name: &str, payload_str: &str) -> RiskSignal {
+    let mut score: u32 = match action_type {
+        "file_read" => 15,
+        "file_write" => 40,
+        "shell" => 60,
+        "http" => 30,
+        "db_query" => 35,
+        "email" => 45,
+        "custom" => 25,
+        _ => 20,
+    };
+    let mut reasons = vec![format!("base risk for {}: {}", action_type, score)];
+    let text = format!("{} {}", tool_name, payload_str).to_lowercase();
+
+    for (re, bonus, reason) in STATIC_RISK_PATTERNS.iter() {
+        if re.is_match(&text) {
+            score = (score + bonus / 2).min(100);
+            reasons.push(reason.to_string());
         }
     }
 
@@ -155,8 +169,7 @@ fn static_risk(action_type: &str, tool_name: &str, payload_str: &str) -> RiskSig
 
 // ── Context Risk (from taint) ──
 
-fn context_risk(taint: Option<&TaintAnalysisResult>) -> RiskSignal {
-    let w = WEIGHTS.lock().unwrap_or_else(|e| e.into_inner());
+fn context_risk(w: &Weights, taint: Option<&TaintAnalysisResult>) -> RiskSignal {
     let mut score: u32 = 0;
     let mut reasons = Vec::new();
 
@@ -198,12 +211,12 @@ fn context_risk(taint: Option<&TaintAnalysisResult>) -> RiskSignal {
 // ── Behavioral Risk ──
 
 fn behavioral_risk(
+    w: &Weights,
     agent_id: &str,
     tool_name: &str,
     action_type: &str,
     session_calls: u32,
 ) -> RiskSignal {
-    let w = WEIGHTS.lock().unwrap_or_else(|e| e.into_inner());
     let bl = get_baseline(agent_id);
     let mut score: u32 = 0;
     let mut reasons = Vec::new();
@@ -255,26 +268,15 @@ fn behavioral_risk(
 
 // ── Temporal Risk ──
 
-fn temporal_risk(call_timestamps: &[u64]) -> RiskSignal {
-    let w = WEIGHTS.lock().unwrap_or_else(|e| e.into_inner());
+/// SIGNED temporal signal: off-hours only, read from the injected
+/// `decision_time` (which is also the receipt timestamp) so it is
+/// reproducible on replay (DET-CLOCK-1). The session burst signal moved to
+/// the advisory plane (see `temporal_burst`).
+fn temporal_offhours(w: &Weights, decision_time: DateTime<Utc>) -> RiskSignal {
     let mut score: u32 = 0;
     let mut reasons = Vec::new();
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis() as u64;
 
-    let recent = call_timestamps.iter().filter(|&&t| now - t < 5_000).count();
-    if recent > 10 {
-        score += 50;
-        reasons.push(format!("burst: {} calls in 5s", recent));
-    } else if recent > 5 {
-        score += 25;
-        reasons.push(format!("elevated rate: {} calls in 5s", recent));
-    }
-
-    // Off-hours
-    let hour = chrono::Utc::now().hour();
+    let hour = decision_time.hour();
     if !(6..=22).contains(&hour) {
         score += 10;
         reasons.push(format!("off-hours activity (hour: {})", hour));
@@ -288,12 +290,42 @@ fn temporal_risk(call_timestamps: &[u64]) -> RiskSignal {
     }
 }
 
-use chrono::Timelike;
+/// ADVISORY temporal signal: burst/velocity over `call_timestamps`, which come
+/// from process-global session state that is NOT captured in the receipt. Kept
+/// for dashboards/alerts but excluded from the signed score. `now` is taken
+/// from `decision_time` (replayable) with `saturating_sub` (DET-7).
+fn temporal_burst(
+    w: &Weights,
+    call_timestamps: &[u64],
+    decision_time: DateTime<Utc>,
+) -> RiskSignal {
+    let mut score: u32 = 0;
+    let mut reasons = Vec::new();
+    let now = decision_time.timestamp_millis().max(0) as u64;
+
+    let recent = call_timestamps
+        .iter()
+        .filter(|&&t| now.saturating_sub(t) < 5_000)
+        .count();
+    if recent > 10 {
+        score += 50;
+        reasons.push(format!("burst: {} calls in 5s", recent));
+    } else if recent > 5 {
+        score += 25;
+        reasons.push(format!("elevated rate: {} calls in 5s", recent));
+    }
+
+    RiskSignal {
+        name: "burst".into(),
+        score: score.min(100),
+        weight: w.temporal,
+        reasons,
+    }
+}
 
 // ── Reputation Risk ──
 
-fn reputation_risk(agent_trust: f64, tool_trust: f64) -> RiskSignal {
-    let w = WEIGHTS.lock().unwrap_or_else(|e| e.into_inner());
+fn reputation_risk(w: &Weights, agent_trust: f64, tool_trust: f64) -> RiskSignal {
     let avg = (agent_trust + tool_trust) / 2.0;
     let mut score = ((1.0 - avg) * 70.0) as u32;
     let mut reasons = Vec::new();
@@ -337,18 +369,22 @@ pub struct AdaptiveScoreInput<'a> {
     pub tool_trust: f64,
 }
 
-pub fn calculate_adaptive_risk(input: &AdaptiveScoreInput) -> AdaptiveRiskResult {
+pub fn calculate_adaptive_risk(
+    input: &AdaptiveScoreInput,
+    decision_time: DateTime<Utc>,
+) -> AdaptiveRiskResult {
+    // Snapshot the global weights ONCE (PERF-WEIGHTS-LOCK-5X-1). This also
+    // removes a determinism hazard: a concurrent `apply_feedback` can no longer
+    // change the weights midway through scoring a single request.
+    let w = WEIGHTS.lock().unwrap_or_else(|e| e.into_inner()).clone();
+
+    // SIGNED signals: a pure function of (request + resolved policy +
+    // decision_time + ML digest). These alone drive total_score / decision.
     let signals = vec![
-        static_risk(input.action_type, input.tool_name, input.payload_str),
-        context_risk(input.taint_result),
-        behavioral_risk(
-            input.agent_id,
-            input.tool_name,
-            input.action_type,
-            input.session_call_count,
-        ),
-        temporal_risk(input.call_timestamps),
-        reputation_risk(input.agent_trust, input.tool_trust),
+        static_risk(&w, input.action_type, input.tool_name, input.payload_str),
+        context_risk(&w, input.taint_result),
+        temporal_offhours(&w, decision_time),
+        reputation_risk(&w, input.agent_trust, input.tool_trust),
     ];
 
     let total: f64 = signals.iter().map(|s| s.score as f64 * s.weight).sum();
@@ -367,10 +403,25 @@ pub fn calculate_adaptive_risk(input: &AdaptiveScoreInput) -> AdaptiveRiskResult
         decision = "block";
     }
 
+    // ADVISORY signals: derived from unregistered process-global mutable state
+    // (per-agent baseline novelty/velocity, session burst). Surfaced for
+    // dashboards/alerts but NOT folded into the signed score/decision (D1).
+    let advisory = vec![
+        behavioral_risk(
+            &w,
+            input.agent_id,
+            input.tool_name,
+            input.action_type,
+            input.session_call_count,
+        ),
+        temporal_burst(&w, input.call_timestamps, decision_time),
+    ];
+
     AdaptiveRiskResult {
         total_score,
         decision: decision.to_string(),
         signals,
+        advisory,
     }
 }
 
@@ -404,6 +455,14 @@ pub fn reset_weights() {
     *w = Weights::default();
 }
 
+/// Clear the per-agent behavioral baselines (process-global). Advisory-only
+/// state (never part of a signed verdict); exposed so deterministic tests can
+/// reset the shared map between runs, and for operational resets.
+pub fn reset_baselines() {
+    let mut store = BASELINES.lock().unwrap_or_else(|e| e.into_inner());
+    store.clear();
+}
+
 /// Nudge the **global** signal weights from operator feedback
 /// (`"false_positive"` lowers stat/context, `"false_negative"` raises them;
 /// weights are then re-normalized to sum 1). Affects every agent on this
@@ -433,6 +492,7 @@ pub fn apply_feedback(feedback: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     static TEST_LOCK: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
 
@@ -471,12 +531,13 @@ mod tests {
             tool_trust: 0.8,
         };
 
-        let result = calculate_adaptive_risk(&input);
+        // behavioral is now an ADVISORY signal (baseline-derived, not signed).
+        let result = calculate_adaptive_risk(&input, Utc::now());
         let behavioral = result
-            .signals
+            .advisory
             .iter()
             .find(|signal| signal.name == "behavioral")
-            .expect("behavioral signal should exist");
+            .expect("behavioral advisory signal should exist");
 
         assert!(
             behavioral.score >= 40,
@@ -515,25 +576,23 @@ mod tests {
             tool_trust: 0.7,
         };
 
-        let result = calculate_adaptive_risk(&input);
-        let temporal = result
-            .signals
+        // burst is now an ADVISORY signal (session-state-derived, not signed).
+        let result = calculate_adaptive_risk(&input, Utc::now());
+        let burst = result
+            .advisory
             .iter()
-            .find(|signal| signal.name == "temporal")
-            .expect("temporal signal should exist");
+            .find(|signal| signal.name == "burst")
+            .expect("burst advisory signal should exist");
 
         assert!(
-            temporal.score >= 50,
+            burst.score >= 50,
             "expected burst detection from recent timestamps, got {:?}",
-            temporal
+            burst
         );
         assert!(
-            temporal
-                .reasons
-                .iter()
-                .any(|reason| reason.contains("burst")),
+            burst.reasons.iter().any(|reason| reason.contains("burst")),
             "expected burst reason, got {:?}",
-            temporal.reasons
+            burst.reasons
         );
     }
 }

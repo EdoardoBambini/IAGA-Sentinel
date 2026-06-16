@@ -11,6 +11,7 @@ fn body_template(signer_key_id: &str) -> ReceiptBody {
         parent_hash: None,
         input_hash: "a".repeat(64),
         policy_hash: "b".repeat(64),
+        threat_feed_hash: None,
         plugin_digests: vec![],
         model_digests: vec![],
         ml_scores: None,

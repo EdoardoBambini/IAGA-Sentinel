@@ -168,13 +168,58 @@ fn sensitive_denylist() -> Result<std::collections::HashSet<String>> {
     build_denylist(extra.as_deref(), strict)
 }
 
+/// The sensitive-env denylist resolved once, plus a stable fingerprint of the
+/// scrubbed-name set so a launch can record *which* denylist was applied.
+struct DenylistResolved {
+    set: std::collections::HashSet<String>,
+    digest: String,
+}
+
+/// Resolve the effective denylist exactly once (SOUND-KERNEL-1). On a
+/// strict-mode misconfiguration the error is captured as a string and replayed
+/// at every launch (fail-closed), so the constructor stays infallible.
+fn resolve_denylist_once() -> std::result::Result<DenylistResolved, String> {
+    match sensitive_denylist() {
+        Ok(set) => {
+            let digest = denylist_digest(&set);
+            Ok(DenylistResolved { set, digest })
+        }
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+/// Stable FNV-1a fingerprint of the scrubbed-var-name set, so the launch log
+/// records which denylist was in force without pulling a crypto dependency into
+/// the kernel crate (same posture as the reasoning tokenizer hash).
+fn denylist_digest(set: &std::collections::HashSet<String>) -> String {
+    let mut names: Vec<&str> = set.iter().map(String::as_str).collect();
+    names.sort_unstable();
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    for n in names {
+        for b in n.bytes() {
+            hash ^= u64::from(b);
+            hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+        }
+        hash ^= 0x1f;
+        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    format!("{hash:016x}")
+}
+
 pub struct UserspaceKernel {
     policy: PolicyCheck,
+    /// Resolved ONCE at construction (SOUND-KERNEL-1) instead of re-reading the
+    /// env + TOML on every launch. `Err` (a strict-mode misconfiguration) is
+    /// replayed as a fail-closed launch, keeping the constructor infallible.
+    denylist: std::result::Result<DenylistResolved, String>,
 }
 
 impl UserspaceKernel {
     pub fn new(policy: PolicyCheck) -> Self {
-        Self { policy }
+        Self {
+            policy,
+            denylist: resolve_denylist_once(),
+        }
     }
 
     /// Construct with a permissive default policy that always allows.
@@ -185,11 +230,18 @@ impl UserspaceKernel {
             Box::pin(async { KernelDecision::Allow })
                 as std::pin::Pin<Box<dyn std::future::Future<Output = KernelDecision> + Send>>
         });
-        Self { policy }
+        Self {
+            policy,
+            denylist: resolve_denylist_once(),
+        }
     }
 
-    fn build_env(spec: &ProcessSpec) -> Result<HashMap<String, String>> {
-        let denylist = sensitive_denylist()?;
+    fn build_env(&self, spec: &ProcessSpec) -> Result<HashMap<String, String>> {
+        let resolved = self
+            .denylist
+            .as_ref()
+            .map_err(|e| KernelError::Denied { reason: e.clone() })?;
+        let denylist = &resolved.set;
         let mut env: HashMap<String, String> = HashMap::new();
         for key in INHERITED_ENV_ALLOWLIST {
             // Defense in depth: never inherit a known-sensitive var even if
@@ -209,6 +261,12 @@ impl UserspaceKernel {
         // must be delivered through a vetted channel, not the process env.
         env.retain(|k, _| !denylist.contains(&k.to_ascii_uppercase()));
         Ok(env)
+    }
+
+    /// Fingerprint of the resolved scrubbed-var-name set, or `None` if the
+    /// denylist could not be resolved (strict-mode misconfiguration).
+    fn denylist_digest(&self) -> Option<&str> {
+        self.denylist.as_ref().ok().map(|r| r.digest.as_str())
     }
 }
 
@@ -240,8 +298,9 @@ impl EnforcementKernel for UserspaceKernel {
 
         // Strict denylist mode fails closed: if the configured extension
         // can't be applied, the launch is blocked rather than silently run
-        // with weaker secret scrubbing.
-        let env = match Self::build_env(spec) {
+        // with weaker secret scrubbing. The denylist is resolved once at
+        // construction (SOUND-KERNEL-1); here we only replay any error.
+        let env = match self.build_env(spec) {
             Ok(env) => env,
             Err(e) => {
                 return Ok(LaunchOutcome {
@@ -253,6 +312,15 @@ impl EnforcementKernel for UserspaceKernel {
                 })
             }
         };
+        // Record WHICH denylist scrubbed this launch's environment, so an
+        // operator can correlate a governed run with the secret-scrubbing
+        // posture in force at the time (SOUND-KERNEL-1).
+        tracing::debug!(
+            agent_id = %spec.agent_id,
+            program = %spec.program,
+            env_scrub_digest = self.denylist_digest().unwrap_or("none"),
+            "governed launch environment scrubbed"
+        );
 
         let mut cmd = tokio::process::Command::new(&spec.program);
         cmd.args(&spec.args);
@@ -323,7 +391,8 @@ mod tests {
             ("aws_secret_access_key", "lowercase-also-scrubbed"),
             ("MY_TOOL_FLAG", "1"),
         ]);
-        let env = UserspaceKernel::build_env(&spec).expect("non-strict build_env");
+        let k = UserspaceKernel::allow_all();
+        let env = k.build_env(&spec).expect("non-strict build_env");
         assert!(
             !env.contains_key("OPENAI_API_KEY"),
             "known secret must be scrubbed from the child env"
@@ -342,6 +411,28 @@ mod tests {
     #[test]
     fn builtin_denylist_has_23_entries() {
         assert_eq!(SENSITIVE_ENV_DENYLIST.len(), 23);
+    }
+
+    #[test]
+    fn denylist_digest_is_stable_and_order_independent() {
+        use std::collections::HashSet;
+        let a: HashSet<String> = ["OPENAI_API_KEY", "AWS_SECRET_ACCESS_KEY"]
+            .iter()
+            .map(|s| (*s).to_string())
+            .collect();
+        let b: HashSet<String> = ["AWS_SECRET_ACCESS_KEY", "OPENAI_API_KEY"]
+            .iter()
+            .map(|s| (*s).to_string())
+            .collect();
+        // Sorted before hashing, so insertion/iteration order does not matter.
+        assert_eq!(denylist_digest(&a), denylist_digest(&b));
+        assert_eq!(denylist_digest(&a).len(), 16);
+        // A different set fingerprints differently.
+        let c: HashSet<String> = ["OPENAI_API_KEY"]
+            .iter()
+            .map(|s| (*s).to_string())
+            .collect();
+        assert_ne!(denylist_digest(&a), denylist_digest(&c));
     }
 
     #[test]

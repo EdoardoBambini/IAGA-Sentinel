@@ -420,7 +420,7 @@ fn test_risk_low_risk_file_read() {
         agent_trust: 0.9,
         tool_trust: 0.9,
     };
-    let result = calculate_adaptive_risk(&input);
+    let result = calculate_adaptive_risk(&input, chrono::Utc::now());
     assert!(
         result.total_score < 45,
         "Low-risk file_read should score < 45, got {}",
@@ -443,9 +443,13 @@ fn test_risk_high_risk_shell_rm_rf() {
         agent_trust: 0.5,
         tool_trust: 0.5,
     };
-    let result = calculate_adaptive_risk(&input);
+    let result = calculate_adaptive_risk(&input, chrono::Utc::now());
+    // Adaptive ensemble in isolation now excludes the advisory behavioral/burst
+    // signals (DET cut): rm -rf is still flagged by the signed `static` signal
+    // (and, in the full pipeline, by tool_risk's pattern layer). Threshold
+    // lowered to match the signed-only ensemble.
     assert!(
-        result.total_score >= 30,
+        result.total_score >= 25,
         "Shell with rm -rf should have elevated score, got {}",
         result.total_score
     );
@@ -487,7 +491,7 @@ fn test_risk_exfiltration_taint_blocks() {
         agent_trust: 0.8,
         tool_trust: 0.8,
     };
-    let result = calculate_adaptive_risk(&input);
+    let result = calculate_adaptive_risk(&input, chrono::Utc::now());
     assert_eq!(
         result.decision, "block",
         "Exfiltration in taint should force block decision"
@@ -573,10 +577,13 @@ fn test_risk_update_baseline_then_novel_tool() {
         agent_trust: 0.8,
         tool_trust: 0.8,
     };
-    let result = calculate_adaptive_risk(&input);
-    // Behavioral signal should detect the novel tool
-    let behavioral = result.signals.iter().find(|s| s.name == "behavioral");
-    assert!(behavioral.is_some(), "Should have behavioral signal");
+    let result = calculate_adaptive_risk(&input, chrono::Utc::now());
+    // Behavioral novelty is now an ADVISORY signal (baseline-derived, not signed).
+    let behavioral = result.advisory.iter().find(|s| s.name == "behavioral");
+    assert!(
+        behavioral.is_some(),
+        "Should have behavioral advisory signal"
+    );
     assert!(
         behavioral.unwrap().score > 0,
         "Behavioral score should be > 0 for novel tool"
@@ -940,6 +947,7 @@ fn test_block_reasons_surface_the_cause() {
         GovernanceDecision::Block,
         &findings,
         &LayerRiskContributions::default(),
+        "{}",
         70,
         35,
     );
@@ -1639,7 +1647,7 @@ fn test_nhi_register_and_get_identity() {
     );
     assert_eq!(id.agent_id, "test-nhi-reg");
     assert!(id.spiffe_id.contains("test-nhi-reg"));
-    assert!(!id.public_key_hex.is_empty());
+    assert!(!id.key_commitment.is_empty());
     assert_eq!(id.trust_score, 0.5);
 
     let fetched = crypto_identity::get_identity("test-nhi-reg");
@@ -1653,11 +1661,34 @@ fn test_nhi_get_unknown_returns_none() {
 }
 
 #[test]
-fn test_nhi_simulated_attestation() {
+fn test_nhi_simulated_attestation_is_non_authoritative() {
+    // CRYPTO-NHI-1: simulated attestation used to self-sign + self-verify, so it
+    // ALWAYS passed for any registered agent — proving nothing. It must now report
+    // the agent as registered but NOT verified, directing callers to the real
+    // challenge-response flow.
     crypto_identity::register_identity("test-nhi-attest-sim", None, vec![]);
     let result = crypto_identity::attest_agent("test-nhi-attest-sim", "test-challenge");
-    assert!(result.verified, "Simulated attestation should always pass");
+    assert!(
+        !result.verified,
+        "simulated attestation must not claim verification"
+    );
     assert_eq!(result.mode, "simulated");
+}
+
+#[test]
+fn test_nhi_mutual_attest_mints_no_token() {
+    // CRYPTO-NHI-1: naming two registered agents must NOT yield a session token or
+    // non-zero mutual trust without real proof of possession.
+    crypto_identity::register_identity("test-nhi-mutual-a", None, vec![]);
+    crypto_identity::register_identity("test-nhi-mutual-b", None, vec![]);
+    let result = crypto_identity::mutual_attest("test-nhi-mutual-a", "test-nhi-mutual-b");
+    assert!(
+        result.session_token.is_none(),
+        "mutual_attest must not mint a session token over the simulated path"
+    );
+    assert_eq!(result.mutual_trust, 0.0, "mutual trust must be zero");
+    assert!(!result.initiator.verified);
+    assert!(!result.responder.verified);
 }
 
 #[test]
@@ -1867,6 +1898,7 @@ fn test_custom_threshold_block_lower() {
         GovernanceDecision::Allow,
         &[],
         &layers,
+        "{}",
         50, // lower block threshold
         25, // lower review threshold
     );

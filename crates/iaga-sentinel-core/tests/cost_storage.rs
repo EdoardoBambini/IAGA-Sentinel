@@ -14,6 +14,7 @@ fn event(id: &str, agent: &str, tool: &str, usage: Option<UsageData>) -> StoredA
         framework: "test".into(),
         action_type: ActionType::Http,
         tool_name: tool.into(),
+        input_sha256: String::new(),
         decision: GovernanceDecision::Allow,
         timestamp: "2026-06-09T12:00:00Z".into(),
         reasons: vec![],

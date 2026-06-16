@@ -7,10 +7,10 @@ use ed25519_dalek::VerifyingKey;
 use sqlx::postgres::{PgPool, PgPoolOptions};
 use sqlx::Row;
 
-use crate::errors::{ReceiptError, Result};
+use crate::errors::{is_unique_violation, ReceiptError, Result};
 use crate::merkle::verify_chain;
 use crate::receipt::{ChainStatus, Receipt, ReceiptBody, RunSummary, Verdict};
-use crate::store::ReceiptStore;
+use crate::store::{check_append_link, ReceiptStore};
 
 pub struct PgReceiptStore {
     pool: PgPool,
@@ -45,6 +45,11 @@ impl PgReceiptStore {
     }
 
     async fn run_migrations(&self) -> Result<()> {
+        // SND-MIGRATION-SPLIT-6: deliberately NOT `sqlx::migrate!` — the receipt
+        // store can share a database with `iaga-sentinel-core`'s storage, which
+        // owns the single `_sqlx_migrations` table via its own migrator; a second
+        // sqlx migrator on the same DB conflicts and silently disables receipts.
+        // The migration is a small idempotent `CREATE ... IF NOT EXISTS`.
         let sql = include_str!("../migrations/postgres/0001_receipts.sql");
         for stmt in sql.split(';') {
             let trimmed = stmt.trim();
@@ -74,7 +79,15 @@ impl ReceiptStore for PgReceiptStore {
         };
         let body_json = serde_json::to_string(&receipt.body)?;
 
-        sqlx::query(
+        // Validate the link against the current head, then INSERT (autocommit).
+        // No explicit transaction: the PRIMARY KEY(run_id, seq) is the real
+        // uniqueness guard for concurrent writers (a stale-head writer's INSERT
+        // raises a unique-violation -> DuplicateSeq, retried by the caller),
+        // and `check_append_link` rejects a direct-misuse caller up front.
+        let head = self.head(&receipt.body.run_id).await?;
+        check_append_link(head.as_ref(), receipt)?;
+
+        let insert = sqlx::query(
             "INSERT INTO receipts (\
                 run_id, seq, parent_hash, input_hash, policy_hash, \
                 verdict, risk_score, timestamp, signer_key_id, signature, body_json\
@@ -92,8 +105,14 @@ impl ReceiptStore for PgReceiptStore {
         .bind(&receipt.signature)
         .bind(&body_json)
         .execute(&self.pool)
-        .await?;
-        Ok(())
+        .await;
+        match insert {
+            Ok(_) => Ok(()),
+            Err(e) if is_unique_violation(&e) => Err(ReceiptError::DuplicateSeq {
+                seq: receipt.body.seq,
+            }),
+            Err(e) => Err(e.into()),
+        }
     }
 
     async fn head(&self, run_id: &str) -> Result<Option<Receipt>> {
@@ -112,13 +131,32 @@ impl ReceiptStore for PgReceiptStore {
 
     async fn get_run(&self, run_id: &str) -> Result<Vec<Receipt>> {
         let rows = sqlx::query(
-            "SELECT body_json, signature FROM receipts \
+            "SELECT seq, body_json, signature FROM receipts \
              WHERE run_id = $1 ORDER BY seq ASC",
         )
         .bind(run_id)
         .fetch_all(&self.pool)
         .await?;
-        rows.iter().map(Self::row_to_receipt).collect()
+        rows.iter()
+            .map(|row| {
+                let receipt = Self::row_to_receipt(row)?;
+                // DET-SEQ-COLUMN-5: bind the ordering `seq` column to the `seq`
+                // inside `body_json` (the verifier checks the latter), so a
+                // divergent row is caught at read time. Postgres stores `seq`
+                // as BIGINT.
+                let col_seq: i64 = row.try_get("seq")?;
+                if col_seq as u64 != receipt.body.seq {
+                    return Err(ReceiptError::ChainViolation {
+                        seq: receipt.body.seq,
+                        reason: format!(
+                            "stored column seq={col_seq} disagrees with body seq={}",
+                            receipt.body.seq
+                        ),
+                    });
+                }
+                Ok(receipt)
+            })
+            .collect()
     }
 
     async fn verify_chain(&self, run_id: &str) -> Result<ChainStatus> {

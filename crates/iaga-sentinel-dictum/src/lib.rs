@@ -45,7 +45,10 @@ pub mod wasm;
 
 pub use ast::{Action, BinOp, Expr, Lit, Policy, Program, UnOp, Verdict};
 pub use errors::{DictumError, Result};
-pub use eval::{eval_expr, evaluate_program, Context, EvalBudget, PolicyFired, Value};
+pub use eval::{
+    eval_expr, evaluate_program, evaluate_program_traced, Context, EvalBudget, EvalTrace,
+    PolicyFired, Value,
+};
 pub use parser::parse;
 pub use types::{infer, Ty, TypeEnv, TypeError};
 pub use validator::validate;

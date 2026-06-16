@@ -65,7 +65,7 @@ fn secret_ref_overlay_blocks_payload_with_aws_key() {
         None,
         None,
     );
-    let fired = overlay.evaluate(&ctx).expect("must fire on a secret");
+    let fired = overlay.evaluate(&ctx).fired.expect("must fire on a secret");
     assert_eq!(fired.verdict, Verdict::Block);
     assert_eq!(fired.policy_name, "block_secret_egress");
 
@@ -84,7 +84,7 @@ fn secret_ref_overlay_blocks_payload_with_aws_key() {
         None,
     );
     assert!(
-        overlay.evaluate(&ctx2).is_none(),
+        overlay.evaluate(&ctx2).fired.is_none(),
         "benign payload must not fire the secret rule"
     );
 
@@ -123,7 +123,11 @@ fn url_host_overlay_enforces_per_host_allowlist() {
         None,
     );
     assert_eq!(
-        overlay.evaluate(&ctx).expect("off-host must fire").verdict,
+        overlay
+            .evaluate(&ctx)
+            .fired
+            .expect("off-host must fire")
+            .verdict,
         Verdict::Block
     );
 
@@ -145,7 +149,7 @@ fn url_host_overlay_enforces_per_host_allowlist() {
         None,
     );
     assert!(
-        overlay.evaluate(&ctx2).is_none(),
+        overlay.evaluate(&ctx2).fired.is_none(),
         "on-allowlist host must not fire"
     );
 

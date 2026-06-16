@@ -42,8 +42,10 @@ pub use receipt::{
     PipelineInputsCapture, PluginDigest, Receipt, ReceiptBody, RunSummary, Verdict,
 };
 pub use replay::{replay, verify_only, CurrentOutcome, DriftRecord, ReplayReport};
-pub use signer::{verify_receipt, LocalDiskSigner, ReceiptSigner, Signer};
-pub use store::ReceiptStore;
+pub use signer::{
+    key_id_for_verifying_key, verify_receipt, LocalDiskSigner, ReceiptSigner, Signer,
+};
+pub use store::{check_append_link, ReceiptStore};
 
 // Cost/usage types embedded in `ReceiptBody`, re-exported so consumers can use
 // them without depending on `iaga-sentinel-cost` directly.

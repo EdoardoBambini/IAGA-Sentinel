@@ -220,7 +220,7 @@ proptest! {
             agent_trust: trust,
             tool_trust: trust,
         };
-        let result = adaptive_scorer::calculate_adaptive_risk(&input);
+        let result = adaptive_scorer::calculate_adaptive_risk(&input, chrono::Utc::now());
         prop_assert!(result.total_score <= 100,
             "total_score {} exceeds 100", result.total_score);
     }
@@ -244,7 +244,7 @@ proptest! {
             agent_trust: trust,
             tool_trust: trust,
         };
-        let result = adaptive_scorer::calculate_adaptive_risk(&input);
+        let result = adaptive_scorer::calculate_adaptive_risk(&input, chrono::Utc::now());
 
         // Without exfiltration, decision must follow score thresholds
         if result.total_score >= 70 {
@@ -259,9 +259,10 @@ proptest! {
         }
     }
 
-    /// 5 signals must always be present.
+    /// The signed ensemble always has the 4 signed signals (static, context,
+    /// off-hours, reputation) plus the 2 advisory signals (behavioral, burst).
     #[test]
-    fn adaptive_always_5_signals(
+    fn adaptive_always_has_signed_and_advisory_signals(
         action in action_type_strategy(),
         tool in tool_name_strategy(),
         trust in 0.0f64..=1.0,
@@ -277,9 +278,11 @@ proptest! {
             agent_trust: trust,
             tool_trust: trust,
         };
-        let result = adaptive_scorer::calculate_adaptive_risk(&input);
-        prop_assert_eq!(result.signals.len(), 5,
-            "expected 5 signals, got {}", result.signals.len());
+        let result = adaptive_scorer::calculate_adaptive_risk(&input, chrono::Utc::now());
+        prop_assert_eq!(result.signals.len(), 4,
+            "expected 4 signed signals, got {}", result.signals.len());
+        prop_assert_eq!(result.advisory.len(), 2,
+            "expected 2 advisory signals, got {}", result.advisory.len());
     }
 
     /// Exfiltration in taint must force block decision.
@@ -309,7 +312,7 @@ proptest! {
             agent_trust: trust,
             tool_trust: trust,
         };
-        let result = adaptive_scorer::calculate_adaptive_risk(&input);
+        let result = adaptive_scorer::calculate_adaptive_risk(&input, chrono::Utc::now());
         let decision = result.decision.clone();
         prop_assert_eq!(decision, "block",
             "exfiltration_detected but decision={}", result.decision);
@@ -390,5 +393,62 @@ proptest! {
         let unique: HashSet<_> = node_ids.iter().collect();
         prop_assert_eq!(unique.len(), node_ids.len(),
             "duplicate node IDs in session: {:?}", node_ids);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Receipt signing-bytes round-trip determinism (TESTS-FUZZ-NO-DETERMINISM-10)
+// ═══════════════════════════════════════════════════════════════════
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(500))]
+
+    /// `signing_bytes` must be a serialize -> parse -> serialize **fixpoint**:
+    /// re-serializing a parsed receipt yields byte-identical output. This guards
+    /// against a field that does not round-trip cleanly (lost data, or a nested
+    /// JSON map whose key order is not canonical), which would let two encodings
+    /// of the same verdict produce different signed bytes / chain hashes. The
+    /// nested `ml_scores` map is generated with arbitrary (and possibly
+    /// out-of-order, duplicate) keys to exercise the risky path.
+    #[test]
+    fn signing_bytes_roundtrip_is_a_fixpoint(
+        keys in prop::collection::vec("[a-z]{1,8}", 0..8),
+        vals in prop::collection::vec(any::<i64>(), 0..8),
+        reasons in prop::collection::vec("[ -~]{0,40}", 0..4),
+        risk in any::<u32>(),
+        feed in proptest::option::of("[0-9a-f]{64}"),
+    ) {
+        use iaga_sentinel_receipts::{MlScoreBundle, ReceiptBody, Verdict};
+
+        let mut map = serde_json::Map::new();
+        for (k, v) in keys.iter().zip(vals.iter()) {
+            map.insert(k.clone(), serde_json::json!(v));
+        }
+        let body = ReceiptBody {
+            run_id: "fuzz-run".into(),
+            seq: 0,
+            parent_hash: None,
+            input_hash: "a".repeat(64),
+            policy_hash: "b".repeat(64),
+            threat_feed_hash: feed,
+            plugin_digests: vec![],
+            model_digests: vec![],
+            ml_scores: Some(MlScoreBundle(serde_json::Value::Object(map))),
+            verdict: Verdict::Review,
+            reasons,
+            risk_score: risk,
+            timestamp: "2026-01-01T00:00:00Z".into(),
+            signer_key_id: "ed25519:fuzz".into(),
+            pipeline_inputs_capture: None,
+            apl_eval_trace: None,
+            ml_inference_inputs: None,
+            is_authoritative: None,
+            usage: None,
+        };
+
+        let s1 = body.signing_bytes().expect("signing_bytes s1");
+        let parsed: ReceiptBody = serde_json::from_slice(&s1).expect("parse");
+        let s2 = parsed.signing_bytes().expect("signing_bytes s2");
+        prop_assert_eq!(s1, s2, "signing_bytes must be a serialize->parse fixpoint");
     }
 }

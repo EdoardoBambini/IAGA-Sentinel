@@ -23,7 +23,7 @@ VERIFY="$REPO_ROOT/target/release/iaga-verify"
 command -v jq >/dev/null || { echo "this script needs jq (sudo apt install jq)"; exit 2; }
 
 echo "== IAGA SENTINEL - LIVE GOVERNANCE (one signed session) =="
-echo "Session: $SID  (all 3 beats chain into run_id=$SID)"
+echo "Session: $SID  (all 3 beats chain into one run, run_id=<agentId>:$SID)"
 
 # Determinism guard: reset adaptive weights (open mode = implicit admin).
 curl -fsS -X POST "$BASE/v1/risk/weights/reset" >/dev/null 2>&1 || true
@@ -68,4 +68,4 @@ echo "> iaga-verify $CHAIN"
 "$VERIFY" "$CHAIN"
 echo "> iaga-verify $CHAIN --key <pinned>"
 "$VERIFY" "$CHAIN" --key "$PUB"
-echo "CHAIN OK (offline) - terminal verdict BLOCK, run_id=$SID"
+echo "CHAIN OK (offline) - terminal verdict BLOCK, run_id=$RUN"

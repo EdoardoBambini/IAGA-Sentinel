@@ -1407,15 +1407,30 @@ fn cmd_plugins_verify(path: &str, format: &str) {
                 );
             }
             println!(
-                "  offline_verified:              {}",
-                att.offline_verified()
+                "  signature checked (pinned key):{}",
+                if att.signature_checked {
+                    " yes"
+                } else {
+                    " no (set IAGA_SENTINEL_PLUGIN_PUBKEY to verify a signature)"
+                }
+            );
+            println!(
+                "  signature verified:            {}",
+                att.signature_verified
+            );
+            println!(
+                "  attestation level:             {}",
+                att.attestation_level()
             );
             if !att.offline_verified() {
                 println!();
                 println!(
-                    "note: offline verification only checks bundle structure + payload \
-digest. Full Rekor inclusion proof + Fulcio root attestation lives in \
-IAGA Sentinel Enterprise (see ENTERPRISE.md / ADR 0013)."
+                    "note: this OSS check confirms the bundle is well-formed and (with a \
+pinned key via IAGA_SENTINEL_PLUGIN_PUBKEY) that an Ed25519 signature over the \
+plugin bytes is valid. It does NOT validate a Fulcio cert chain or a Rekor \
+inclusion proof: that managed, keyless identity verification lives in IAGA \
+Sentinel Enterprise (ENTERPRISE.md / ADR 0013). A 'digest-only' result means the \
+digest matches but no signature was cryptographically verified."
                 );
             }
         }
@@ -1425,9 +1440,13 @@ IAGA Sentinel Enterprise (see ENTERPRISE.md / ADR 0013)."
         }
     }
 
-    // Exit non-zero when bundle is present but verification fails, so
-    // CI / shell scripts can gate on `iaga plugin verify`.
-    let exit_code = if att.bundle_path.is_some() && !att.offline_verified() {
+    // Exit non-zero when a check we actually ran failed, so CI / shell scripts can
+    // gate on `iaga plugin verify`. CRYPTO-ATTEST-1: a digest match with no pinned
+    // key is "digest-only" and still exits 0 (no regression); a digest MISMATCH,
+    // or a pinned-key signature that failed to verify, exits 1.
+    let exit_code = if att.bundle_path.is_some()
+        && (!att.digest_attested() || (att.signature_checked && !att.signature_verified))
+    {
         1
     } else {
         0
@@ -2363,13 +2382,44 @@ async fn cmd_replay(
         }
     }
 
-    let rid = match run_id {
-        Some(r) => r,
+    let rid: String = match run_id {
         None => {
             eprintln!("iaga replay: pass <run_id> or use --list");
             return 2;
         }
+        Some(arg) => {
+            // PIP-RUNID-COLLISION: run_ids are now `agent_id:session_id`. Accept
+            // an exact run_id, or resolve a bare session_id when it maps to
+            // exactly one run, so `iaga replay <sessionId>` keeps working.
+            let exact = store
+                .get_run(arg)
+                .await
+                .map(|c| !c.is_empty())
+                .unwrap_or(false);
+            if exact {
+                arg.to_string()
+            } else if let Ok(runs) = store.list_runs(10_000).await {
+                let mut hits = runs
+                    .into_iter()
+                    .map(|r| r.run_id)
+                    .filter(|id| id.rsplit_once(':').map(|(_, s)| s) == Some(arg));
+                match (hits.next(), hits.next()) {
+                    (Some(only), None) => only,
+                    (Some(_), Some(_)) => {
+                        eprintln!(
+                            "iaga replay: '{arg}' matches multiple runs; \
+                             pass the full agent_id:session_id"
+                        );
+                        return 2;
+                    }
+                    _ => arg.to_string(),
+                }
+            } else {
+                arg.to_string()
+            }
+        }
     };
+    let rid = rid.as_str();
 
     if let Some(out_path) = export {
         let chain = match store.get_run(rid).await {

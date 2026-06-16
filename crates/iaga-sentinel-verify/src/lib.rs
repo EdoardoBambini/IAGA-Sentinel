@@ -11,7 +11,7 @@
 //! cannot disagree about what a valid chain is.
 
 use ed25519_dalek::VerifyingKey;
-use iaga_sentinel_receipts::{verify_chain, ChainExport, ChainStatus};
+use iaga_sentinel_receipts::{key_id_for_verifying_key, verify_chain, ChainExport, ChainStatus};
 
 /// Which public key the chain was verified against.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -65,6 +65,42 @@ pub fn verify_export(
         None => (export.signer_verifying_key.as_str(), KeySource::Embedded),
     };
     let vk = parse_key(key_hex)?;
+
+    // PROOF-VERIFY-SIGNERID: bind the human-readable `signer=` label (and every
+    // receipt's claimed signer) to the key that actually verifies the chain. The
+    // signature covers `signer_key_id`, so a chain can be self-consistently signed
+    // by one key while advertising a *different* `signer_key_id` (e.g. a victim's).
+    // Without this check `CHAIN OK signer=<id>` would print an unauthenticated,
+    // attacker-chosen identity. A mismatch is a verification failure (Broken), not
+    // an IO error.
+    let key_id = key_id_for_verifying_key(&vk);
+    if export.signer_key_id != key_id {
+        return Ok((
+            ChainStatus::Broken {
+                seq: 0,
+                reason: format!(
+                    "signer_key_id mismatch: export claims {} but the verifying key is {key_id}",
+                    export.signer_key_id
+                ),
+            },
+            source,
+        ));
+    }
+    for r in &export.receipts {
+        if r.body.signer_key_id != key_id {
+            return Ok((
+                ChainStatus::Broken {
+                    seq: r.body.seq,
+                    reason: format!(
+                        "receipt seq {} claims signer {} but the verifying key is {key_id}",
+                        r.body.seq, r.body.signer_key_id
+                    ),
+                },
+                source,
+            ));
+        }
+    }
+
     let status =
         verify_chain(&export.receipts, &vk).map_err(|e| VerifyError::Verify(e.to_string()))?;
     Ok((status, source))

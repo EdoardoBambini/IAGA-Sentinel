@@ -92,9 +92,18 @@ Pass --key with the expected public key to authenticate authorship."
 
     match status {
         ChainStatus::Valid { receipt_count } => {
+            // CRYPTO-EXPORT-TRUNC-7: surface the seq range so an auditor holding
+            // an external expected count can spot a truncated tail. The chain is
+            // genesis-rooted (verify_chain requires seq 0..N-1), so the range is
+            // 0..receipt_count-1. "CHAIN OK" proves PREFIX integrity, not
+            // completeness — dropping trailing receipts still verifies as a
+            // shorter valid chain. Detecting tail truncation offline needs an
+            // external anchor (sealed head / archival timestamp), which is
+            // Enterprise (see SECURITY.md).
+            let last_seq = receipt_count.saturating_sub(1);
             println!(
-                "CHAIN OK  run_id={}  receipts={}  signer={}  key={}",
-                export.run_id, receipt_count, export.signer_key_id, key_label
+                "CHAIN OK  run_id={}  receipts={}  seq=0..{}  signer={}  key={}",
+                export.run_id, receipt_count, last_seq, export.signer_key_id, key_label
             );
             ExitCode::SUCCESS
         }

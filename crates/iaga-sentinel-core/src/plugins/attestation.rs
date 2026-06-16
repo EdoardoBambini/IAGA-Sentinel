@@ -29,6 +29,7 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 
 use base64::Engine;
+use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
@@ -55,15 +56,53 @@ pub struct PluginAttestation {
     pub rekor_log_index: Option<u64>,
     /// Optional CycloneDX SBOM summary.
     pub sbom: Option<SbomReport>,
+    /// `true` iff an operator-pinned Ed25519 public key
+    /// (`IAGA_SENTINEL_PLUGIN_PUBKEY`) cryptographically verified the bundle
+    /// signature over the plugin bytes. Always `false` on the default OSS path
+    /// (digest-only). CRYPTO-ATTEST-1: managed *keyless* identity verification
+    /// (Fulcio cert chain + Rekor inclusion) is intentionally an Enterprise
+    /// feature and is NOT performed here.
+    #[serde(default)]
+    pub signature_verified: bool,
+    /// `true` iff a pinned key was configured AND a signature check was actually
+    /// attempted, so a `false` `signature_verified` with `signature_checked ==
+    /// true` means the signature did NOT validate (as opposed to "no key pinned").
+    #[serde(default)]
+    pub signature_checked: bool,
 }
 
 impl PluginAttestation {
-    /// Convenience: `true` iff a bundle exists, it parses cleanly, AND
-    /// its payload digest matches the plugin bytes. This is the
-    /// strongest claim OSS 1.2 makes, does **not** include
-    /// chain-of-trust verification.
-    pub fn offline_verified(&self) -> bool {
+    /// The bundle exists, parses cleanly, and its embedded payload digest matches
+    /// the plugin bytes bit-exact. This is a useful integrity check but **not** a
+    /// signature verification: anyone who can write the sibling sidecar file can
+    /// embed a matching digest. For cryptographic authorship use
+    /// [`PluginAttestation::offline_verified`].
+    pub fn digest_attested(&self) -> bool {
         self.bundle_path.is_some() && self.bundle_well_formed && self.payload_digest_match
+    }
+
+    /// `true` only when a signature was **cryptographically verified** offline:
+    /// the digest matches AND a pinned operator key validated the bundle
+    /// signature.
+    ///
+    /// CRYPTO-ATTEST-1: this previously returned `true` on a mere digest match,
+    /// presenting a forgeable self-certifying check as "verified" (anyone who
+    /// could write the sidecar passed). It now requires a real signature check,
+    /// so an attacker who only controls the sidecar file cannot satisfy it.
+    pub fn offline_verified(&self) -> bool {
+        self.digest_attested() && self.signature_verified
+    }
+
+    /// Human-readable attestation strength: `"none"`, `"digest-only"`, or
+    /// `"key-verified"`.
+    pub fn attestation_level(&self) -> &'static str {
+        if self.offline_verified() {
+            "key-verified"
+        } else if self.digest_attested() {
+            "digest-only"
+        } else {
+            "none"
+        }
     }
 }
 
@@ -114,6 +153,18 @@ impl From<std::io::Error> for AttestationError {
 /// the function returns a `PluginAttestation` with the relevant fields
 /// flagged "absent / malformed".
 pub fn verify_plugin(wasm_path: &Path) -> Result<PluginAttestation, AttestationError> {
+    let pinned = std::env::var("IAGA_SENTINEL_PLUGIN_PUBKEY").ok();
+    verify_plugin_with_pinned_key(wasm_path, pinned.as_deref())
+}
+
+/// Like [`verify_plugin`] but takes the operator-pinned Ed25519 public key (hex)
+/// explicitly instead of reading `IAGA_SENTINEL_PLUGIN_PUBKEY`. `None` ⇒
+/// digest-only (no signature check). Exposed so callers/tests can pin a key
+/// without mutating process-global environment.
+pub fn verify_plugin_with_pinned_key(
+    wasm_path: &Path,
+    pinned_pubkey_hex: Option<&str>,
+) -> Result<PluginAttestation, AttestationError> {
     let bytes = std::fs::read(wasm_path)?;
     let plugin_sha256 = sha256_hex(&bytes);
 
@@ -122,6 +173,12 @@ pub fn verify_plugin(wasm_path: &Path) -> Result<PluginAttestation, AttestationE
 
     let (bundle_well_formed, payload_digest_match, rekor_log_index) =
         verify_bundle(bundle_path.as_deref(), &bytes);
+
+    // CRYPTO-ATTEST-1 workaround: optional signature verification against an
+    // operator-pinned Ed25519 key. No-op (false, false) unless a key is pinned;
+    // keyless Fulcio/Rekor identity verification stays an Enterprise feature.
+    let (signature_verified, signature_checked) =
+        verify_bundle_signature(bundle_path.as_deref(), &bytes, pinned_pubkey_hex);
 
     let sbom = sbom_path.as_deref().and_then(parse_sbom_cyclonedx_path);
 
@@ -133,6 +190,8 @@ pub fn verify_plugin(wasm_path: &Path) -> Result<PluginAttestation, AttestationE
         payload_digest_match,
         rekor_log_index,
         sbom,
+        signature_verified,
+        signature_checked,
     })
 }
 
@@ -276,6 +335,54 @@ fn decode_b64_to_hex(s: &str) -> Option<String> {
     Some(hex::encode(bytes))
 }
 
+/// CRYPTO-ATTEST-1 workaround — optional, operator-pinned signature verification.
+///
+/// If a pinned Ed25519 public key (hex) is provided, verify the bundle's
+/// `messageSignature.signature` (base64) over the **plugin bytes** with that key.
+/// This mirrors the BYOK / `iaga-verify --key` pinning pattern and the cosign
+/// `sign-blob --key <ed25519>` convention (Ed25519 signs the artifact directly).
+/// It deliberately does NOT parse the bundle's X.509 cert, validate a Fulcio
+/// root, or query Rekor — that managed keyless chain-of-trust is an Enterprise
+/// feature (ADR 0010/0013). Returns `(signature_verified, signature_checked)`:
+/// `checked` is `true` only when a key was pinned AND a bundle was present.
+fn verify_bundle_signature(
+    bundle_path: Option<&Path>,
+    wasm_bytes: &[u8],
+    pinned_pubkey_hex: Option<&str>,
+) -> (bool, bool) {
+    let Some(pubkey_hex) = pinned_pubkey_hex else {
+        return (false, false);
+    };
+    let Some(path) = bundle_path else {
+        return (false, false);
+    };
+    let verified = verify_pinned_ed25519(pubkey_hex, path, wasm_bytes).unwrap_or(false);
+    (verified, true)
+}
+
+/// Inner helper: `Some(valid)` once the signature was actually checked, or `None`
+/// when the key / bundle / signature could not be parsed (treated as not
+/// verified by the caller).
+fn verify_pinned_ed25519(pubkey_hex: &str, bundle_path: &Path, wasm_bytes: &[u8]) -> Option<bool> {
+    let key_bytes = hex::decode(pubkey_hex.trim()).ok()?;
+    let key_arr: [u8; 32] = key_bytes.as_slice().try_into().ok()?;
+    let vk = VerifyingKey::from_bytes(&key_arr).ok()?;
+
+    let raw = std::fs::read(bundle_path).ok()?;
+    let json: serde_json::Value = serde_json::from_slice(&raw).ok()?;
+    let sig_b64 = json
+        .get("messageSignature")
+        .and_then(|m| m.get("signature"))
+        .and_then(|v| v.as_str())?;
+    let sig_bytes = base64::engine::general_purpose::STANDARD
+        .decode(sig_b64)
+        .ok()?;
+    let sig_arr: [u8; 64] = sig_bytes.as_slice().try_into().ok()?;
+    let sig = Signature::from_bytes(&sig_arr);
+
+    Some(vk.verify(wasm_bytes, &sig).is_ok())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -347,7 +454,7 @@ mod tests {
     }
 
     #[test]
-    fn v03_bundle_with_matching_digest_offline_verified() {
+    fn v03_bundle_matching_digest_is_digest_only_not_verified() {
         let dir = tempdir().unwrap();
         let payload = b"matching-content-here";
         let wasm = write_wasm(dir.path(), "good.wasm", payload);
@@ -369,10 +476,19 @@ mod tests {
             serde_json::to_vec(&bundle).unwrap(),
         )
         .unwrap();
-        let att = verify_plugin(&wasm).expect("verify ok");
+        // CRYPTO-ATTEST-1: a matching digest with no verified signature is
+        // "digest-only", NOT "verified" (the old behavior called this verified,
+        // which anyone who could write the sidecar could forge).
+        let att = verify_plugin_with_pinned_key(&wasm, None).expect("verify ok");
         assert!(att.bundle_well_formed);
         assert!(att.payload_digest_match);
-        assert!(att.offline_verified());
+        assert!(att.digest_attested());
+        assert!(!att.signature_verified);
+        assert!(
+            !att.offline_verified(),
+            "a digest match alone is not cryptographic verification"
+        );
+        assert_eq!(att.attestation_level(), "digest-only");
         assert_eq!(att.rekor_log_index, None); // not present in this fixture
     }
 
@@ -416,7 +532,7 @@ mod tests {
     }
 
     #[test]
-    fn offline_verified_requires_both_bundle_present_and_match() {
+    fn digest_attested_requires_bundle_present_and_match_and_verified_adds_signature() {
         let mut a = PluginAttestation {
             plugin_sha256: "00".repeat(32),
             bundle_path: None,
@@ -425,16 +541,91 @@ mod tests {
             payload_digest_match: true,
             rekor_log_index: None,
             sbom: None,
+            signature_verified: false,
+            signature_checked: false,
         };
-        assert!(!a.offline_verified(), "bundle_path None fails");
+        assert!(!a.digest_attested(), "bundle_path None fails");
         a.bundle_path = Some(PathBuf::from("x"));
         a.bundle_well_formed = false;
-        assert!(!a.offline_verified(), "not well-formed fails");
+        assert!(!a.digest_attested(), "not well-formed fails");
         a.bundle_well_formed = true;
         a.payload_digest_match = false;
-        assert!(!a.offline_verified(), "digest mismatch fails");
+        assert!(!a.digest_attested(), "digest mismatch fails");
         a.payload_digest_match = true;
-        assert!(a.offline_verified(), "all three required");
+        assert!(
+            a.digest_attested(),
+            "all three required for digest attestation"
+        );
+
+        // CRYPTO-ATTEST-1: digest-only must NOT count as verified; that needs a
+        // cryptographically verified signature on top.
+        assert!(
+            !a.offline_verified(),
+            "offline_verified requires a verified signature, not just a digest"
+        );
+        assert_eq!(a.attestation_level(), "digest-only");
+        a.signature_verified = true;
+        assert!(
+            a.offline_verified(),
+            "digest + verified signature ⇒ verified"
+        );
+        assert_eq!(a.attestation_level(), "key-verified");
+    }
+
+    #[test]
+    fn pinned_key_signature_verification_end_to_end() {
+        use ed25519_dalek::{Signer, SigningKey};
+
+        let dir = tempdir().unwrap();
+        let payload = b"signed-plugin-bytes";
+        let wasm = write_wasm(dir.path(), "signed.wasm", payload);
+
+        // Operator's Ed25519 keypair (deterministic seed for the test).
+        let sk = SigningKey::from_bytes(&[7u8; 32]);
+        let pubkey_hex = hex::encode(sk.verifying_key().as_bytes());
+
+        // cosign `sign-blob`-style: Ed25519 signature over the artifact bytes,
+        // with the digest also present in the bundle.
+        let sig_b64 = base64::engine::general_purpose::STANDARD.encode(sk.sign(payload).to_bytes());
+        let mut h = Sha256::new();
+        h.update(payload);
+        let digest_b64 = base64::engine::general_purpose::STANDARD.encode(h.finalize());
+        let bundle = serde_json::json!({
+            "mediaType": "application/vnd.dev.sigstore.bundle.v0.3+json",
+            "messageSignature": {
+                "messageDigest": { "algorithm": "SHA2_256", "digest": digest_b64 },
+                "signature": sig_b64,
+            },
+        });
+        std::fs::write(
+            dir.path().join("signed.wasm.sigstore.json"),
+            serde_json::to_vec(&bundle).unwrap(),
+        )
+        .unwrap();
+
+        // Correct pinned key ⇒ key-verified.
+        let ok = verify_plugin_with_pinned_key(&wasm, Some(&pubkey_hex)).expect("verify ok");
+        assert!(ok.payload_digest_match);
+        assert!(ok.signature_checked);
+        assert!(
+            ok.signature_verified,
+            "the pinned key must verify the signature"
+        );
+        assert!(ok.offline_verified());
+        assert_eq!(ok.attestation_level(), "key-verified");
+
+        // Wrong pinned key ⇒ checked but not verified; never "verified".
+        let wrong_hex = hex::encode(
+            SigningKey::from_bytes(&[9u8; 32])
+                .verifying_key()
+                .as_bytes(),
+        );
+        let bad = verify_plugin_with_pinned_key(&wasm, Some(&wrong_hex)).expect("verify ok");
+        assert!(bad.signature_checked);
+        assert!(!bad.signature_verified);
+        assert!(!bad.offline_verified());
+        assert!(bad.digest_attested());
+        assert_eq!(bad.attestation_level(), "digest-only");
     }
 
     #[test]

@@ -119,20 +119,39 @@ fn load_model(name: &str, path: &Path) -> Result<LoadedModel> {
     })
 }
 
+/// FNV-1a 64-bit, vendored and versioned (DET-REASONING-1).
+///
+/// The previous tokenizer bucketed trigrams with `std`'s `DefaultHasher`
+/// (SipHash), whose output is explicitly **not** stable across std versions or
+/// targets by contract. Because the resulting feature vector feeds the signed
+/// `ml_scores`, an unstable hash means two builds of the same source sign
+/// different receipts (the chain hash diverges). FNV-1a with explicit
+/// constants is a fixed function of the bytes, so the buckets — and the signed
+/// score — are reproducible across toolchains and machines.
+///
+/// `v1` constants: offset basis `0xcbf29ce484222325`, prime `0x100000001b3`.
+/// Changing them is a wire change (re-version + CHANGELOG).
+fn fnv1a64(bytes: &[u8]) -> u64 {
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    for &b in bytes {
+        hash ^= b as u64;
+        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    hash
+}
+
 /// MVP tokenizer: hash byte n-grams (n=3) into a fixed-size float32 vector.
-/// Deterministic given the same input string, which is what receipt
-/// replay needs. Produces a `[1, INPUT_DIM]` shape.
+/// Deterministic given the same input string AND stable across toolchains
+/// (FNV-1a, see [`fnv1a64`]), which is what receipt replay needs. Produces a
+/// `[1, INPUT_DIM]` shape.
 fn tokenize(input: &EvalInput) -> Vec<f32> {
-    use std::hash::{Hash, Hasher};
     let mut feats = vec![0.0f32; INPUT_DIM];
     let payload = input.payload_text.as_bytes();
     if payload.len() < 3 {
         return feats;
     }
     for window in payload.windows(3) {
-        let mut h = std::collections::hash_map::DefaultHasher::new();
-        window.hash(&mut h);
-        let bucket = (h.finish() as usize) % INPUT_DIM;
+        let bucket = (fnv1a64(window) as usize) % INPUT_DIM;
         feats[bucket] += 1.0;
     }
     let max = feats.iter().cloned().fold(0.0f32, f32::max);
@@ -180,6 +199,20 @@ fn run_one(model: &LoadedModel, input_vec: &[f32]) -> Result<f32> {
         })
 }
 
+/// Quantize an f32 model score onto a fixed `1e-6` grid (as f64) before it
+/// enters the signed `ml_scores` (DET-REASONING-2).
+///
+/// The raw f32 ONNX output can differ by a few ULP across microarchitectures
+/// (SIMD/FMA), which would change the signed bytes — and therefore the chain
+/// hash — between two builds of the same model on different hardware. Rounding
+/// to six decimals absorbs those sub-grid differences. This is a best-effort
+/// mitigation, not a hardware-independence guarantee: a score sitting exactly on
+/// a grid boundary can still tip. Pair with the versioned FNV tokenizer
+/// (DET-REASONING-1) for the input side.
+fn quantize_score(s: f32) -> f64 {
+    (f64::from(s) * 1_000_000.0).round() / 1_000_000.0
+}
+
 #[async_trait]
 impl ReasoningEngine for TractEngine {
     async fn evaluate(&self, input: &EvalInput) -> MlEvidence {
@@ -192,7 +225,7 @@ impl ReasoningEngine for TractEngine {
         for m in &self.models {
             match run_one(m, &feats) {
                 Ok(s) => {
-                    scores.insert(m.name.clone(), json!({ "score": s as f64 }));
+                    scores.insert(m.name.clone(), json!({ "score": quantize_score(s) }));
                 }
                 Err(e) => {
                     // Soft-fail: the model contributes nothing this round, but
@@ -238,5 +271,54 @@ pub fn parse_env_spec(env_value: Option<&str>) -> Vec<(String, PathBuf)> {
                 }
             })
             .collect(),
+    }
+}
+
+#[cfg(test)]
+mod tokenize_golden_tests {
+    use super::*;
+    use crate::evidence::EvalInput;
+
+    /// DET-REASONING-1: lock the FNV-1a tokenizer output. The feature vector
+    /// feeds the signed `ml_scores`; a toolchain/target change or an accidental
+    /// hash swap that would silently re-bucket the trigrams (and so change the
+    /// signed receipt) is caught here. Buckets are the trigrams of "sentinel".
+    #[test]
+    fn tokenize_is_byte_stable_golden() {
+        let input = EvalInput::new("a", "t", "http", "sentinel");
+        let feats = tokenize(&input);
+        assert_eq!(feats.len(), INPUT_DIM);
+
+        let mut expected = vec![0.0f32; INPUT_DIM];
+        expected[33] = 0.5;
+        expected[34] = 0.5;
+        expected[48] = 1.0; // two trigrams collide here -> the max
+        expected[49] = 0.5;
+        expected[58] = 0.5;
+        assert_eq!(feats, expected, "FNV-1a tokenizer buckets drifted");
+
+        // Determinism: identical input yields the identical vector.
+        assert_eq!(tokenize(&input), feats);
+    }
+
+    #[test]
+    fn tokenize_short_input_is_all_zero() {
+        let input = EvalInput::new("a", "t", "http", "ab");
+        assert_eq!(tokenize(&input), vec![0.0f32; INPUT_DIM]);
+    }
+
+    /// DET-REASONING-2: the f32→signed-score quantization is on a fixed 1e-6
+    /// grid, so two ULP-apart f32 outputs collapse to the same signed value.
+    #[test]
+    fn quantize_score_is_on_a_micro_grid() {
+        assert_eq!(quantize_score(0.5), 0.5);
+        assert_eq!(quantize_score(0.0), 0.0);
+        // The result is an integer number of micro-units over 1e6.
+        assert_eq!(quantize_score(0.333_333_4_f32), 333_333.0 / 1_000_000.0);
+        // Two ULP-apart f32 inputs collapse to the same signed value.
+        assert_eq!(
+            quantize_score(0.333_333_4_f32),
+            quantize_score(0.333_333_45_f32)
+        );
     }
 }

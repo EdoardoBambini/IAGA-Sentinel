@@ -108,6 +108,13 @@ pub struct DictumEvalTrace {
     /// decision.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub policies_fired: Vec<String>,
+    /// Hex-encoded SHA-256 of the fired policy's `evidence` value (NOT the raw
+    /// evidence — same digests-only posture as [`PipelineInputsCapture`]). Binds
+    /// *which* policy evidence drove the verdict into the signed bytes
+    /// (PIP-DICTUM-UNBOUND). Appended last and elided when absent, so receipts
+    /// produced before this field stay byte-identical.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub evidence_sha256: Option<String>,
 }
 
 /// ML reasoning inputs captured alongside the verdict. Records the
@@ -146,6 +153,12 @@ pub struct ReceiptBody {
     pub parent_hash: Option<String>,
     pub input_hash: String,
     pub policy_hash: String,
+    /// Hex-encoded SHA-256 of the active threat-intel feed that contributed to
+    /// this verdict (DET-THREAT-1). Binds *which* feed version decided, so the
+    /// signed score is reproducible. Optional and additive: elided when absent,
+    /// so receipts produced before this field stay byte-identical.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub threat_feed_hash: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub plugin_digests: Vec<PluginDigest>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

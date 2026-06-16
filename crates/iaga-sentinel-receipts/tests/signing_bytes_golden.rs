@@ -23,6 +23,7 @@ fn minimal_body() -> ReceiptBody {
         parent_hash: None,
         input_hash: "a".repeat(64),
         policy_hash: "b".repeat(64),
+        threat_feed_hash: None,
         plugin_digests: vec![],
         model_digests: vec![],
         ml_scores: None,
@@ -101,6 +102,7 @@ fn dictum_trace_body() -> ReceiptBody {
             policy_hash: "b".repeat(64),
             policies_evaluated: 3,
             policies_fired: vec!["high_risk".into()],
+            evidence_sha256: None,
         }),
         ..minimal_body()
     }
@@ -149,6 +151,7 @@ fn kitchen_sink_body() -> ReceiptBody {
         parent_hash: Some("9".repeat(64)),
         input_hash: "a".repeat(64),
         policy_hash: "b".repeat(64),
+        threat_feed_hash: None,
         plugin_digests: plugin_body().plugin_digests,
         model_digests: ml_body().model_digests,
         ml_scores: ml_body().ml_scores,

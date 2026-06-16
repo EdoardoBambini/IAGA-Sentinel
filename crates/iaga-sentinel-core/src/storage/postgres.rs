@@ -909,6 +909,8 @@ fn pg_row_to_audit(row: &sqlx::postgres::PgRow) -> StoredAuditEvent {
             serde_json::from_value(serde_json::Value::String(s)).unwrap_or(ActionType::Custom)
         },
         tool_name: row.try_get("tool_name").unwrap_or_default(),
+        // Not persisted as a column; only meaningful at receipt-creation time.
+        input_sha256: String::new(),
         decision: {
             let s: String = row.try_get("decision").unwrap_or_default();
             serde_json::from_value(serde_json::Value::String(s))
@@ -1073,7 +1075,7 @@ impl NhiStore for PostgresStorage {
         )
         .bind(&identity.agent_id)
         .bind(&identity.spiffe_id)
-        .bind(&identity.public_key_hex)
+        .bind(&identity.key_commitment)
         .bind(secret_key_hex)
         .bind(&identity.attestation_status)
         .bind(identity.trust_score)
@@ -1100,7 +1102,7 @@ impl NhiStore for PostgresStorage {
             AgentIdentity {
                 agent_id: r.try_get("agent_id").unwrap_or_default(),
                 spiffe_id: r.try_get("spiffe_id").unwrap_or_default(),
-                public_key_hex: r.try_get("public_key_hex").unwrap_or_default(),
+                key_commitment: r.try_get("public_key_hex").unwrap_or_default(),
                 created_at: r.try_get("created_at").unwrap_or_default(),
                 attestation_status: r.try_get("attestation_status").unwrap_or_default(),
                 trust_score: r.try_get("trust_score").unwrap_or(0.0),
@@ -1137,7 +1139,7 @@ impl NhiStore for PostgresStorage {
                 AgentIdentity {
                     agent_id: r.try_get("agent_id").unwrap_or_default(),
                     spiffe_id: r.try_get("spiffe_id").unwrap_or_default(),
-                    public_key_hex: r.try_get("public_key_hex").unwrap_or_default(),
+                    key_commitment: r.try_get("public_key_hex").unwrap_or_default(),
                     created_at: r.try_get("created_at").unwrap_or_default(),
                     attestation_status: r.try_get("attestation_status").unwrap_or_default(),
                     trust_score: r.try_get("trust_score").unwrap_or(0.0),

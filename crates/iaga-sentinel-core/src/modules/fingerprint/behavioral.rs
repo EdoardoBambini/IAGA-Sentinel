@@ -113,6 +113,13 @@ impl BehavioralEngine {
     /// Detect anomalies by comparing the current action against the agent's baseline.
     /// Returns a list of anomaly flag strings. Also updates the fingerprint's flags
     /// and anomaly_score.
+    ///
+    /// DET-BEHAVIORAL-2: these flags (novel tool, unusual hours, risk spike, new
+    /// action) are derived from process-global accumulated state that is NOT
+    /// captured in the receipt. The pipeline therefore treats them as **advisory**
+    /// only (surfaced for dashboards/alerts) and no longer folds them into the
+    /// signed score/decision — so reading the wall clock for `hour` here cannot
+    /// perturb a signed verdict's reproducibility.
     pub fn detect_anomalies(
         &self,
         agent_id: &str,
@@ -138,7 +145,11 @@ impl BehavioralEngine {
         // 2. Novel tool usage: tool not in top 5 and agent has > 20 requests
         if fp.total_requests > 20 {
             let mut tool_counts: Vec<(&String, &u64)> = fp.tool_usage.iter().collect();
-            tool_counts.sort_by(|a, b| b.1.cmp(a.1));
+            // DET-BEHAVIORAL-1: tool_usage is a HashMap; sorting only by count
+            // leaves ties at the rank-5 boundary resolved by process-random
+            // iteration order, which flips the `novel_tool_usage` flag (a signed
+            // receipt reason). Add a stable tiebreaker on the tool name.
+            tool_counts.sort_by(|a, b| b.1.cmp(a.1).then_with(|| a.0.cmp(b.0)));
             let top5: Vec<&String> = tool_counts.iter().take(5).map(|(k, _)| *k).collect();
             if !top5.contains(&&tool_name.to_string()) {
                 anomalies.push("novel_tool_usage".to_string());

@@ -179,11 +179,21 @@ impl LocalDiskSigner {
     }
 
     fn derive_key_id(vk: &VerifyingKey) -> String {
-        let mut hasher = Sha256::new();
-        hasher.update(vk.as_bytes());
-        let digest = hasher.finalize();
-        format!("ed25519-{}", hex::encode(&digest[..16]))
+        key_id_for_verifying_key(vk)
     }
+}
+
+/// Derive the stable `key_id` for a verifying key: `ed25519-<hex16>` where the
+/// 16 bytes are the first 16 of `SHA-256(pubkey)`. This is the same derivation
+/// [`LocalDiskSigner`] uses for its own `key_id`, exposed as a free function so
+/// an offline verifier can bind a receipt/export's *claimed* `signer_key_id` to
+/// the key that actually verified the chain (otherwise the `signer=` label an
+/// auditor reads is an unauthenticated, attacker-controllable string).
+pub fn key_id_for_verifying_key(vk: &VerifyingKey) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(vk.as_bytes());
+    let digest = hasher.finalize();
+    format!("ed25519-{}", hex::encode(&digest[..16]))
 }
 
 #[async_trait]
@@ -301,6 +311,7 @@ mod tests {
             parent_hash: None,
             input_hash: "00".repeat(32),
             policy_hash: "11".repeat(32),
+            threat_feed_hash: None,
             plugin_digests: vec![],
             model_digests: vec![],
             ml_scores: None,

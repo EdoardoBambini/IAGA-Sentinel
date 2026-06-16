@@ -14,7 +14,7 @@
 use std::path::{Path, PathBuf};
 
 use iaga_sentinel_dictum::{
-    evaluate_program, Context as DictumContext, EvalBudget, PolicyFired, Program,
+    evaluate_program_traced, Context as DictumContext, EvalTrace, Program, Value as DictumValue,
 };
 use sha2::{Digest, Sha256};
 use thiserror::Error;
@@ -34,6 +34,15 @@ pub enum DictumOverlayError {
         path: String,
         #[source]
         source: iaga_sentinel_dictum::DictumError,
+    },
+    /// The compiled bundle could not be serialized to compute its policy hash.
+    /// Fatal at startup: a receipt must never carry a fake "valid" hash
+    /// (CRYPTO-POLICYHASH-7b).
+    #[error("cannot hash Dictum bundle `{path}`: {source}")]
+    PolicyHash {
+        path: String,
+        #[source]
+        source: serde_json::Error,
     },
 }
 
@@ -56,7 +65,11 @@ impl DictumOverlay {
                 path: path.display().to_string(),
                 source: e,
             })?;
-        let policy_hash = compute_policy_hash(&program);
+        let policy_hash =
+            compute_policy_hash(&program).map_err(|e| DictumOverlayError::PolicyHash {
+                path: path.display().to_string(),
+                source: e,
+            })?;
         Ok(Self {
             program,
             source_path: path.to_path_buf(),
@@ -64,19 +77,24 @@ impl DictumOverlay {
         })
     }
 
-    /// Run the overlay against the given context. Returns the first
-    /// fired policy, or `None` if no policy in the bundle matched.
-    /// Errors during eval are logged at warn and treated as no-fire.
-    pub fn evaluate(&self, ctx: &DictumContext) -> Option<PolicyFired> {
-        let mut budget = EvalBudget::default();
-        match evaluate_program(&self.program, ctx, &mut budget) {
-            Ok(Some(fired)) => Some(fired),
-            Ok(None) => None,
-            Err(e) => {
-                tracing::warn!(error = %e, source = %self.source_path.display(), "dictum overlay eval error");
-                None
-            }
+    /// Run the overlay against the given context and return a full
+    /// [`EvalTrace`]: the first fired policy (if any), how many policies were
+    /// evaluated, the names that fired, and whether an eval error forced a
+    /// fail-closed decision.
+    ///
+    /// Unlike the old behaviour, an eval error is **not** treated as no-fire:
+    /// a Block/Review policy whose `when` errors fails closed with its own
+    /// verdict (PIP-DICTUM-FAILOPEN). Each policy's `when` gets its own budget
+    /// (DET-DICTUM-2). We still `warn!` so operators see the error.
+    pub fn evaluate(&self, ctx: &DictumContext) -> EvalTrace {
+        let trace = evaluate_program_traced(&self.program, ctx);
+        if trace.eval_errored {
+            tracing::warn!(
+                source = %self.source_path.display(),
+                "dictum overlay eval error; failing closed on Block/Review policies"
+            );
         }
+        trace
     }
 
     pub fn policy_hash(&self) -> &str {
@@ -95,11 +113,25 @@ impl DictumOverlay {
 /// SHA-256 of the canonical JSON encoding of the program. The encoding
 /// is deterministic given the AST (no maps, struct field order fixed
 /// in `iaga-sentinel-dictum`), so two byte-identical sources produce the same hash.
-fn compute_policy_hash(program: &Program) -> String {
-    let bytes = serde_json::to_vec(program)
-        .unwrap_or_else(|_| b"iaga-sentinel-dictum-bundle-error".to_vec());
+///
+/// A serialization error is **fatal** (returned to the caller, which fails the
+/// startup load): a receipt must never carry a constant fake-but-valid hash
+/// (CRYPTO-POLICYHASH-7b).
+fn compute_policy_hash(program: &Program) -> Result<String, serde_json::Error> {
+    let bytes = serde_json::to_vec(program)?;
     let mut hasher = Sha256::new();
     hasher.update(&bytes);
+    Ok(hex::encode(hasher.finalize()))
+}
+
+/// Hex-encoded SHA-256 of a fired policy's evidence value. Binds *which*
+/// evidence drove the verdict into the signed receipt without leaking the raw
+/// content (PIP-DICTUM-UNBOUND). `ponytail:` `Value` has no maps, so its
+/// `Display` is a deterministic canonical form — hash that, no extra
+/// serialization machinery.
+pub fn evidence_sha256(v: &DictumValue) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(format!("{v}").as_bytes());
     hex::encode(hasher.finalize())
 }
 
@@ -375,7 +407,7 @@ mod tests {
         let ctx = iaga_sentinel_dictum::Context::from_value(serde_json::json!({
             "risk": { "score": 95 }
         }));
-        let fired = overlay.evaluate(&ctx).expect("must fire");
+        let fired = overlay.evaluate(&ctx).fired.expect("must fire");
         assert_eq!(fired.policy_name, "high_risk");
         assert_eq!(fired.verdict, iaga_sentinel_dictum::Verdict::Block);
         let _ = std::fs::remove_file(&path);

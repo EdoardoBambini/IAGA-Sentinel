@@ -106,44 +106,20 @@ pub async fn run(raw: &str, config: &Config) -> GateOutcome {
                 .unwrap_or("");
             let reasons = justification_reasons(&result);
             match result.decision {
-                GovernanceDecision::Allow => {
-                    eprintln!(
-                        "[iaga-codex] allow (risk={}, receipt={receipt_id})",
-                        result.risk.score
-                    );
-                    GateOutcome::allow()
-                }
-                GovernanceDecision::Block => {
-                    eprintln!(
-                        "[iaga-codex] block (risk={}, receipt={receipt_id})",
-                        result.risk.score
-                    );
-                    let why = if reasons.is_empty() {
-                        "blocked by IAGA Sentinel policy".to_string()
-                    } else {
-                        reasons
-                    };
-                    GateOutcome::block(format!("IAGA Sentinel blocked this action: {why}"))
-                }
-                // Codex hooks have no confirmed "ask the user" response, so
-                // review maps to a conservative block until the spike says
-                // otherwise (an enforcement point must not auto-approve
-                // actions that require a human).
-                GovernanceDecision::Review => {
-                    eprintln!(
-                        "[iaga-codex] review -> conservative block (risk={}, receipt={receipt_id})",
-                        result.risk.score
-                    );
-                    let why = if reasons.is_empty() {
-                        "approve it from the IAGA Sentinel dashboard, then retry".to_string()
-                    } else {
-                        reasons
-                    };
-                    GateOutcome::block(format!(
-                        "IAGA Sentinel requires human review before this action runs: {why}"
-                    ))
-                }
+                GovernanceDecision::Allow => eprintln!(
+                    "[iaga-codex] allow (risk={}, receipt={receipt_id})",
+                    result.risk.score
+                ),
+                GovernanceDecision::Block => eprintln!(
+                    "[iaga-codex] block (risk={}, receipt={receipt_id})",
+                    result.risk.score
+                ),
+                GovernanceDecision::Review => eprintln!(
+                    "[iaga-codex] review -> conservative block (risk={}, receipt={receipt_id})",
+                    result.risk.score
+                ),
             }
+            outcome_for_decision(result.decision, &reasons)
         }
         Err(InspectError::AgentNotRegistered { agent_id, base_url }) => {
             eprintln!(
@@ -158,9 +134,55 @@ pub async fn run(raw: &str, config: &Config) -> GateOutcome {
                 ),
             )
         }
+        // SOUND-CODEX-1: a 401/403 is a bad/expired key, not an unreachable
+        // sidecar. Say so, with an actionable hint, instead of the misleading
+        // "unreachable" catch-all.
+        Err(InspectError::Http { status }) if status == 401 || status == 403 => {
+            eprintln!("[iaga-codex] no verdict: HTTP {status} (authentication failed)");
+            no_verdict_outcome(
+                config,
+                &format!(
+                    "authentication with IAGA Sentinel failed (HTTP {status}); \
+                     check the API key (IAGA_CODEX_API_KEY)"
+                ),
+            )
+        }
         Err(e) => {
             eprintln!("[iaga-codex] no verdict: {e}");
-            no_verdict_outcome(config, "the IAGA Sentinel sidecar is unreachable")
+            no_verdict_outcome(
+                config,
+                "the IAGA Sentinel sidecar is unreachable or returned an error",
+            )
+        }
+    }
+}
+
+/// Map a verdict to the gate outcome. Block and Review both **stop** the pending
+/// tool call (exit 2); Allow lets it proceed (exit 0). Review maps to a
+/// conservative block because Codex hooks have no confirmed "ask the user"
+/// response, and an enforcement point must not auto-approve an action that
+/// requires a human. Pure, so the enforcement contract is unit-testable
+/// (SOUND-CODEX-1): exit 2 is the one mechanism that blocks a Codex tool call.
+fn outcome_for_decision(decision: GovernanceDecision, reasons: &str) -> GateOutcome {
+    match decision {
+        GovernanceDecision::Allow => GateOutcome::allow(),
+        GovernanceDecision::Block => {
+            let why = if reasons.is_empty() {
+                "blocked by IAGA Sentinel policy".to_string()
+            } else {
+                reasons.to_string()
+            };
+            GateOutcome::block(format!("IAGA Sentinel blocked this action: {why}"))
+        }
+        GovernanceDecision::Review => {
+            let why = if reasons.is_empty() {
+                "approve it from the IAGA Sentinel dashboard, then retry".to_string()
+            } else {
+                reasons.to_string()
+            };
+            GateOutcome::block(format!(
+                "IAGA Sentinel requires human review before this action runs: {why}"
+            ))
         }
     }
 }
@@ -250,6 +272,25 @@ mod tests {
         // Pure-metadata lines are dropped; generic context is kept.
         assert!(!why.contains("agent-role:"));
         assert!(why.contains("shell execution requires elevated scrutiny"));
+    }
+
+    #[test]
+    fn block_and_review_stop_the_tool_call_with_exit_2() {
+        // SOUND-CODEX-1: prove the hard-enforce contract rather than only
+        // declaring it. Exit 2 is the value Codex treats as "block this call".
+        assert_eq!(EXIT_BLOCK, 2);
+        assert_eq!(
+            outcome_for_decision(GovernanceDecision::Allow, "").exit_code,
+            EXIT_ALLOW
+        );
+        let blocked = outcome_for_decision(GovernanceDecision::Block, "rm -rf /");
+        assert_eq!(blocked.exit_code, EXIT_BLOCK);
+        assert!(blocked.message.unwrap().contains("blocked this action"));
+        // Review is conservatively blocked (no auto-approve at an enforcement point).
+        assert_eq!(
+            outcome_for_decision(GovernanceDecision::Review, "needs a human").exit_code,
+            EXIT_BLOCK
+        );
     }
 
     #[test]

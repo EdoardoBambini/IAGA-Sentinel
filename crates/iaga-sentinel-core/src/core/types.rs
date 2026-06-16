@@ -251,6 +251,14 @@ pub struct GovernanceResult {
     pub threat_intel: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub plugin_results: Option<Vec<PluginOutput>>,
+    /// Advisory signals computed from process-global mutable state (session
+    /// burst + prior-block history, adaptive baseline velocity/novelty,
+    /// behavioral fingerprint anomalies). Surfaced for dashboards/alerting but
+    /// DELIBERATELY excluded from the signed verdict (`decision`/`risk`/
+    /// `reasons`), so the receipt stays reproducible from its recorded inputs
+    /// alone (D1 / DET-* cluster). `None` when no advisory signal fired.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub advisory: Option<serde_json::Value>,
 }
 
 // ── Review Request ──
@@ -282,6 +290,14 @@ pub struct StoredAuditEvent {
     pub framework: String,
     pub action_type: ActionType,
     pub tool_name: String,
+    /// SHA-256 (hex) of the canonical action payload. Computed once in the
+    /// pipeline and bound into the signed receipt's `input_hash`
+    /// (PROOF-INPUTHASH-BIND-3), so the receipt commits to *what* the action
+    /// did, not just which tool ran. Not persisted as an audit-store column;
+    /// `#[serde(default)]` leaves it empty for events read back from the DB or
+    /// deserialized from before this field existed.
+    #[serde(default)]
+    pub input_sha256: String,
     pub decision: GovernanceDecision,
     pub timestamp: String,
     pub reasons: Vec<String>,

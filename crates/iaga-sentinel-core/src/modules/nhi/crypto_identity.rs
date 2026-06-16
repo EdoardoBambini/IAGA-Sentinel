@@ -1,12 +1,21 @@
 //! LAYER 3, Non-Human Identity (NHI)
 //!
-//! SPIFFE-style identity for agents, HMAC-SHA256 attestation,
-//! capability tokens with expiry, and mutual verification.
+//! Per-agent identity built on a **symmetric HMAC-SHA256 key commitment**,
+//! capability tokens with expiry, and challenge-response attestation.
 //!
-//! **v0.2:** Real challenge-response attestation. The server issues a
-//! time-limited nonce, the agent signs it with its derived HMAC key,
-//! and the server verifies the signature. Simulated mode is preserved
-//! for backwards compatibility.
+//! **Honest scope (CRYPTO-NHI-2).** This is *not* an asymmetric PKI and the
+//! `spiffe_id` is a stable name, not a verifiable SPIFFE SVID. Each agent's
+//! secret is derived from a process master seed; `key_commitment` is
+//! `HMAC(secret, …)` — a value a holder of the secret can recompute, **not** a
+//! public key a relying party can verify on its own. Verification therefore
+//! requires the secret, so only the server (which holds every secret) can
+//! verify. Verifiable, relying-party-checkable asymmetric agent identity
+//! (Ed25519 / EUDI-wallet-bound credentials, roadmap 4.0) is part of IAGA
+//! Sentinel Enterprise, not this open build (ADR 0010).
+//!
+//! **Attestation.** Challenge-response: the server issues a time-limited nonce,
+//! the agent authenticates it with its derived HMAC key, and the server
+//! verifies. A simulated mode is preserved for backwards compatibility.
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -27,7 +36,12 @@ type HmacSha256 = Hmac<Sha256>;
 pub struct AgentIdentity {
     pub agent_id: String,
     pub spiffe_id: String,
-    pub public_key_hex: String,
+    /// Symmetric HMAC key commitment, `HMAC(secret, "public-key-derivation")`.
+    /// **Not** an asymmetric public key — verifying a signature against it still
+    /// requires the secret (CRYPTO-NHI-2). Accepts the old `publicKeyHex` JSON
+    /// key on input for back-compat.
+    #[serde(alias = "publicKeyHex")]
+    pub key_commitment: String,
     pub created_at: String,
     pub attestation_status: String,
     pub trust_score: f64,
@@ -100,30 +114,57 @@ static CHALLENGES: Lazy<Mutex<HashMap<String, StoredChallenge>>> =
 
 // ── Key Derivation ──
 
-fn get_master_seed() -> Vec<u8> {
-    std::env::var("IAGA_SENTINEL_NHI_MASTER_SEED")
-        .map(|s| s.into_bytes())
-        .unwrap_or_else(|_| {
+/// Process-wide NHI master seed, resolved exactly ONCE (DET-NHI-4).
+///
+/// Previously `get_master_seed` regenerated a fresh random seed on *every* call
+/// when the env was unset, so an agent's derived secret/token (and the trust
+/// that feeds the signed risk score) silently changed between two
+/// `register_identity` calls in the same process. Memoizing it gives a stable
+/// seed for the process lifetime — still ephemeral across restarts unless the
+/// env is set, which we warn about.
+static MASTER_SEED: Lazy<Vec<u8>> =
+    Lazy::new(|| match std::env::var("IAGA_SENTINEL_NHI_MASTER_SEED") {
+        Ok(s) => {
+            let bytes = s.into_bytes();
+            // ERG-NHI-SEED-VALIDATION-1: a short seed is weak key material.
+            // Warn (rather than hard-fail, to keep OSS dev ergonomics) so the
+            // operator knows to supply >= 32 bytes of high-entropy material.
+            if bytes.len() < 16 {
+                tracing::warn!(
+                    len = bytes.len(),
+                    "IAGA_SENTINEL_NHI_MASTER_SEED is shorter than 16 bytes; \
+                     use at least 32 bytes of high-entropy material"
+                );
+            }
+            bytes
+        }
+        Err(_) => {
             tracing::warn!(
-                "IAGA_SENTINEL_NHI_MASTER_SEED not set, using random ephemeral seed. \
-                 Set this env var for persistent identity across restarts."
+                "IAGA_SENTINEL_NHI_MASTER_SEED not set; using a random ephemeral seed for this \
+                 process. Identities will not persist across restarts — set the env var for \
+                 stable identities."
             );
-            // Generate a random seed for this process lifetime
             use rand::RngCore;
             let mut seed = [0u8; 32];
             rand::rngs::OsRng.fill_bytes(&mut seed);
             seed.to_vec()
-        })
+        }
+    });
+
+fn get_master_seed() -> &'static [u8] {
+    &MASTER_SEED
 }
 
 fn derive_keypair(agent_id: &str) -> (Vec<u8>, String) {
-    // Derive deterministic secret from agent_id + master seed
+    // Derive deterministic secret from agent_id + the process master seed.
     let master_seed = get_master_seed();
-    let mut mac = HmacSha256::new_from_slice(&master_seed).expect("HMAC accepts any key size");
+    let mut mac = HmacSha256::new_from_slice(master_seed).expect("HMAC accepts any key size");
     mac.update(agent_id.as_bytes());
     let secret = mac.finalize().into_bytes().to_vec();
 
-    // Public key = HMAC(secret, "public")
+    // Key commitment = HMAC(secret, …). NOT a public key: it is a symmetric
+    // digest of the secret, verifiable only by a holder of the secret
+    // (CRYPTO-NHI-2). The constant string is kept for wire/format stability.
     let mut pub_mac = HmacSha256::new_from_slice(&secret).expect("HMAC accepts any key size");
     pub_mac.update(b"public-key-derivation");
     let public = pub_mac.finalize().into_bytes();
@@ -168,7 +209,7 @@ pub fn register_identity(
     let identity = AgentIdentity {
         agent_id: agent_id.to_string(),
         spiffe_id,
-        public_key_hex: pub_hex,
+        key_commitment: pub_hex,
         created_at: Utc::now().to_rfc3339(),
         attestation_status: "registered".into(),
         trust_score: 0.5,
@@ -231,17 +272,27 @@ pub fn list_identities() -> Vec<AgentIdentity> {
 /// Attest an agent via simulated challenge-response (v0.1 backwards compatibility).
 ///
 /// For real attestation, use `create_challenge()` + `verify_attestation()`.
-pub fn attest_agent(agent_id: &str, challenge: &str) -> AttestationResult {
+pub fn attest_agent(agent_id: &str, _challenge: &str) -> AttestationResult {
     let store = IDENTITIES.lock().unwrap_or_else(|e| e.into_inner());
     if let Some(stored) = store.get(agent_id) {
-        let expected_sig = sign(&stored.secret_key, challenge);
-        let verified = verify_signature(&stored.secret_key, challenge, &expected_sig);
+        // CRYPTO-NHI-1: the previous implementation signed the challenge with the
+        // stored secret and then verified that very signature with the same
+        // secret, so `verified` was ALWAYS true for any registered agent — the
+        // caller proved nothing (no proof-of-possession). That false positive fed
+        // `mutual_attest`, which then minted an HMAC `session_token` for anyone who
+        // could merely name two registered agent ids. Simulated attestation is
+        // non-authoritative by construction: it confirms the identity is
+        // registered but MUST NOT claim verification. Real verification requires
+        // the challenge-response flow (`create_challenge` + `verify_attestation`).
         AttestationResult {
             agent_id: agent_id.to_string(),
-            verified,
+            verified: false,
             spiffe_id: stored.identity.spiffe_id.clone(),
             trust_score: stored.identity.trust_score,
-            reason: "simulated attestation, use /v1/nhi/challenge for real verification".into(),
+            reason: "agent is registered but simulated attestation proves no key \
+                     possession; use POST /v1/nhi/challenge then /v1/nhi/verify for \
+                     real challenge-response verification"
+                .into(),
             mode: "simulated".into(),
         }
     } else {
@@ -300,25 +351,35 @@ pub fn verify_attestation(
     challenge_id: &str,
     signature: &str,
 ) -> AttestationResult {
-    // Look up the challenge
-    let mut challenges = CHALLENGES.lock().unwrap_or_else(|e| e.into_inner());
-    let stored_challenge = match challenges.remove(challenge_id) {
-        Some(sc) => sc,
-        None => {
-            return AttestationResult {
-                agent_id: agent_id.to_string(),
-                verified: false,
-                spiffe_id: String::new(),
-                trust_score: 0.0,
-                reason: "challenge not found or already consumed".into(),
-                mode: "verified".into(),
-            };
+    // CRYPTO-NHI-3: peek the challenge WITHOUT consuming it. A challenge is
+    // single-use, but it must only be consumed by a *successful* verification —
+    // otherwise anyone who guesses a `challenge_id` could call this with the
+    // wrong agent/signature and consume a legitimate agent's challenge
+    // (denial-of-attestation). Expired ones are reaped by
+    // `prune_expired_challenges`.
+    let (owner, expires_at, nonce) = {
+        let challenges = CHALLENGES.lock().unwrap_or_else(|e| e.into_inner());
+        match challenges.get(challenge_id) {
+            Some(sc) => (
+                sc.challenge.agent_id.clone(),
+                sc.challenge.expires_at.clone(),
+                sc.challenge.nonce.clone(),
+            ),
+            None => {
+                return AttestationResult {
+                    agent_id: agent_id.to_string(),
+                    verified: false,
+                    spiffe_id: String::new(),
+                    trust_score: 0.0,
+                    reason: "challenge not found or already consumed".into(),
+                    mode: "verified".into(),
+                };
+            }
         }
     };
-    drop(challenges);
 
     // Check challenge belongs to this agent
-    if stored_challenge.challenge.agent_id != agent_id {
+    if owner != agent_id {
         return AttestationResult {
             agent_id: agent_id.to_string(),
             verified: false,
@@ -330,9 +391,7 @@ pub fn verify_attestation(
     }
 
     // Check expiry
-    if let Ok(expires) =
-        chrono::DateTime::parse_from_rfc3339(&stored_challenge.challenge.expires_at)
-    {
+    if let Ok(expires) = chrono::DateTime::parse_from_rfc3339(&expires_at) {
         if Utc::now() > expires {
             return AttestationResult {
                 agent_id: agent_id.to_string(),
@@ -349,16 +408,22 @@ pub fn verify_attestation(
     let identities = IDENTITIES.lock().unwrap_or_else(|e| e.into_inner());
     match identities.get(agent_id) {
         Some(stored) => {
-            let verified = verify_signature(
-                &stored.secret_key,
-                &stored_challenge.challenge.nonce,
-                signature,
-            );
+            let verified = verify_signature(&stored.secret_key, &nonce, signature);
+            let spiffe_id = stored.identity.spiffe_id.clone();
+            let trust_score = stored.identity.trust_score;
+            drop(identities);
+            if verified {
+                // Consume the challenge only now that it was used successfully.
+                CHALLENGES
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .remove(challenge_id);
+            }
             AttestationResult {
                 agent_id: agent_id.to_string(),
                 verified,
-                spiffe_id: stored.identity.spiffe_id.clone(),
-                trust_score: stored.identity.trust_score,
+                spiffe_id,
+                trust_score,
                 reason: if verified {
                     "challenge-response verified successfully".into()
                 } else {
@@ -394,6 +459,14 @@ pub fn get_agent_secret_hex(agent_id: &str) -> Option<String> {
     store.get(agent_id).map(|s| hex::encode(&s.secret_key))
 }
 
+/// Mutual attestation over the simulated path. CRYPTO-NHI-1: because
+/// `attest_agent` is non-authoritative (never returns `verified = true`), this
+/// never establishes `mutual_trust` and never mints a `session_token` — closing
+/// the bug where naming two registered agent ids yielded a valid HMAC token with
+/// no proof of possession. Genuine mutual attestation must run the
+/// challenge-response flow (`create_challenge` + `verify_attestation`) for each
+/// party; that managed orchestration is intentionally left as an Enterprise
+/// concern and is out of scope for this OSS helper.
 pub fn mutual_attest(initiator_id: &str, responder_id: &str) -> MutualAttestationResult {
     let challenge = Uuid::new_v4().to_string();
     let init_result = attest_agent(initiator_id, &challenge);
@@ -550,4 +623,14 @@ pub fn get_agent_trust(agent_id: &str) -> f64 {
         .get(agent_id)
         .map(|s| s.identity.trust_score)
         .unwrap_or(0.5)
+}
+
+/// Clear all process-global identity state (identities, tokens, challenges).
+/// The reputation signal reads `get_agent_trust`, which this resets to the
+/// default for every agent. Exposed so deterministic tests can reset the
+/// shared maps between runs; also useful for operational resets.
+pub fn reset_state() {
+    IDENTITIES.lock().unwrap_or_else(|e| e.into_inner()).clear();
+    TOKENS.lock().unwrap_or_else(|e| e.into_inner()).clear();
+    CHALLENGES.lock().unwrap_or_else(|e| e.into_inner()).clear();
 }

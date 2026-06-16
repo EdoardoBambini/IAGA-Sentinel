@@ -152,18 +152,30 @@ where
 
         match client.inspect(&request).await {
             Ok(result) => {
+                // CRYPTO-CODEX-1: a verdict with no `eventId` produces no
+                // replayable receipt. Count it as a gap (failed) instead of
+                // printing a green ATTESTED line with an empty receipt id that
+                // can never be verified.
+                let receipt_id = result
+                    .audit_event
+                    .get("eventId")
+                    .and_then(|v| v.as_str())
+                    .filter(|s| !s.is_empty())
+                    .map(|s| s.to_string());
+                let Some(receipt_id) = receipt_id else {
+                    eprintln!(
+                        "[iaga-codex] verdict for a `{item_type}` item carried no eventId; \
+                         not attested (no replayable receipt)"
+                    );
+                    summary.failed += 1;
+                    continue;
+                };
                 summary.attested += 1;
                 match result.decision {
                     GovernanceDecision::Allow => summary.allow += 1,
                     GovernanceDecision::Review => summary.review += 1,
                     GovernanceDecision::Block => summary.block += 1,
                 }
-                let receipt_id = result
-                    .audit_event
-                    .get("eventId")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string();
                 let record = Attested {
                     item_type,
                     decision: result.decision,

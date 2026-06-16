@@ -15,6 +15,7 @@ fn build_chain(signer: &ReceiptSigner, len: u64) -> Vec<Receipt> {
             parent_hash,
             input_hash: format!("{:064x}", i),
             policy_hash: "p".repeat(64),
+            threat_feed_hash: None,
             plugin_digests: vec![],
             model_digests: vec![],
             ml_scores: None,
@@ -82,6 +83,62 @@ fn tamper_middle_breaks_chain() {
             assert_eq!(seq, 25, "break should be at seq=25");
         }
         other => panic!("expected Broken at seq=25, got {:?}", other),
+    }
+}
+
+#[test]
+fn tamper_at_each_position_breaks_chain() {
+    // PROOF-CHAIN-EDGE-POS-5: tampering ANY position — genesis (seq 0), the
+    // middle, and the head (the receipt an attacker rewrites to alter the
+    // terminal verdict) — must break verification at exactly that seq, not only
+    // the one interior position the old test covered.
+    let signer = ReceiptSigner::generate();
+    let len = 20u64;
+    for pos in [0usize, (len / 2) as usize, (len - 1) as usize] {
+        let mut chain = build_chain(&signer, len);
+        chain[pos].body.reasons.push("tampered".to_string());
+        match verify_chain(&chain, &signer.verifying_key()).expect("verify returned") {
+            ChainStatus::Broken { seq, .. } => {
+                assert_eq!(seq as usize, pos, "break must be at the tampered position");
+            }
+            other => panic!("expected Broken at seq={pos}, got {other:?}"),
+        }
+    }
+}
+
+#[test]
+fn tail_truncation_still_verifies_as_a_shorter_prefix() {
+    // PROOF-CHAIN-EDGE-POS-5 + CRYPTO-EXPORT-TRUNC-7: dropping the last k
+    // receipts yields a chain that STILL verifies — `CHAIN OK` proves PREFIX
+    // integrity, not completeness. This pins (and documents) the limitation:
+    // tail truncation is indistinguishable from a complete shorter chain
+    // without an external anchor (Enterprise eIDAS B-LTA).
+    let signer = ReceiptSigner::generate();
+    let mut chain = build_chain(&signer, 30);
+    chain.truncate(20); // drop the last 10
+    let status = verify_chain(&chain, &signer.verifying_key()).expect("verify ok");
+    assert_eq!(
+        status,
+        ChainStatus::Valid { receipt_count: 20 },
+        "a truncated tail still verifies as a shorter prefix (documented limitation)"
+    );
+}
+
+#[test]
+fn middle_deletion_breaks_the_seq_run() {
+    // Deleting a middle receipt leaves a gap in the contiguous 0..N-1 seq run,
+    // so the first receipt after the gap fails the monotonic-seq check.
+    let signer = ReceiptSigner::generate();
+    let mut chain = build_chain(&signer, 10);
+    chain.remove(5); // seqs are now 0,1,2,3,4,6,7,8,9
+    match verify_chain(&chain, &signer.verifying_key()).expect("verify returned") {
+        ChainStatus::Broken { seq, .. } => {
+            assert_eq!(
+                seq, 6,
+                "the gap surfaces at the first post-gap receipt (body.seq=6)"
+            );
+        }
+        other => panic!("expected Broken after middle deletion, got {other:?}"),
     }
 }
 

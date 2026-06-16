@@ -19,7 +19,7 @@
 use std::path::{Path, PathBuf};
 
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
-use iaga_sentinel_receipts::LocalDiskSigner;
+use iaga_sentinel_receipts::{key_id_for_verifying_key, LocalDiskSigner};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
@@ -189,17 +189,28 @@ pub fn verify_signed_manifest(
         return out;
     };
 
-    let verified = trusted_keys
+    // CRYPTO-MANIFEST-1: find the trusted key that actually verifies the
+    // signature, then require its derived id to equal the manifest's *declared*
+    // `signer_key_id`. The old `.any()` reported the declared id without binding
+    // it to the verifying key, so with more than one trusted key a manifest
+    // signed by B could declare signer=A and be reported as A.
+    let verifying_key = trusted_keys
         .iter()
-        .any(|vk| verify_manifest_signature(&manifest_bytes, sig_hex.trim(), vk).is_ok());
+        .find(|vk| verify_manifest_signature(&manifest_bytes, sig_hex.trim(), vk).is_ok());
 
-    out.reason = Some(if verified {
-        "signature verified against a trusted key".into()
-    } else if trusted_keys.is_empty() {
-        "no trusted keys provided".into()
-    } else {
-        "signature did not match any trusted key".into()
-    });
+    let (verified, reason) = match verifying_key {
+        None if trusted_keys.is_empty() => (false, "no trusted keys provided"),
+        None => (false, "signature did not match any trusted key"),
+        Some(vk) if key_id_for_verifying_key(vk) == payload.signer_key_id => {
+            (true, "signature verified against the declared trusted key")
+        }
+        Some(_) => (
+            false,
+            "signature verifies but signer_key_id does not match the verifying key",
+        ),
+    };
+
+    out.reason = Some(reason.into());
     out.verified = verified;
     out.manifest = Some(payload);
     out
@@ -281,6 +292,51 @@ mod tests {
         let result = verify_signed_manifest(&wasm, &[]);
         assert!(!result.verified);
         assert_eq!(result.reason.as_deref(), Some("no trusted keys provided"));
+    }
+
+    #[test]
+    fn spoofed_signer_key_id_is_rejected() {
+        // CRYPTO-MANIFEST-1: attacker key B (also trusted) signs a manifest that
+        // DECLARES victim key A's id. The signature verifies under B, but the
+        // declared `signer_key_id` is bound to the verifying key, so this is
+        // rejected rather than reported as signed by A.
+        let dir = tempdir().unwrap();
+        let wasm = write_wasm(dir.path(), "p.wasm", b"\x00asm\x01\x00\x00\x00");
+        let victim = ReceiptSigner::generate();
+        let attacker = ReceiptSigner::generate();
+
+        // Build a payload that lies about the signer, then sign the *lying*
+        // bytes with the attacker key.
+        let bytes = std::fs::read(&wasm).unwrap();
+        let payload = PluginManifestPayload {
+            name: "p".into(),
+            version: "1.0.0".into(),
+            plugin_sha256: sha256_hex(&bytes),
+            created_at: "t".into(),
+            signer_key_id: victim.key_id().to_string(), // the lie
+            metadata: None,
+        };
+        let manifest_bytes = serde_json::to_vec_pretty(&payload).unwrap();
+        let sig = attacker.sign_detached(&manifest_bytes);
+        std::fs::write(
+            sibling_path(&wasm, "manifest.json").unwrap(),
+            &manifest_bytes,
+        )
+        .unwrap();
+        std::fs::write(
+            sibling_path(&wasm, "manifest.json.sig").unwrap(),
+            hex::encode(sig.to_bytes()),
+        )
+        .unwrap();
+
+        // Both keys are trusted; the spoof must still be rejected.
+        let result =
+            verify_signed_manifest(&wasm, &[victim.verifying_key(), attacker.verifying_key()]);
+        assert!(!result.verified, "spoofed signer_key_id must not verify");
+        assert_eq!(
+            result.reason.as_deref(),
+            Some("signature verifies but signer_key_id does not match the verifying key")
+        );
     }
 
     #[test]

@@ -172,16 +172,33 @@ pub fn flatten_command(value: &Json) -> String {
 }
 
 /// Derive a flattened `commandLine` string into a payload that carries a
-/// `command` field, so command/egress policies can substring-match it. This
+/// command field, so command/egress policies can substring-match it. This
 /// is shared by both planes (the gate here and the ingest in
-/// [`crate::exec_stream`]). Additive: the original `command` is untouched,
-/// and a payload without `command` (or already carrying `commandLine`) is
+/// [`crate::exec_stream`]). Additive: the original command field is untouched,
+/// and a payload without a command (or already carrying `commandLine`) is
 /// left as-is.
+///
+/// SOUND-CODEX-2: the Dictum compiler also accepts `cmd` / `argv` as the
+/// command key, so a payload using one of those must still synthesize
+/// `commandLine` — otherwise a `contains(action.payload.commandLine, …)` rule
+/// silently never fires. We check `command`, then `cmd`, then `argv`.
+///
+/// ponytail (DET-CODEX-1): the payload map is a `HashMap`, so its wire key order
+/// is non-deterministic — left as-is on purpose. It is provably harmless: the
+/// signed `input_hash` is computed server-side over the *canonical* (sorted-key)
+/// payload, so the transient request order never reaches a signed artifact, and
+/// the firewall/policies inspect content, not order. Switching the shared
+/// integrations contract to `BTreeMap` would churn every adapter for no
+/// signed-determinism gain.
 pub fn add_command_line(payload: &mut HashMap<String, Json>) {
     if payload.contains_key("commandLine") {
         return;
     }
-    let line = match payload.get("command") {
+    let line = match payload
+        .get("command")
+        .or_else(|| payload.get("cmd"))
+        .or_else(|| payload.get("argv"))
+    {
         Some(command) => flatten_command(command),
         None => return,
     };

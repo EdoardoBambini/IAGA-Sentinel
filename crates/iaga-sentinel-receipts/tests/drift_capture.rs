@@ -26,6 +26,7 @@ fn legacy_11_body() -> ReceiptBody {
         parent_hash: None,
         input_hash: "a".repeat(64),
         policy_hash: "b".repeat(64),
+        threat_feed_hash: None,
         plugin_digests: vec![],
         model_digests: vec![],
         ml_scores: None,
@@ -109,6 +110,7 @@ fn capture_fields_populated_roundtrip_through_signing_bytes() {
         policy_hash: "b".repeat(64),
         policies_evaluated: 3,
         policies_fired: vec!["no-pii-egress".into()],
+        evidence_sha256: None,
     });
     body.ml_inference_inputs = Some(MlInferenceInputs {
         tokenized_digests: vec![MlTokenDigest {
@@ -151,6 +153,7 @@ fn body_hash_differs_when_capture_populated() {
         policy_hash: "b".repeat(64),
         policies_evaluated: 1,
         policies_fired: vec!["p".into()],
+        evidence_sha256: None,
     });
     assert_ne!(
         body_legacy.body_hash().expect("hash legacy"),

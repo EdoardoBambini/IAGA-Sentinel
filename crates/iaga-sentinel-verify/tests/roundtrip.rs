@@ -16,6 +16,7 @@ fn build_chain(signer: &ReceiptSigner, len: u64) -> Vec<Receipt> {
             parent_hash,
             input_hash: format!("{:064x}", i),
             policy_hash: "p".repeat(64),
+            threat_feed_hash: None,
             plugin_digests: vec![],
             model_digests: vec![],
             ml_scores: None,
@@ -93,6 +94,29 @@ fn json_roundtrip_preserves_chain() {
     let parsed: ChainExport = serde_json::from_str(&json).expect("parse");
     let (status, _) = verify_export(&parsed, None).expect("verify ok");
     assert_eq!(status, ChainStatus::Valid { receipt_count: 4 });
+}
+
+#[test]
+fn lying_export_signer_id_is_rejected() {
+    // PROOF-VERIFY-SIGNERID-4: an attacker signs a self-consistent chain with
+    // their OWN key and embeds their own verifying key, but advertises a different
+    // `signer_key_id` (a victim's). Every signature verifies, yet the printed
+    // `signer=` would be a lie. `verify_export` must bind the claimed id to the
+    // key that actually verifies and reject the mismatch.
+    let attacker = ReceiptSigner::generate();
+    let chain = build_chain(&attacker, 3);
+    let mut export = export_for(&attacker, chain);
+    export.signer_key_id = "ed25519-0000000000000000".into(); // a lie, not the attacker's id
+    let (status, _) = verify_export(&export, None).expect("verify returns");
+    match status {
+        ChainStatus::Broken { reason, .. } => {
+            assert!(
+                reason.contains("signer_key_id mismatch"),
+                "expected a signer mismatch, got: {reason}"
+            );
+        }
+        other => panic!("expected Broken, got {other:?}"),
+    }
 }
 
 #[test]

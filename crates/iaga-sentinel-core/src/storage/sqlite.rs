@@ -493,6 +493,9 @@ impl AuditRow {
             action_type: serde_json::from_value(serde_json::Value::String(self.action_type))
                 .unwrap_or(ActionType::Custom),
             tool_name: self.tool_name,
+            // Not persisted as a column; only meaningful at receipt-creation
+            // time. Empty on read-back.
+            input_sha256: String::new(),
             decision: serde_json::from_value(serde_json::Value::String(self.decision))
                 .unwrap_or(GovernanceDecision::Block),
             risk_score: self.risk_score as u32,
@@ -1186,7 +1189,7 @@ impl NhiStore for SqliteStorage {
         )
         .bind(&identity.agent_id)
         .bind(&identity.spiffe_id)
-        .bind(&identity.public_key_hex)
+        .bind(&identity.key_commitment)
         .bind(secret_key_hex)
         .bind(&identity.attestation_status)
         .bind(identity.trust_score)
@@ -1216,7 +1219,7 @@ impl NhiStore for SqliteStorage {
                 Ok(Some(AgentIdentity {
                     agent_id: r.try_get("agent_id")?,
                     spiffe_id: r.try_get("spiffe_id")?,
-                    public_key_hex: r.try_get("public_key_hex")?,
+                    key_commitment: r.try_get("public_key_hex")?,
                     created_at: r.try_get("created_at")?,
                     attestation_status: r.try_get("attestation_status")?,
                     trust_score: r.try_get("trust_score").unwrap_or(0.5),
@@ -1253,7 +1256,7 @@ impl NhiStore for SqliteStorage {
             identities.push(AgentIdentity {
                 agent_id: r.try_get("agent_id")?,
                 spiffe_id: r.try_get("spiffe_id")?,
-                public_key_hex: r.try_get("public_key_hex")?,
+                key_commitment: r.try_get("public_key_hex")?,
                 created_at: r.try_get("created_at")?,
                 attestation_status: r.try_get("attestation_status")?,
                 trust_score: r.try_get("trust_score").unwrap_or(0.5),

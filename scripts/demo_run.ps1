@@ -83,7 +83,7 @@ function Select-Beat {
 
 Write-Banner 'IAGA SENTINEL  -  LIVE GOVERNANCE  (one signed session)' 'White' 'DarkBlue'
 Write-Host ("Server  : {0}" -f $BaseUrl)
-Write-Host ("Session : {0}   (all 3 beats chain into run_id={0})" -f $SessionId)
+Write-Host ("Session : {0}   (all 3 beats chain into one run, run_id = <agentId>:{0})" -f $SessionId)
 
 # Determinism guard: reset adaptive risk weights to defaults. In open mode the
 # request authenticates as implicit admin, so no token is needed. The driver

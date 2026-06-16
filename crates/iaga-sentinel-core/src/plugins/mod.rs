@@ -14,7 +14,8 @@ pub use types::{PluginInspectRequest, PluginManifest, PluginOutput, PluginResult
 
 #[cfg(feature = "plugin-attestation")]
 pub use attestation::{
-    parse_sbom_cyclonedx, verify_plugin, AttestationError, PluginAttestation, SbomError, SbomReport,
+    parse_sbom_cyclonedx, verify_plugin, verify_plugin_with_pinned_key, AttestationError,
+    PluginAttestation, SbomError, SbomReport,
 };
 
 #[cfg(feature = "plugin-manifest-signing")]

@@ -4,6 +4,7 @@ use std::sync::Arc;
 use chrono::Utc;
 use once_cell::sync::Lazy;
 use regex::Regex;
+use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use crate::core::errors::SentinelError;
@@ -53,8 +54,26 @@ pub async fn execute_pipeline(
     input: &InspectRequest,
     state: &Arc<AppState>,
 ) -> Result<GovernanceResult, SentinelError> {
+    execute_pipeline_at(input, state, Utc::now()).await
+}
+
+/// Pipeline core with an injectable decision time. `decision_time` is the
+/// single wall-clock reading for the whole evaluation: it stamps the receipt
+/// and feeds every time-based *signed* signal (off-hours), so the signed
+/// verdict is a pure function of (request + resolved policy + decision_time +
+/// ML digest) and is reproducible on replay (DET-CLOCK-1 / DET-SESSION-2 /
+/// DET-BEHAVIORAL-2). Tests pin it to assert bit-exact replay; the public
+/// `execute_pipeline` wrapper passes `Utc::now()`.
+pub async fn execute_pipeline_at(
+    input: &InspectRequest,
+    state: &Arc<AppState>,
+    decision_time: chrono::DateTime<Utc>,
+) -> Result<GovernanceResult, SentinelError> {
     let pipeline_start = std::time::Instant::now();
     let trace_id = Uuid::new_v4().to_string();
+    // The one timestamp for this evaluation: receipt + every signed time
+    // signal read from it, never from a fresh `Utc::now()`.
+    let decision_ts = decision_time.to_rfc3339();
 
     tracing::debug!(
         trace_id = %trace_id,
@@ -81,6 +100,34 @@ pub async fn execute_pipeline(
         .or(profile.tenant_id.clone())
         .or(workspace_policy.tenant_id.clone());
 
+    // CRYPTO-POLICYHASH-7a: digest the real resolved workspace policy so every
+    // receipt binds the YAML that decided the verdict (was a constant
+    // placeholder). Computed once, before `workspace_policy` is moved into the
+    // result; the receipt logger uses it unless a Dictum overlay is loaded.
+    let workspace_policy_hash =
+        crate::pipeline::policy_hash::workspace_policy_hash(&workspace_policy);
+    // DET-THREAT-1: digest of the active threat-intel feed that contributes to
+    // the signed score, so the verdict is reproducible against the exact feed.
+    let threat_feed_hash = state.threat_feed.feed_hash();
+
+    // Serialize the action payload ONCE (PERF-PAYLOAD-3X-1) and bind its
+    // digest into the receipt (PROOF-INPUTHASH-BIND-3). `payload_str` is
+    // reused by the firewall, threat-intel, reasoning and tool-risk layers;
+    // `input_sha256` is hashed over the canonical (serde_json sorts object
+    // keys with preserve_order off) form, so it is stable regardless of the
+    // request's key order. Hoisted above the rate-limit gate so the fast-path
+    // receipt binds the payload too.
+    let payload_json = serde_json::Value::Object(
+        input
+            .action
+            .payload
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect(),
+    );
+    let payload_str = serde_json::to_string(&payload_json).unwrap_or_default();
+    let input_sha256 = hex::encode(Sha256::digest(payload_str.as_bytes()));
+
     // ═══════════════════════════════════════════════════════════════
     // RATE LIMIT CHECK, runs before all security layers
     // ═══════════════════════════════════════════════════════════════
@@ -90,18 +137,23 @@ pub async fn execute_pipeline(
         .await;
 
     if !rate_result.allowed {
-        let now = Utc::now().to_rfc3339();
+        let now = decision_ts.clone();
         let event_id = Uuid::new_v4().to_string();
         let finding = format!(
             "Rate limit exceeded (remaining={}, retry_after={}s)",
             rate_result.remaining,
             rate_result.retry_after_secs.unwrap_or(0)
         );
+        // DET-RATELIMIT-1: this verdict depends on `Instant::now()` and an
+        // in-memory sliding window, so its receipt cannot be reproduced by
+        // replay. Mark it so the signed receipt honestly declares its own
+        // non-replayability instead of looking like a deterministic verdict.
+        let reasons = vec![finding.clone(), "non-replayable:rate-limit".to_string()];
 
         let risk = RiskScore {
             score: 0,
             decision: GovernanceDecision::Block,
-            reasons: vec![finding.clone()],
+            reasons: reasons.clone(),
         };
 
         let audit_event = AuditEvent {
@@ -112,7 +164,7 @@ pub async fn execute_pipeline(
             tool_name: input.action.tool_name.clone(),
             decision: GovernanceDecision::Block,
             timestamp: now.clone(),
-            reasons: vec![finding.clone()],
+            reasons: reasons.clone(),
         };
 
         let stored = StoredAuditEvent {
@@ -122,6 +174,7 @@ pub async fn execute_pipeline(
             framework: audit_event.framework.clone(),
             action_type: audit_event.action_type,
             tool_name: audit_event.tool_name.clone(),
+            input_sha256: input_sha256.clone(),
             decision: GovernanceDecision::Block,
             timestamp: audit_event.timestamp.clone(),
             reasons: audit_event.reasons.clone(),
@@ -140,8 +193,20 @@ pub async fn execute_pipeline(
             tracing::error!(event_id = %stored.event_id, error = %e, "Failed to persist audit event");
         }
         if let Some(rl) = state.receipts.as_ref() {
-            // Fast-path block: no ML evidence or usage at this stage.
-            rl.record(&stored, None, None).await;
+            // Fast-path block: no ML evidence or usage at this stage. The rate
+            // limiter short-circuits before the Dictum overlay, so bind the
+            // resolved workspace policy + threat-feed hashes and no Dictum trace.
+            rl.record(
+                &stored,
+                None,
+                None,
+                crate::pipeline::receipts::ReceiptContext {
+                    policy_hash: Some(&workspace_policy_hash),
+                    threat_feed_hash: Some(&threat_feed_hash),
+                    dictum_trace: None,
+                },
+            )
+            .await;
         }
 
         return Ok(GovernanceResult {
@@ -175,6 +240,7 @@ pub async fn execute_pipeline(
             behavioral_fingerprint: None,
             threat_intel: None,
             plugin_results: None,
+            advisory: None,
         });
     }
 
@@ -185,15 +251,8 @@ pub async fn execute_pipeline(
     let schema_validation = validate_protocol_payload(input, protocol);
 
     let action_type_s = action_type_str(input.action.action_type);
-    let payload_json = serde_json::Value::Object(
-        input
-            .action
-            .payload
-            .iter()
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .collect(),
-    );
-    let payload_str = serde_json::to_string(&payload_json).unwrap_or_default();
+    // `payload_json` / `payload_str` / `input_sha256` were computed once above
+    // the rate-limit gate (PERF-PAYLOAD-3X-1).
 
     // ═══════════════════════════════════════════════════════════════
     // LAYER 7, Prompt Injection Firewall (runs FIRST, fastest gate)
@@ -327,7 +386,7 @@ pub async fn execute_pipeline(
         agent_trust,
         tool_trust: profile.tool_trust,
     };
-    let adaptive_result = adaptive_scorer::calculate_adaptive_risk(&adaptive_input);
+    let adaptive_result = adaptive_scorer::calculate_adaptive_risk(&adaptive_input, decision_time);
     let adaptive_json = serde_json::to_value(&adaptive_result).ok();
 
     // Update baseline for future behavioral analysis
@@ -407,6 +466,7 @@ pub async fn execute_pipeline(
         input,
         profile.role,
         Some(adaptive_result.total_score),
+        decision_time,
     );
     let secret_plan = plan_secret_injection(input, &profile);
     let secret_denied = !secret_plan.denied.is_empty();
@@ -597,16 +657,12 @@ pub async fn execute_pipeline(
         ));
     }
 
-    // ── Behavioral Fingerprint ──
-    if !fingerprint_anomalies.is_empty() {
-        layer_risks.behavioral = 60 + (fingerprint_anomalies.len() as u32 * 10).min(40);
-        for flag in &fingerprint_anomalies {
-            policy_findings.push(format!("behavioral fingerprint: {}", flag));
-        }
-        if minimum_decision != GovernanceDecision::Block {
-            minimum_decision = GovernanceDecision::Review;
-        }
-    }
+    // ── Behavioral Fingerprint (ADVISORY) ──
+    // DET-BEHAVIORAL-2: the fingerprint anomalies are derived from process-global
+    // accumulated state that the receipt does not capture, so they no longer feed
+    // `layer_risks.behavioral` nor escalate `minimum_decision`. They are surfaced
+    // in `GovernanceResult.advisory` (and the behavioralFingerprint JSON) for
+    // dashboards/alerts instead. `layer_risks.behavioral` stays 0.
 
     // ── Policy ──
     // Score based on how many policy violations were found
@@ -649,7 +705,7 @@ pub async fn execute_pipeline(
                 &input.agent_id,
                 &input.action.tool_name,
                 action_type_str(input.action.action_type),
-                &serde_json::to_string(&input.action.payload).unwrap_or_default(),
+                &payload_str,
             )
             .await,
         ),
@@ -661,6 +717,7 @@ pub async fn execute_pipeline(
         minimum_decision,
         &policy_findings,
         &layer_risks,
+        &payload_str,
         workspace_policy.threshold_block,
         workspace_policy.threshold_review,
     );
@@ -686,6 +743,10 @@ pub async fn execute_pipeline(
     // host, run it after the YAML risk score and merge stricter-wins.
     // Dictum can tighten the verdict; it never relaxes it.
     let mut decision = risk.decision;
+    // Real Dictum evaluation summary for the receipt (PIP-DICTUM-UNBOUND);
+    // stays `None` when no overlay is loaded / the feature is off.
+    #[cfg_attr(not(feature = "dictum"), allow(unused_mut))]
+    let mut dictum_trace: Option<crate::pipeline::receipts::DictumTraceData> = None;
     #[cfg(feature = "dictum")]
     if let Some(overlay) = state.dictum_overlay.as_ref() {
         let ml_scores = ml_outcome.as_ref().map(|o| &o.scores);
@@ -699,12 +760,25 @@ pub async fn execute_pipeline(
             cost_session_usd,
             cost_budget_usd,
         );
-        if let Some(fired) = overlay.evaluate(&ctx) {
-            let merged = crate::pipeline::dictum_overlay::merge_decisions(decision, fired.verdict);
-            let reason_str = fired.reason.unwrap_or_else(|| "fired".to_string());
+        // Fail-closed overlay: a Block/Review policy whose `when` errors still
+        // tightens (PIP-DICTUM-FAILOPEN); the trace records what ran/fired.
+        let trace = overlay.evaluate(&ctx);
+        if let Some(fired) = trace.fired.as_ref() {
+            let merged =
+                crate::pipeline::dictum_overlay::merge_decisions(decision, fired.verdict.clone());
+            let reason_str = fired.reason.clone().unwrap_or_else(|| "fired".to_string());
             reasons.push(format!("dictum[{}]: {}", fired.policy_name, reason_str));
             decision = merged;
         }
+        dictum_trace = Some(crate::pipeline::receipts::DictumTraceData {
+            policies_evaluated: trace.policies_evaluated,
+            policies_fired: trace.policies_fired.clone(),
+            evidence_sha256: trace
+                .fired
+                .as_ref()
+                .and_then(|f| f.evidence.as_ref())
+                .map(crate::pipeline::dictum_overlay::evidence_sha256),
+        });
     }
 
     // 1.5 cost-control: enforce the session budget even without a Dictum policy.
@@ -728,7 +802,7 @@ pub async fn execute_pipeline(
         action_type: input.action.action_type,
         tool_name: input.action.tool_name.clone(),
         decision,
-        timestamp: Utc::now().to_rfc3339(),
+        timestamp: decision_ts.clone(),
         reasons,
     };
 
@@ -791,6 +865,32 @@ pub async fn execute_pipeline(
         });
     }
 
+    // Collect advisory signals — derived from process-global mutable state and
+    // EXCLUDED from the signed verdict above (D1) — into a single field for
+    // dashboards/alerts. `None` when nothing fired, so the response stays
+    // byte-identical for the common case.
+    let advisory = {
+        let adaptive_adv: Vec<&adaptive_scorer::RiskSignal> = adaptive_result
+            .advisory
+            .iter()
+            .filter(|s| s.score > 0)
+            .collect();
+        let has_session_adv = session_result.advisory_score > 0;
+        let has_fingerprint = !fingerprint_anomalies.is_empty();
+        if adaptive_adv.is_empty() && !has_session_adv && !has_fingerprint {
+            None
+        } else {
+            Some(serde_json::json!({
+                "adaptive": adaptive_adv,
+                "session": {
+                    "score": session_result.advisory_score,
+                    "reasons": session_result.advisory_reasons,
+                },
+                "behavioralFingerprint": fingerprint_anomalies,
+            }))
+        }
+    };
+
     let mut result = GovernanceResult {
         trace_id: trace_id.clone(),
         protocol,
@@ -820,6 +920,7 @@ pub async fn execute_pipeline(
         threat_intel: threat_intel_json,
         plugin_results: (!plugin_evaluation.outputs.is_empty())
             .then_some(plugin_evaluation.outputs.clone()),
+        advisory,
     };
 
     // 1.5 cost-control: resolve any caller-reported usage into the canonical
@@ -838,6 +939,7 @@ pub async fn execute_pipeline(
         framework: result.audit_event.framework.clone(),
         action_type: result.audit_event.action_type,
         tool_name: result.audit_event.tool_name.clone(),
+        input_sha256: input_sha256.clone(),
         decision: result.audit_event.decision,
         timestamp: result.audit_event.timestamp.clone(),
         reasons: result.audit_event.reasons.clone(),
@@ -858,8 +960,35 @@ pub async fn execute_pipeline(
     };
     state.audit_store.append(&stored).await?;
     if let Some(rl) = state.receipts.as_ref() {
-        rl.record(&stored, ml_outcome.as_ref(), stored.usage.as_ref())
-            .await;
+        // With a Dictum overlay live the logger already binds the compiled
+        // bundle digest; otherwise bind the resolved workspace policy hash
+        // (CRYPTO-POLICYHASH-7a).
+        let overlay_active = {
+            #[cfg(feature = "dictum")]
+            {
+                state.dictum_overlay.is_some()
+            }
+            #[cfg(not(feature = "dictum"))]
+            {
+                false
+            }
+        };
+        let policy_hash_override = if overlay_active {
+            None
+        } else {
+            Some(workspace_policy_hash.as_str())
+        };
+        rl.record(
+            &stored,
+            ml_outcome.as_ref(),
+            stored.usage.as_ref(),
+            crate::pipeline::receipts::ReceiptContext {
+                policy_hash: policy_hash_override,
+                threat_feed_hash: Some(&threat_feed_hash),
+                dictum_trace: dictum_trace.as_ref(),
+            },
+        )
+        .await;
     }
 
     // 1.5 cost-control: add this action's cost to the session's cumulative

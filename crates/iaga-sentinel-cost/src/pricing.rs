@@ -22,10 +22,18 @@ pub struct ModelRate {
 
 impl ModelRate {
     /// Cost in micro-USD for the given token counts.
+    ///
+    /// DET-COST-1: each component is rounded to integer micro-USD and the
+    /// integers are summed (`saturating_add`). Per-component rounding is the
+    /// specified, order-independent semantics — a single `round` over the f64
+    /// sum left "round-to-the-sum vs per-component" unspecified — and the
+    /// integer sum can never wrap the signed ledger even with an absurd token
+    /// count (the f64→u64 cast in `usd_to_micros` saturates).
     pub fn cost_micros(&self, prompt_tokens: u64, completion_tokens: u64) -> u64 {
-        let input = prompt_tokens as f64 / 1_000_000.0 * self.input_per_mtok_usd;
-        let output = completion_tokens as f64 / 1_000_000.0 * self.output_per_mtok_usd;
-        usd_to_micros(input + output)
+        let input = usd_to_micros(prompt_tokens as f64 / 1_000_000.0 * self.input_per_mtok_usd);
+        let output =
+            usd_to_micros(completion_tokens as f64 / 1_000_000.0 * self.output_per_mtok_usd);
+        input.saturating_add(output)
     }
 }
 
@@ -149,6 +157,25 @@ mod tests {
         };
         // 500k in @ $3/Mtok = $1.50 ; 250k out @ $15/Mtok = $3.75 ; total $5.25
         assert_eq!(r.cost_micros(500_000, 250_000), 5_250_000);
+    }
+
+    #[test]
+    fn cost_rounds_per_component_and_saturates() {
+        // Per-component rounding: 1 token each rounds up to 1 micro
+        // independently (2 total), where rounding the f64 sum first would give 1
+        // — this pins the specified semantics (DET-COST-1).
+        let r = ModelRate {
+            input_per_mtok_usd: 0.6,
+            output_per_mtok_usd: 0.6,
+        };
+        assert_eq!(r.cost_micros(1, 1), 2);
+
+        // An absurd token count must saturate, never wrap or panic.
+        let big = ModelRate {
+            input_per_mtok_usd: 1e9,
+            output_per_mtok_usd: 1e9,
+        };
+        assert_eq!(big.cost_micros(u64::MAX, u64::MAX), u64::MAX);
     }
 
     #[test]
