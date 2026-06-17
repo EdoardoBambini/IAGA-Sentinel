@@ -225,6 +225,12 @@ fn builtin_signature(name: &str) -> Option<(Ty, Vec<Ty>)> {
         "secret_ref" => Some((Ty::Bool, vec![Ty::Unknown])),
         // `url_host` extracts the host from a URL string.
         "url_host" => Some((Ty::Str, vec![Ty::Str])),
+        // `timestamp` parses an RFC3339 string to epoch seconds (Int), so a
+        // policy can compare instants with the ordinary numeric operators
+        // (temporal ranges fall out of `>=`/`<=`).
+        "timestamp" => Some((Ty::Int, vec![Ty::Str])),
+        // `sha256` returns the hex content digest of a string.
+        "sha256" => Some((Ty::Str, vec![Ty::Str])),
         _ => None,
     }
 }
@@ -495,5 +501,66 @@ mod tests {
         // resolves to bool.
         let env = infer(&prog(when)).expect("infer ok");
         assert_eq!(env.when_types(), &[Ty::Bool]);
+    }
+
+    #[test]
+    fn timestamp_returns_int_usable_in_numeric_compare() {
+        // timestamp(action.payload.at) > timestamp(workspace.windowEnd)
+        let call = |seg: &str| {
+            Expr::Call(
+                "timestamp".into(),
+                vec![Expr::Path(vec!["x".into(), seg.into()])],
+            )
+        };
+        let when = Expr::Binary(BinOp::Gt, Box::new(call("a")), Box::new(call("b")));
+        let env = infer(&prog(when)).expect("Int > Int is Bool");
+        assert_eq!(env.when_types(), &[Ty::Bool]);
+    }
+
+    #[test]
+    fn timestamp_int_return_rejected_as_bare_when() {
+        // timestamp(x) alone is Int, not Bool, so it cannot be a when clause.
+        // Only fails if `timestamp` is registered as returning Int.
+        let when = Expr::Call(
+            "timestamp".into(),
+            vec![Expr::Path(vec!["action".into(), "at".into()])],
+        );
+        let err = infer(&prog(when)).expect_err("Int when must be rejected");
+        assert!(matches!(err, TypeError::NonBoolWhen { .. }));
+    }
+
+    #[test]
+    fn sha256_returns_str_so_eq_str_is_bool() {
+        // sha256(action.payload.body) == workspace.approvedDigest
+        let when = Expr::Binary(
+            BinOp::Eq,
+            Box::new(Expr::Call(
+                "sha256".into(),
+                vec![Expr::Path(vec![
+                    "action".into(),
+                    "payload".into(),
+                    "body".into(),
+                ])],
+            )),
+            Box::new(Expr::Lit(Lit::Str("deadbeef".into()))),
+        );
+        let env = infer(&prog(when)).expect("sha256 : Str, Eq Str is Bool");
+        assert_eq!(env.when_types(), &[Ty::Bool]);
+    }
+
+    #[test]
+    fn sha256_str_return_rejected_in_numeric_compare() {
+        // sha256(x) < 1 must be rejected: a Str return cannot be ordered
+        // against an Int, proving the signature is registered as Str.
+        let when = Expr::Binary(
+            BinOp::Lt,
+            Box::new(Expr::Call(
+                "sha256".into(),
+                vec![Expr::Path(vec!["action".into(), "body".into()])],
+            )),
+            Box::new(Expr::Lit(Lit::Int(1))),
+        );
+        let err = infer(&prog(when)).expect_err("Str < Int must be rejected");
+        assert!(matches!(err, TypeError::Mismatch { .. }));
     }
 }

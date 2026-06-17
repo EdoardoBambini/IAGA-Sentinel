@@ -368,8 +368,14 @@ pub fn emit_receipt_span(receipt: &iaga_sentinel_receipts::Receipt) -> OtelSpan 
     // 1.3.1: roadmap-named attribute keys. `iaga.receipt.id` is the stable
     // (run_id, seq) identity; `iaga.chain.head` is this receipt's body hash
     // (the new chain head after append); `iaga.policy.verdict` is the
-    // decision. The existing `receipt.*` keys are kept as back-compat
-    // aliases. Full `gen_ai.*` semantic-convention alignment lands in 1.4.
+    // decision. The existing `receipt.*` keys are kept as back-compat aliases.
+    //
+    // This span describes a governance *verdict*, not an LLM call: it carries
+    // `iaga.*` keys, not the OpenTelemetry `gen_ai.*` semantic conventions,
+    // which model prompts/tokens/model-ids that the verdict surface does not
+    // own. Emitting `gen_ai.*` here would misattribute conventions IAGA can't
+    // populate honestly, so it is deliberately not done (the earlier
+    // "lands in 1.4" plan is dropped).
     let receipt_id = format!("{}:{}", b.run_id, b.seq);
     let chain_head = b.body_hash().map(hex::encode).unwrap_or_default();
     SpanBuilder::new("iaga_sentinel.receipt")

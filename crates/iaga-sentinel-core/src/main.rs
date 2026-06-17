@@ -239,6 +239,34 @@ enum Commands {
         seed_demo: bool,
     },
 
+    /// Health-check an MCP endpoint: drive initialize + tools/list, check each
+    /// tool's inputSchema, optionally probe one tool, and report which calls the
+    /// governance pipeline would allow/review/block. Cooperative diagnostics
+    /// only (is_authoritative:false). NOTE: the governance check runs the real
+    /// pipeline and writes a signed receipt per listed tool, so this is not a
+    /// pure read against the receipt store.
+    McpDoctor {
+        /// Agent ID the governance checks are attributed to
+        #[arg(short, long, default_value = "iaga-doctor")]
+        agent_id: String,
+
+        /// MCP server command to launch over stdio
+        #[arg(short, long)]
+        command: String,
+
+        /// Actually call this one tool with empty arguments
+        #[arg(long)]
+        probe_tool: Option<String>,
+
+        /// Output format: table or json
+        #[arg(short, long, default_value = "table")]
+        format: String,
+
+        /// Arguments for the MCP server command
+        #[arg(trailing_var_arg = true)]
+        args: Vec<String>,
+    },
+
     /// 1.0 M3, work with .dictum policy files (parse, validate, dry-run)
     #[cfg(feature = "dictum")]
     Policy {
@@ -433,6 +461,43 @@ enum PluginCommands {
         #[arg(long = "trusted-keys", value_name = "FILE")]
         trusted_keys: String,
     },
+
+    /// Generate an OFFLINE in-toto/SLSA provenance attestation for a plugin.
+    /// Emits an in-toto Statement (SLSA Provenance v1 predicate) over the
+    /// plugin's SHA-256; with --sign, wraps it in an Ed25519 DSSE envelope. The
+    /// SLSA level is recorded as operator-DECLARED build intent, NOT a verified
+    /// guarantee — offline OSS cannot attest hermeticity. Rekor inclusion /
+    /// Fulcio keyless identity remain Enterprise (ADR 0010/0013).
+    #[cfg(feature = "plugin-manifest-signing")]
+    Attest {
+        /// Path to the plugin .wasm file
+        path: String,
+
+        /// Declared SLSA build level (1-4), recorded as declared intent
+        #[arg(long, default_value_t = 1)]
+        slsa_level: u8,
+
+        /// Wrap the statement in a DSSE envelope signed with the local signer
+        #[arg(long, default_value_t = false)]
+        sign: bool,
+
+        /// Signer key file (with --sign). Defaults to IAGA_SENTINEL_SIGNER_KEY_PATH
+        /// or ~/.iaga-sentinel/keys/receipt_signer.ed25519
+        #[arg(long)]
+        key: Option<String>,
+
+        /// Output file (default: <plugin>.intoto.json, or .intoto.dsse.json signed)
+        #[arg(long)]
+        out: Option<String>,
+
+        /// Plugin name recorded as the statement subject
+        #[arg(long, default_value = "plugin")]
+        name: String,
+
+        /// Plugin version recorded as the statement subject
+        #[arg(long, default_value = "0.0.0")]
+        version: String,
+    },
 }
 
 #[tokio::main]
@@ -515,6 +580,27 @@ async fn main() {
                 let code = cmd_plugins_verify_manifest(&path, &trusted_keys);
                 process::exit(code);
             }
+            #[cfg(feature = "plugin-manifest-signing")]
+            PluginCommands::Attest {
+                path,
+                slsa_level,
+                sign,
+                key,
+                out,
+                name,
+                version,
+            } => {
+                let code = cmd_plugins_attest(
+                    &path,
+                    slsa_level,
+                    sign,
+                    key.as_deref(),
+                    out.as_deref(),
+                    &name,
+                    &version,
+                );
+                process::exit(code);
+            }
         },
         Some(Commands::Migrate) => {
             cmd_migrate(&db_url).await;
@@ -549,6 +635,17 @@ async fn main() {
         }
         Some(Commands::McpServer { seed_demo }) => {
             cmd_mcp_server(&db_url, seed_demo).await;
+        }
+        Some(Commands::McpDoctor {
+            agent_id,
+            command,
+            probe_tool,
+            format,
+            args,
+        }) => {
+            let code =
+                cmd_mcp_doctor(&db_url, &agent_id, &command, args, probe_tool, &format).await;
+            process::exit(code);
         }
         #[cfg(feature = "dictum")]
         Some(Commands::Policy { command }) => match command {
@@ -620,6 +717,11 @@ fn init_tracing(logging_env: &LoggingEnv) {
         LogFormat::Json => {
             tracing_subscriber::fmt()
                 .json()
+                // Logs go to stderr, never stdout: the stdio MCP commands
+                // (`mcp-server`, `proxy`, `mcp-doctor`) use stdout as the
+                // JSON-RPC channel, and a log line on stdout would corrupt the
+                // protocol for any MCP client.
+                .with_writer(std::io::stderr)
                 .with_env_filter(env_filter)
                 .with_target(true)
                 .with_thread_ids(true)
@@ -629,6 +731,7 @@ fn init_tracing(logging_env: &LoggingEnv) {
         LogFormat::Compact => {
             tracing_subscriber::fmt()
                 .compact()
+                .with_writer(std::io::stderr)
                 .with_env_filter(env_filter)
                 .with_target(true)
                 .init();
@@ -636,6 +739,7 @@ fn init_tracing(logging_env: &LoggingEnv) {
         LogFormat::Pretty => {
             tracing_subscriber::fmt()
                 .pretty()
+                .with_writer(std::io::stderr)
                 .with_env_filter(env_filter)
                 .with_target(true)
                 .init();
@@ -856,7 +960,7 @@ async fn cmd_serve(
         .flatten()
         .unwrap_or_default();
     let rate_limiter = Arc::new(RateLimiter::new(rate_limit_config));
-    let threat_feed = Arc::new(ThreatFeed::with_builtin_indicators());
+    let threat_feed = build_threat_feed();
     tracing::info!(
         indicators = threat_feed.get_stats().total_indicators,
         "Threat intelligence feed loaded"
@@ -1034,7 +1138,7 @@ async fn cmd_inspect(source: &str, db_url: &str) -> i32 {
         ))),
         behavioral_engine: Arc::new(BehavioralEngine::new()),
         rate_limiter: Arc::new(RateLimiter::new(RateLimitConfig::default())),
-        threat_feed: Arc::new(ThreatFeed::with_builtin_indicators()),
+        threat_feed: build_threat_feed(),
         plugin_registry: Arc::new(PluginRegistry::default()),
         storage_backend: storage.storage_backend,
         env: load_env(),
@@ -1565,6 +1669,94 @@ fn cmd_plugins_verify_manifest(path: &str, trusted_keys: &str) -> i32 {
     }
 }
 
+#[cfg(feature = "plugin-manifest-signing")]
+#[allow(clippy::too_many_arguments)]
+fn cmd_plugins_attest(
+    path: &str,
+    slsa_level: u8,
+    sign: bool,
+    key: Option<&str>,
+    out: Option<&str>,
+    name: &str,
+    version: &str,
+) -> i32 {
+    use iaga_sentinel::plugins::attest::{build_statement, wrap_dsse, DECLARED_NOTE};
+    use iaga_sentinel_receipts::LocalDiskSigner;
+
+    let wasm = std::path::Path::new(path);
+    let statement = match build_statement(wasm, name, version, slsa_level) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("iaga plugins attest: cannot read plugin {path}: {e}");
+            return 3;
+        }
+    };
+
+    let (json, default_suffix) = if sign {
+        let key_path = match resolve_signer_key_path(key) {
+            Some(p) => p,
+            None => {
+                eprintln!("iaga plugins attest: cannot resolve signer key path");
+                return 3;
+            }
+        };
+        let signer = match LocalDiskSigner::load_or_create(&key_path) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("iaga plugins attest: signer load failed: {e}");
+                return 3;
+            }
+        };
+        let envelope = match wrap_dsse(&statement, &signer) {
+            Ok(env) => env,
+            Err(e) => {
+                eprintln!("iaga plugins attest: DSSE encode failed: {e}");
+                return 3;
+            }
+        };
+        match serde_json::to_string_pretty(&envelope) {
+            Ok(j) => (j, "intoto.dsse.json"),
+            Err(e) => {
+                eprintln!("iaga plugins attest: serialize failed: {e}");
+                return 3;
+            }
+        }
+    } else {
+        match serde_json::to_string_pretty(&statement) {
+            Ok(j) => (j, "intoto.json"),
+            Err(e) => {
+                eprintln!("iaga plugins attest: serialize failed: {e}");
+                return 3;
+            }
+        }
+    };
+
+    let out_path = match out {
+        Some(p) => std::path::PathBuf::from(p),
+        None => std::path::PathBuf::from(format!("{path}.{default_suffix}")),
+    };
+    if let Err(e) = std::fs::write(&out_path, json.as_bytes()) {
+        eprintln!(
+            "iaga plugins attest: cannot write {}: {e}",
+            out_path.display()
+        );
+        return 3;
+    }
+
+    println!("ATTESTED  plugin={path}");
+    println!(
+        "  subject:   {name}@{version} sha256={}",
+        statement.subject[0].digest.sha256
+    );
+    println!("  predicate: SLSA Provenance v1 (declaredSlsaLevel={slsa_level})");
+    if sign {
+        println!("  envelope:  DSSE (Ed25519)");
+    }
+    println!("  output:    {}", out_path.display());
+    println!("  NOTE: {DECLARED_NOTE}");
+    0
+}
+
 // ── migrate ──
 
 async fn cmd_migrate(db_url: &str) {
@@ -1841,6 +2033,42 @@ async fn cmd_audit(db_url: &str, limit: u32, format: &str) {
 
 // ── helpers ──
 
+/// Build the runtime threat feed: the built-in indicators plus any operator
+/// `threat-intel.toml` named by `IAGA_SENTINEL_THREAT_FEED`. The TOML file is the
+/// OSS *format*; the curated, signed Enterprise feed is a separate product
+/// (ADR 0010). A missing/malformed file is logged and skipped — the built-in
+/// baseline still applies, so a bad config never silently disarms the feed.
+fn build_threat_feed() -> Arc<ThreatFeed> {
+    let feed = ThreatFeed::with_builtin_indicators();
+    if let Ok(path) = std::env::var("IAGA_SENTINEL_THREAT_FEED") {
+        let path = path.trim();
+        if !path.is_empty() {
+            match std::fs::read_to_string(path) {
+                Ok(text) => match ThreatFeed::indicators_from_toml(&text) {
+                    Ok(extra) => {
+                        let count = extra.len();
+                        for indicator in extra {
+                            feed.add_indicator(indicator);
+                        }
+                        tracing::info!(path, count, "Loaded threat-intel.toml indicators");
+                    }
+                    Err(e) => tracing::warn!(
+                        path,
+                        error = %e,
+                        "Invalid threat-intel.toml; using built-in indicators only"
+                    ),
+                },
+                Err(e) => tracing::warn!(
+                    path,
+                    error = %e,
+                    "Cannot read IAGA_SENTINEL_THREAT_FEED; using built-in indicators only"
+                ),
+            }
+        }
+    }
+    Arc::new(feed)
+}
+
 async fn seed_demo_data(policy_store: &Arc<dyn PolicyStore>) {
     use iaga_sentinel::demo::scenarios::{demo_profiles, demo_workspace_policies};
 
@@ -1897,7 +2125,7 @@ async fn cmd_proxy(db_url: &str, agent_id: &str, command: &str, args: Vec<String
         webhook_manager,
         behavioral_engine: Arc::new(BehavioralEngine::new()),
         rate_limiter: Arc::new(RateLimiter::new(RateLimitConfig::default())),
-        threat_feed: Arc::new(ThreatFeed::with_builtin_indicators()),
+        threat_feed: build_threat_feed(),
         plugin_registry: Arc::new(PluginRegistry::default()),
         storage_backend: storage.storage_backend,
         env: load_env(),
@@ -1958,7 +2186,7 @@ async fn cmd_mcp_server(db_url: &str, seed_demo: bool) {
         webhook_manager,
         behavioral_engine: Arc::new(BehavioralEngine::new()),
         rate_limiter: Arc::new(RateLimiter::new(RateLimitConfig::default())),
-        threat_feed: Arc::new(ThreatFeed::with_builtin_indicators()),
+        threat_feed: build_threat_feed(),
         plugin_registry: Arc::new(PluginRegistry::default()),
         storage_backend: storage.storage_backend,
         env: load_env(),
@@ -1973,6 +2201,87 @@ async fn cmd_mcp_server(db_url: &str, seed_demo: bool) {
         eprintln!("MCP server error: {e}");
         process::exit(1);
     }
+}
+
+async fn cmd_mcp_doctor(
+    db_url: &str,
+    agent_id: &str,
+    command: &str,
+    args: Vec<String>,
+    probe_tool: Option<String>,
+    format: &str,
+) -> i32 {
+    use iaga_sentinel::mcp_doctor::{run_doctor, DoctorConfig};
+
+    let storage = match init_storage_bundle(db_url).await {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("{e}");
+            return 1;
+        }
+    };
+    // Seed demo policies so the governance encapsulability check has rules to
+    // evaluate against out of the box.
+    seed_demo_data(&storage.policy_store).await;
+
+    let event_bus = EventBus::new(256);
+    let webhook_manager = Arc::new(WebhookManager::new(Arc::new(
+        webhooks::DeadLetterQueue::new(),
+    )));
+
+    let receipts = try_build_receipt_logger(db_url, None).await;
+    let reasoning = try_build_reasoning_engine();
+    #[cfg(feature = "dictum")]
+    let dictum_overlay: Option<Arc<iaga_sentinel::pipeline::dictum_overlay::DictumOverlay>> = None;
+
+    let state = Arc::new(AppState {
+        audit_store: storage.audit_store,
+        review_store: storage.review_store,
+        policy_store: storage.policy_store,
+        api_key_store: storage.api_key_store,
+        tenant_store: storage.tenant_store,
+        nhi_store: storage.nhi_store,
+        session_store: storage.session_store,
+        taint_store: storage.taint_store,
+        fingerprint_store: storage.fingerprint_store,
+        rate_limit_store: storage.rate_limit_store,
+        event_bus,
+        webhook_manager,
+        behavioral_engine: Arc::new(BehavioralEngine::new()),
+        rate_limiter: Arc::new(RateLimiter::new(RateLimitConfig::default())),
+        threat_feed: build_threat_feed(),
+        plugin_registry: Arc::new(PluginRegistry::default()),
+        storage_backend: storage.storage_backend,
+        env: load_env(),
+        auth_cache: iaga_sentinel::auth::cache::AuthCache::from_env(),
+        receipts,
+        reasoning,
+        #[cfg(feature = "dictum")]
+        dictum_overlay,
+    });
+
+    let config = DoctorConfig {
+        agent_id: agent_id.to_string(),
+        command: command.to_string(),
+        args,
+        probe_tool,
+    };
+
+    let report = run_doctor(&state, config).await;
+
+    if format.eq_ignore_ascii_case("json") {
+        match serde_json::to_string_pretty(&report) {
+            Ok(s) => println!("{s}"),
+            Err(e) => {
+                eprintln!("failed to serialize doctor report: {e}");
+                return 1;
+            }
+        }
+    } else {
+        print!("{}", report.render_table());
+    }
+
+    report.exit_code()
 }
 
 async fn auto_import_config(policy_store: &Arc<dyn PolicyStore>) {
@@ -2205,7 +2514,7 @@ async fn cmd_kernel_run(db_url: &str, agent_id: &str, cwd: Option<&str>, cmd: &[
         webhook_manager,
         behavioral_engine: Arc::new(BehavioralEngine::new()),
         rate_limiter: Arc::new(RateLimiter::new(RateLimitConfig::default())),
-        threat_feed: Arc::new(ThreatFeed::with_builtin_indicators()),
+        threat_feed: build_threat_feed(),
         plugin_registry: Arc::new(PluginRegistry::default()),
         storage_backend: storage.storage_backend,
         env: load_env(),

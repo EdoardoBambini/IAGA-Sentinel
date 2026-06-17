@@ -86,6 +86,11 @@ pub struct InspectRequest {
     pub agent_id: String,
     pub framework: String,
     pub action: ActionDetail,
+    /// Wire protocol the action arrived on (`mcp`, `acp`, `a2a`, `http-function`,
+    /// `unknown`). Optional; elided when unset so existing callers are
+    /// byte-unchanged. The MCP `GovernedTool` sets this to `mcp`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub protocol: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tenant_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -111,12 +116,19 @@ impl InspectRequest {
             agent_id: agent_id.into(),
             framework: framework.into(),
             action,
+            protocol: None,
             tenant_id: None,
             workspace_id: None,
             session_id: None,
             metadata: None,
             usage: None,
         }
+    }
+
+    /// Declare the wire protocol the action arrived on (e.g. `mcp`).
+    pub fn with_protocol(mut self, protocol: impl Into<String>) -> Self {
+        self.protocol = Some(protocol.into());
+        self
     }
 
     /// Attach reported usage (tokens/cost) to be captured into the cost ledger.

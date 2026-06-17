@@ -12,6 +12,22 @@ for OpenAI and Vercel AI style integrations.
 - adapter helpers are dependency-light and keep the package buildable without
   forcing framework installs
 
+## Offline receipt verification (no dependencies)
+
+`verify.mjs` is a standalone, dependency-free offline verifier for a signed
+receipt chain exported by `iaga replay <run_id> --export`. It reaches the same
+verdict as the canonical Rust `iaga-verify`, using only Node's built-in crypto:
+
+```sh
+node verify.mjs chain.json --key <hex-ed25519-pubkey>
+# once installed, the SDK also exposes it as a CLI:
+npx --package @iaga-sentinel/sdk iaga-verify chain.json --key <hex>
+```
+
+Exit codes mirror the Rust binary: `0` valid, `1` broken/empty, `2` usage,
+`3` IO/parse. Cross-language parity is pinned by `verify.smoke.mjs` against
+`../conformance/golden_chain.json` (a chain signed by the canonical Rust code).
+
 ## Quick start
 
 ```ts

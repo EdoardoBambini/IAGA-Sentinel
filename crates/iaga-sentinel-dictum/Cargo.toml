@@ -38,6 +38,13 @@ logos = { workspace = true }
 # deterministic for receipt replay. Versions match iaga-sentinel-core.
 regex = "1"
 once_cell = "1"
+# dictum-std builtins: `sha256()` content hashing and `timestamp()` RFC3339 ->
+# epoch-seconds. Both are pure (no I/O, clock, or RNG) so the evaluator stays
+# deterministic for receipt replay; chrono is used only for date *parsing*,
+# never for `now()`. Versions track the workspace.
+sha2 = { workspace = true }
+hex = { workspace = true }
+chrono = { workspace = true }
 wasm-encoder = { version = "0.220", optional = true }
 
 [dev-dependencies]

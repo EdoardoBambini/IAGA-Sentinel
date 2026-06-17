@@ -6,6 +6,9 @@ pub mod types;
 pub mod attestation;
 
 #[cfg(feature = "plugin-manifest-signing")]
+pub mod attest;
+
+#[cfg(feature = "plugin-manifest-signing")]
 pub mod manifest;
 
 pub use host::LoadedPlugin;

@@ -1389,7 +1389,7 @@ dependencies = [
 
 [[package]]
 name = "iaga-sentinel-codex"
-version = "1.6.0"
+version = "1.7.0"
 dependencies = [
  "axum",
  "clap",
@@ -1406,7 +1406,7 @@ dependencies = [
 
 [[package]]
 name = "iaga-sentinel-core"
-version = "1.6.0"
+version = "1.7.0"
 dependencies = [
  "argon2",
  "async-trait",
@@ -1438,6 +1438,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tokio-stream",
+ "toml",
  "tower-http",
  "tracing",
  "tracing-subscriber",
@@ -1448,7 +1449,7 @@ dependencies = [
 
 [[package]]
 name = "iaga-sentinel-cost"
-version = "1.6.0"
+version = "1.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -1456,8 +1457,10 @@ dependencies = [
 
 [[package]]
 name = "iaga-sentinel-dictum"
-version = "1.6.0"
+version = "1.7.0"
 dependencies = [
+ "chrono",
+ "hex",
  "logos",
  "once_cell",
  "pretty_assertions",
@@ -1465,6 +1468,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
+ "sha2",
  "thiserror 2.0.18",
  "wasm-encoder 0.220.1",
  "wasmtime",
@@ -1472,7 +1476,7 @@ dependencies = [
 
 [[package]]
 name = "iaga-sentinel-integrations"
-version = "1.6.0"
+version = "1.7.0"
 dependencies = [
  "axum",
  "iaga-sentinel-cost",
@@ -1485,7 +1489,7 @@ dependencies = [
 
 [[package]]
 name = "iaga-sentinel-kernel"
-version = "1.6.0"
+version = "1.7.0"
 dependencies = [
  "async-trait",
  "serde",
@@ -1498,8 +1502,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "iaga-sentinel-mcp"
+version = "1.7.0"
+dependencies = [
+ "axum",
+ "iaga-sentinel-integrations",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "iaga-sentinel-reasoning"
-version = "1.6.0"
+version = "1.7.0"
 dependencies = [
  "async-trait",
  "hex",
@@ -1515,7 +1529,7 @@ dependencies = [
 
 [[package]]
 name = "iaga-sentinel-receipts"
-version = "1.6.0"
+version = "1.7.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -1535,7 +1549,7 @@ dependencies = [
 
 [[package]]
 name = "iaga-sentinel-verify"
-version = "1.6.0"
+version = "1.7.0"
 dependencies = [
  "ed25519-dalek",
  "hex",

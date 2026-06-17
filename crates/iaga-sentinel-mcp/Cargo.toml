@@ -1,0 +1,28 @@
+[package]
+name = "iaga-sentinel-mcp"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "iaga::mcp::GovernedTool — cooperative MCP tools/call governance client (OSS, is_authoritative:false)"
+
+[lints]
+workspace = true
+
+[lib]
+name = "iaga_sentinel_mcp"
+path = "src/lib.rs"
+
+[dependencies]
+serde_json = { workspace = true }
+# Thin wrapper over the public governance client: reuse its wire types, fail-open
+# policy, and /v1/inspect transport. No coupling to the core pipeline crate.
+iaga-sentinel-integrations = { path = "../iaga-sentinel-integrations" }
+
+[dev-dependencies]
+tokio = { workspace = true }
+# Mock /v1/inspect server for the GovernedTool tests (same axum line as the
+# integrations client tests).
+axum = "0.8"

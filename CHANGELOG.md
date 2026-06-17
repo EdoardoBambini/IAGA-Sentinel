@@ -14,6 +14,99 @@ Enterprise overview.
 
 ---
 
+## [1.7.0], 2026-06-17
+
+OSS backlog closure toward the roadmap's 1.3-1.6 "cryptographic primitive" track:
+the Dictum standard library grows deterministic builtins, the MCP wedge gains a
+health-check and a Rust `GovernedTool`, the threat-feed *format* opens, SBOM
+ingest learns SPDX, and plugins gain offline in-toto/SLSA attestation. **Fully
+additive: no receipt field changed**, so receipts written by earlier releases
+verify byte-for-byte unchanged, and every OSS receipt stays
+`is_authoritative:false`. **No open-core ↔ Enterprise boundary moved** (ADR 0010):
+where the faithful fix is Enterprise (verified SLSA, the curated/signed threat
+feed, KMS/HSM, authoritative enforcement), OSS ships the honest mechanism and
+leaves the Enterprise value intact.
+
+### Added
+
+- **Multilingual offline verifier (Python + Node), dependency-free.** The
+  canonical Rust `iaga-verify` verdict is now reproducible on non-Rust stacks:
+  `sdks/python/iaga_verify.py` (stdlib only, vendored Ed25519 RFC 8032) and
+  `sdks/typescript/verify.mjs` (`node:crypto`) consume the same `ChainExport` and
+  emit **byte-identical** `CHAIN OK … seq=0..N` output and exit codes
+  (0 valid / 1 broken / 2 usage / 3 IO) as the Rust binary. Parity is anchored to
+  a shared signed conformance vector (`sdks/conformance/golden_chain.json`, emitted
+  by the canonical Rust code) and proven by `sdks/python/tests/test_iaga_verify.py`
+  and `sdks/typescript/verify.smoke.mjs`. A new `python` CI matrix
+  (ubuntu/macOS/windows × 3.11/3.12) gates the dependency-free verifier on every
+  stack; the Node verifier parity smoke runs in the test job. A receipt carrying
+  floats (`ml_scores`) is the one shape the re-serializers refuse rather than risk
+  a divergent verdict — use the Rust verifier for those. (A browser WASM/WebCrypto
+  build and `@iaga/verify` npm / `iaga-verify` PyPI packaging are follow-ups.)
+- **`dictum-std` builtins `timestamp()` and `sha256()`.** Two pure, deterministic
+  Dictum builtins. `timestamp(str) -> int` parses an RFC3339 instant to Unix epoch
+  seconds, so a policy expresses temporal ranges with the ordinary numeric
+  operators (`timestamp(action.ts) > timestamp(workspace.windowEnd)`) — no wall
+  clock is read, so the verdict still replays bit-for-bit, and a malformed instant
+  fails closed inside a Block/Review guard. `sha256(str) -> str` is a hex content
+  digest (e.g. pin an approved payload by hash). NHI identity matching is
+  intentionally omitted (redundant with `contains`/membership; verifiable
+  asymmetric NHI is Enterprise, CRYPTO-NHI-2).
+- **`mcp-doctor` CLI subcommand.** Spawns a target MCP server over stdio, drives
+  `initialize` + `tools/list` as a client (the first MCP client driver in the
+  tree), checks each tool's `inputSchema` is present and a well-formed JSON object
+  (presence + shape, not a full JSON-Schema validator), optionally probes one
+  named tool, and runs every listed tool through the same governance interception
+  the `proxy` uses — reporting which calls the policy engine would allow / review
+  / block. `--format json|table`; the report is always `authoritative:false`.
+  Cooperative diagnostics: the governance check runs the real pipeline and writes
+  a signed receipt per listed tool (proving each `tools/call` is encapsulable in a
+  receipt), so it is not a pure read against the receipt store.
+- **`iaga-sentinel-mcp` crate exposing `iaga::mcp::GovernedTool`.** A thin Rust
+  client that maps an MCP `tools/call` into the public `InspectRequest`
+  (`framework`/`protocol` = `mcp`), POSTs it to `/v1/inspect`, and runs the wrapped
+  work only if the verdict is Allow — mirroring the Python/TS `GovernedTool`. A
+  blocked call's work future is never polled. Fail-open by default
+  (`.fail_closed(true)` to opt in), `is_authoritative:false`, no coupling to the
+  core engine (it reuses the public `iaga-sentinel-integrations` client).
+- **OSS threat-feed format `threat-intel.toml` + loader.** Point the server at a
+  plain-text feed with `IAGA_SENTINEL_THREAT_FEED=path.toml`; its `[[indicator]]`
+  entries are added to the built-in indicators. The *format* is open on purpose —
+  the curated, signed Enterprise feed is a separate product, not a different
+  format (ADR 0010). Loading is deterministic (no clock), so the `threatFeedHash`
+  bound into each receipt stays reproducible against the exact indicator set. A
+  malformed file is logged and skipped, so a bad config never disarms the
+  baseline. Example at `examples/threat-intel.toml`.
+- **SPDX SBOM ingest alongside CycloneDX.** `plugin verify` now accepts an SPDX
+  JSON SBOM sibling (`<plugin>.spdx.json`) in addition to CycloneDX
+  (`<plugin>.cdx.json`); the format is auto-detected (`parse_sbom_bytes`) and bound
+  to the signed manifest the same way. Online Rekor inclusion / Fulcio root
+  validation remain Enterprise (ADR 0013).
+- **`iaga plugin attest --slsa-level N` (feature `plugin-manifest-signing`).** Emits
+  an offline in-toto Statement v1 with a SLSA Provenance v1 predicate over the
+  plugin's SHA-256; `--sign` wraps it in an Ed25519 DSSE envelope signed with the
+  local BYOK signer. The SLSA level is recorded as **operator-declared build
+  intent** (`declaredSlsaLevel` plus an in-band disclaimer), explicitly not a
+  verified guarantee — offline OSS cannot attest hermeticity. Verified SLSA (Rekor
+  inclusion + Fulcio keyless identity) remains Enterprise (ADR 0010/0013). No
+  network access.
+
+### Changed / Fixed
+
+- **Logs go to stderr, never stdout.** `init_tracing` now writes to stderr in all
+  formats, so the stdio MCP commands (`mcp-server`, `proxy`, `mcp-doctor`) keep
+  stdout as a clean JSON-RPC channel — a log line on stdout had been corrupting the
+  protocol for any MCP client.
+- **`iaga-sentinel-integrations` `InspectRequest` gains an optional `protocol`
+  field.** Elided when unset, so existing callers serialize byte-unchanged; the
+  MCP `GovernedTool` sets it to `mcp`.
+- **Retired the stale `gen_ai.*` OTel plan.** The receipt span describes a
+  governance *verdict*, not an LLM call, so it carries `iaga.*` keys, not the
+  OpenTelemetry `gen_ai.*` semantic conventions (which model prompts/tokens/model
+  ids the verdict surface does not own). The earlier "`gen_ai.*` alignment lands in
+  1.4" note is dropped rather than left as an open promise — emitting those keys
+  here would misattribute a convention IAGA cannot populate honestly.
+
 ## [1.6.0], 2026-06-16
 
 Hardening pass on the two product guarantees — a reproducible signed verdict and

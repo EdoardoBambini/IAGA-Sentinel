@@ -1,0 +1,68 @@
+# IAGA Sentinel — threat-intel.toml (OSS feed format)
+#
+# This file is the OPEN FORMAT of the threat-intelligence feed. Point the server
+# at it with the environment variable:
+#
+#     IAGA_SENTINEL_THREAT_FEED=examples/threat-intel.toml \
+#       iaga serve --seed-demo
+#
+# The indicators below are ADDED to the ~30 built-in indicators that ship in the
+# open build; a malformed file is logged and skipped, so a bad config never
+# disarms the baseline. Loading is deterministic (no clock, no network), so the
+# `threatFeedHash` recorded on each signed receipt is reproducible against the
+# exact indicator set that produced the verdict.
+#
+# The *format* is open on purpose: the curated, low-latency, signed Enterprise
+# threat feed is a separate product, not a different format (see ADR 0010 /
+# ENTERPRISE.md). Bring your own IOCs here; subscribe to the Enterprise feed when
+# you want a maintained one with an SLA.
+#
+# Each [[indicator]] needs `id`, `type`, and `pattern`. Everything else is
+# optional and defaults sensibly.
+#
+#   type     one of: malicious_domain | malicious_command | known_exploit
+#                     | data_exfiltration | prompt_injection
+#   pattern  a case-insensitive substring, or `regex:<expr>` for a regex
+#   severity critical | high | medium | low      (default: medium)
+#   active   set false to keep an entry on file but disabled  (default: true)
+
+[[indicator]]
+id = "acme-001"
+type = "malicious_domain"
+pattern = "exfil.acme-evil.example"
+severity = "critical"
+description = "Known C2 / exfiltration endpoint for the ACME campaign"
+source = "acme-soc"
+
+[[indicator]]
+id = "acme-002"
+type = "malicious_command"
+pattern = "regex:curl\\s+[^|]*\\|\\s*(ba)?sh"
+severity = "critical"
+description = "Pipe-to-shell installer pattern"
+source = "acme-soc"
+
+[[indicator]]
+id = "acme-003"
+type = "data_exfiltration"
+pattern = "regex:(?i)BEGIN\\s+(RSA|OPENSSH)\\s+PRIVATE\\s+KEY"
+severity = "high"
+description = "Private key material leaving the boundary"
+source = "acme-soc"
+
+[[indicator]]
+id = "acme-004"
+type = "prompt_injection"
+pattern = "ignore all previous instructions and"
+severity = "high"
+description = "Classic instruction-override prompt injection"
+source = "acme-soc"
+
+# An entry kept on file but disabled — present for audit, not enforced.
+[[indicator]]
+id = "acme-legacy-009"
+type = "malicious_domain"
+pattern = "old-indicator.example"
+severity = "medium"
+description = "Retired IOC, kept for provenance"
+active = false

@@ -4,6 +4,7 @@ pub mod config;
 pub mod core;
 pub mod dashboard;
 pub mod events;
+pub mod mcp_doctor;
 pub mod mcp_proxy;
 pub mod mcp_server;
 pub mod modules;

@@ -169,7 +169,9 @@ pub fn verify_plugin_with_pinned_key(
     let plugin_sha256 = sha256_hex(&bytes);
 
     let bundle_path = sibling(wasm_path, "sigstore.json");
-    let sbom_path = sibling(wasm_path, "cdx.json");
+    // Accept either a CycloneDX (`<wasm>.cdx.json`) or an SPDX
+    // (`<wasm>.spdx.json`) SBOM sibling; the format is auto-detected on parse.
+    let sbom_path = sibling(wasm_path, "cdx.json").or_else(|| sibling(wasm_path, "spdx.json"));
 
     let (bundle_well_formed, payload_digest_match, rekor_log_index) =
         verify_bundle(bundle_path.as_deref(), &bytes);
@@ -180,7 +182,7 @@ pub fn verify_plugin_with_pinned_key(
     let (signature_verified, signature_checked) =
         verify_bundle_signature(bundle_path.as_deref(), &bytes, pinned_pubkey_hex);
 
-    let sbom = sbom_path.as_deref().and_then(parse_sbom_cyclonedx_path);
+    let sbom = sbom_path.as_deref().and_then(parse_sbom_path);
 
     Ok(PluginAttestation {
         plugin_sha256,
@@ -239,6 +241,9 @@ pub enum SbomError {
     Io(std::io::Error),
     Parse(serde_json::Error),
     NotCycloneDx,
+    NotSpdx,
+    /// Valid JSON, but neither a CycloneDX nor an SPDX document.
+    Unrecognized,
 }
 
 impl fmt::Display for SbomError {
@@ -247,14 +252,58 @@ impl fmt::Display for SbomError {
             Self::Io(e) => write!(f, "sbom read failed: {e}"),
             Self::Parse(e) => write!(f, "sbom parse failed: {e}"),
             Self::NotCycloneDx => write!(f, "not a CycloneDX document"),
+            Self::NotSpdx => write!(f, "not an SPDX document"),
+            Self::Unrecognized => write!(f, "not a recognized SBOM (CycloneDX or SPDX)"),
         }
     }
 }
 
 impl std::error::Error for SbomError {}
 
-fn parse_sbom_cyclonedx_path(path: &Path) -> Option<SbomReport> {
-    parse_sbom_cyclonedx(path).ok()
+/// Parse an SPDX 2.x JSON SBOM file into a compact `SbomReport`.
+pub fn parse_sbom_spdx(path: &Path) -> Result<SbomReport, SbomError> {
+    let bytes = std::fs::read(path).map_err(SbomError::Io)?;
+    parse_sbom_spdx_bytes(&bytes)
+}
+
+/// Same as [`parse_sbom_spdx`] but takes raw bytes. SPDX JSON is identified by a
+/// top-level `spdxVersion` (e.g. `SPDX-2.3`); the package count is `packages[]`.
+pub fn parse_sbom_spdx_bytes(bytes: &[u8]) -> Result<SbomReport, SbomError> {
+    let value: serde_json::Value = serde_json::from_slice(bytes).map_err(SbomError::Parse)?;
+    let Some(spec_version) = value.get("spdxVersion").and_then(|v| v.as_str()) else {
+        return Err(SbomError::NotSpdx);
+    };
+    let component_count = value
+        .get("packages")
+        .and_then(|v| v.as_array())
+        .map(|arr| arr.len() as u32)
+        .unwrap_or(0);
+    Ok(SbomReport {
+        spec_version: spec_version.to_string(),
+        component_count,
+    })
+}
+
+/// Parse an SBOM in either CycloneDX or SPDX JSON, auto-detecting the format.
+/// `spec_version` carries the format's own version string (`1.5` for CycloneDX,
+/// `SPDX-2.3` for SPDX), so callers can tell which format was bound.
+pub fn parse_sbom_bytes(bytes: &[u8]) -> Result<SbomReport, SbomError> {
+    match parse_sbom_cyclonedx_bytes(bytes) {
+        Ok(report) => Ok(report),
+        // Valid JSON but not CycloneDX: try SPDX before giving up.
+        Err(SbomError::NotCycloneDx) => match parse_sbom_spdx_bytes(bytes) {
+            Ok(report) => Ok(report),
+            Err(SbomError::NotSpdx) => Err(SbomError::Unrecognized),
+            Err(other) => Err(other),
+        },
+        Err(other) => Err(other),
+    }
+}
+
+fn parse_sbom_path(path: &Path) -> Option<SbomReport> {
+    std::fs::read(path)
+        .ok()
+        .and_then(|bytes| parse_sbom_bytes(&bytes).ok())
 }
 
 fn sibling(wasm_path: &Path, suffix: &str) -> Option<PathBuf> {
@@ -521,6 +570,56 @@ mod tests {
         let bytes = b"{\"bomFormat\":\"SPDX\",\"specVersion\":\"2.3\"}";
         let err = parse_sbom_cyclonedx_bytes(bytes).expect_err("must reject");
         assert!(matches!(err, SbomError::NotCycloneDx));
+    }
+
+    #[test]
+    fn spdx_sbom_packages_counted() {
+        let dir = tempdir().unwrap();
+        let _wasm = write_wasm(dir.path(), "s.wasm", b"s");
+        let sbom = serde_json::json!({
+            "spdxVersion": "SPDX-2.3",
+            "SPDXID": "SPDXRef-DOCUMENT",
+            "name": "s",
+            "packages": [
+                { "name": "wasmtime", "SPDXID": "SPDXRef-Package-wasmtime" },
+                { "name": "serde", "SPDXID": "SPDXRef-Package-serde" },
+            ]
+        });
+        std::fs::write(
+            dir.path().join("s.wasm.spdx.json"),
+            serde_json::to_vec(&sbom).unwrap(),
+        )
+        .unwrap();
+        let att = verify_plugin(&dir.path().join("s.wasm")).expect("verify ok");
+        let report = att.sbom.expect("spdx sbom report present");
+        assert_eq!(report.spec_version, "SPDX-2.3");
+        assert_eq!(report.component_count, 2);
+    }
+
+    #[test]
+    fn parse_sbom_spdx_bytes_rejects_cyclonedx() {
+        let bytes = br#"{"bomFormat":"CycloneDX","specVersion":"1.5"}"#;
+        let err = parse_sbom_spdx_bytes(bytes).expect_err("must reject");
+        assert!(matches!(err, SbomError::NotSpdx));
+    }
+
+    #[test]
+    fn parse_sbom_bytes_auto_detects_both_formats() {
+        let cdx = br#"{"bomFormat":"CycloneDX","specVersion":"1.6","components":[{"name":"a"}]}"#;
+        let r = parse_sbom_bytes(cdx).expect("cyclonedx");
+        assert_eq!(r.spec_version, "1.6");
+        assert_eq!(r.component_count, 1);
+
+        let spdx = br#"{"spdxVersion":"SPDX-2.3","packages":[{"name":"a"},{"name":"b"}]}"#;
+        let r = parse_sbom_bytes(spdx).expect("spdx");
+        assert_eq!(r.spec_version, "SPDX-2.3");
+        assert_eq!(r.component_count, 2);
+
+        let neither = br#"{"hello":"world"}"#;
+        assert!(matches!(
+            parse_sbom_bytes(neither).expect_err("unrecognized"),
+            SbomError::Unrecognized
+        ));
     }
 
     #[test]

@@ -4,6 +4,7 @@
   "description": "IAGA Sentinel TypeScript SDK: signed, replay-verifiable audit evidence for AI agent actions",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": { "iaga-verify": "./verify.mjs" },
   "scripts": {
     "build": "tsc",
     "prepublishOnly": "npm run build"
@@ -14,7 +15,7 @@
   "devDependencies": {
     "typescript": "^5.0.0"
   },
-  "files": ["dist", "README.md"],
+  "files": ["dist", "verify.mjs", "README.md"],
   "repository": {
     "type": "git",
     "url": "https://github.com/EdoardoBambini/IAGA-Sentinel"

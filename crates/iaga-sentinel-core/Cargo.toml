@@ -64,8 +64,10 @@ otel-receipts = ["receipts"]
 # OSS roadmap primitive: Ed25519-signed plugin manifests, verified at
 # verify-time against trusted keys, on top of and orthogonal to the
 # Sigstore/SBOM attestation. Default off. Implies `receipts` (for the
-# signer) and pulls ed25519-dalek for verification.
-plugin-manifest-signing = ["receipts", "dep:ed25519-dalek"]
+# signer) and pulls ed25519-dalek for verification. Also gates `plugin attest`
+# (offline in-toto/SLSA statements + DSSE envelopes), which reuses the signer;
+# base64 encodes the DSSE payload/signatures.
+plugin-manifest-signing = ["receipts", "dep:ed25519-dalek", "dep:base64"]
 # 1.5 cost-control (ADR 0020): token/cost metering, the receipts + audit cost
 # ledger, the /v1/cost API, Dictum budget enforcement, and the response cache.
 # Default OFF, so the default build stays byte-identical to 1.4.0. Pure marker
@@ -97,6 +99,8 @@ rand = "0.8"
 sha2 = "0.10"
 clap = { version = "4", features = ["derive"] }
 serde_yaml = "0.9"
+# OSS threat-intel.toml format loader (same toml line as iaga-sentinel-kernel).
+toml = "0.8"
 reqwest = { version = "0.12", features = ["json"] }
 hmac = "0.12"
 tokio-stream = { version = "0.1", features = ["sync"] }

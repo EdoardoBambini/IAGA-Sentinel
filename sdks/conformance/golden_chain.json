@@ -1,0 +1,97 @@
+{
+  "run_id": "run-golden",
+  "signer_key_id": "ed25519-fe812c12f3ab4ce6ac5db69ac352f906",
+  "signer_verifying_key": "ea4a6c63e29c520abef5507b132ec5f9954776aebebe7b92421eea691446d22c",
+  "receipts": [
+    {
+      "run_id": "run-golden",
+      "seq": 0,
+      "parent_hash": null,
+      "input_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "policy_hash": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a",
+      "verdict": "allow",
+      "risk_score": 4,
+      "timestamp": "2026-06-16T10:00:00Z",
+      "signer_key_id": "ed25519-fe812c12f3ab4ce6ac5db69ac352f906",
+      "is_authoritative": false,
+      "signature": "9851da6d6b8f295976b50ac198fdb271e90ca862f6e58065366c6f2ec8a9043a49a3e3bf68a1285c88ed0a9dfda793cefcc34a4534ff5bebfed9f3074f772e05"
+    },
+    {
+      "run_id": "run-golden",
+      "seq": 1,
+      "parent_hash": "89c8ff334b51c56067031ba2d426ce476cebb61f5af9cab542d431b8cf38ff12",
+      "input_hash": "0000000000000000000000000000000000000000000000000000000000000001",
+      "policy_hash": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a",
+      "threat_feed_hash": "abababababababababababababababababababababababababababababababab",
+      "plugin_digests": [
+        {
+          "name": "pii-scan",
+          "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+          "attested": true
+        },
+        {
+          "name": "url-host",
+          "sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+        }
+      ],
+      "verdict": "review",
+      "reasons": [
+        "off-hours access"
+      ],
+      "risk_score": 41,
+      "timestamp": "2026-06-16T10:00:01Z",
+      "signer_key_id": "ed25519-fe812c12f3ab4ce6ac5db69ac352f906",
+      "is_authoritative": false,
+      "signature": "75e11ea2771b841c9d603c695ca559b257548efeb5c8a9032df2b2d986d1e175770180261e94ba376fa037405b92cb73594f587f8788f4bdade7a066bb00ea0d"
+    },
+    {
+      "run_id": "run-golden",
+      "seq": 2,
+      "parent_hash": "bf936bed41d551929cebbffa36a7360205bd404506d01e4f9977ba4fb425759d",
+      "input_hash": "0000000000000000000000000000000000000000000000000000000000000002",
+      "policy_hash": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a",
+      "threat_feed_hash": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+      "model_digests": [
+        {
+          "name": "prompt-injection",
+          "sha256": "3333333333333333333333333333333333333333333333333333333333333333"
+        }
+      ],
+      "verdict": "block",
+      "reasons": [
+        "secret egress detected",
+        "destination outside workspace allowlist"
+      ],
+      "risk_score": 81,
+      "timestamp": "2026-06-16T10:00:02Z",
+      "signer_key_id": "ed25519-fe812c12f3ab4ce6ac5db69ac352f906",
+      "apl_eval_trace": {
+        "policyHash": "4444444444444444444444444444444444444444444444444444444444444444",
+        "policiesEvaluated": 3,
+        "policiesFired": [
+          "no-pii-egress"
+        ],
+        "evidenceSha256": "5555555555555555555555555555555555555555555555555555555555555555"
+      },
+      "is_authoritative": false,
+      "signature": "f9b77c86b15008891154f1f834449067b34f1fb41b480c82cfdf2916af4b446143010b98326fcb3f9d9f993095df2165d55ea2bd8f0bbeae4ebf635ffcab8405"
+    },
+    {
+      "run_id": "run-golden",
+      "seq": 3,
+      "parent_hash": "0b5248ba76492a23172af540969ba941fab68fa8f12a8033ce2c119d42eda3ab",
+      "input_hash": "0000000000000000000000000000000000000000000000000000000000000003",
+      "policy_hash": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a",
+      "verdict": "allow",
+      "risk_score": 7,
+      "timestamp": "2026-06-16T10:00:03Z",
+      "signer_key_id": "ed25519-fe812c12f3ab4ce6ac5db69ac352f906",
+      "apl_eval_trace": {
+        "policyHash": "6666666666666666666666666666666666666666666666666666666666666666",
+        "policiesEvaluated": 1
+      },
+      "is_authoritative": false,
+      "signature": "6ee00e7494e556791dee8d48b944083eb061eeee57cf0b88f810b869e01abd4f9536d1f484e4268fd13ea61d11e6cbe48c470ca023e0faebe31110bb9d13580e"
+    }
+  ]
+}
