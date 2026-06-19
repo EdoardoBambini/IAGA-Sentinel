@@ -1,12 +1,13 @@
 # Case Study: IAGA Sentinel v2, Continuous Risk Scoring Across 8 Security Layers
 
 > **Historical case study (March 30, 2026), measured against the v0.4.0 era
-> 8-layer pipeline.** The current 1.x architecture ships **12 layers** (the
-> original 8 hardened in M2-M5 + 4 new ones from M3.5 + M4). The methodology and
-> findings here remain valid for the layers covered; the 12-layer surface adds
-> supply chain attestation, blast radius enforcement, behavioral baseline, and
-> counterparty trust on top. The OSS↔Enterprise boundary that governs which
-> capabilities ship in which edition is documented in
+> 8-layer pipeline.** The current 1.x architecture keeps the **8-layer pipeline**
+> (two layers, sandbox and formal-verify, are advisory and do not change the
+> verdict) and adds four cross-cutting subsystems on top (supply chain
+> attestation, blast radius, behavioral baseline, counterparty trust). The
+> methodology and findings here remain valid for the layers covered. The
+> OSS↔Enterprise boundary that governs which capabilities ship in which edition
+> is documented in
 > [`adr/0010-oss-enterprise-boundary.md`](adr/0010-oss-enterprise-boundary.md).
 
 ## Abstract

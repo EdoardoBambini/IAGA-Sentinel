@@ -770,7 +770,7 @@ fn print_banner(port: u16) {
     eprintln!("    {green}▸{reset} Port        {bold}{port}{reset}");
     eprintln!("    {green}▸{reset} Dashboard   {cyan}http://localhost:{port}{reset}");
     eprintln!("    {green}▸{reset} API         {cyan}http://localhost:{port}/v1/inspect{reset}");
-    eprintln!("    {green}▸{reset} 12 Layers   {green}ARMED{reset}");
+    eprintln!("    {green}▸{reset} 8 Layers    {green}ARMED{reset}");
     eprintln!();
     eprintln!("    {dim}Press Ctrl+C to shut down{reset}");
     eprintln!();

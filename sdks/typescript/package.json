@@ -1,6 +1,6 @@
 {
   "name": "@iaga-sentinel/sdk",
-  "version": "1.5.2",
+  "version": "1.7.1",
   "description": "IAGA Sentinel TypeScript SDK: signed, replay-verifiable audit evidence for AI agent actions",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

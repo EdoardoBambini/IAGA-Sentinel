@@ -6,10 +6,11 @@
 > OSS↔Enterprise boundary in
 > [`adr/0010-oss-enterprise-boundary.md`](adr/0010-oss-enterprise-boundary.md).
 > Path references in this file (`community/...`) reflect pre-1.0
-> layout; current paths are `crates/iaga-sentinel-core/...`. The 8-layer
-> pipeline described here was hardened to **12 layers** in 1.0 (M2-M5
-> + M3.5 + M4 added supply chain attestation, blast radius, behavioral
-> baseline, counterparty trust).
+> layout; current paths are `crates/iaga-sentinel-core/...`. The pipeline
+> described here is still **8 layers** in 1.x (two of them, sandbox and
+> formal-verify, are advisory and do not change the verdict); 1.0 added four
+> cross-cutting subsystems on top (supply chain attestation, blast radius,
+> behavioral baseline, counterparty trust).
 
 ## Release Context
 

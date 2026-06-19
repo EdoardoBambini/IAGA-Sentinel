@@ -1,19 +1,26 @@
-# Ignored advisories for cargo audit — single source of truth (1.5.2; CI runs
-# plain `cargo audit` from the repo root and discovers this file).
+# Ignored advisories for cargo audit — single source of truth (re-reviewed
+# 2026-06-19 at 1.7.1; CI runs plain `cargo audit` from the repo root and
+# discovers this file). Paths below re-verified with `cargo tree -i`.
+#
+# None of the three crates is in the DEFAULT build. Each enters Cargo.lock only
+# through an optional, compile-time, or feature-gated path, so `cargo audit`
+# (which scans the lockfile) flags them even though the vulnerable code never
+# runs in a default checkout.
 #
 # RUSTSEC-2023-0071, rsa 0.9.10 timing sidechannel (Marvin Attack)
-#   Pulled transitively via sqlx-macros-core -> sqlx-mysql. We use only
-#   SQLite/Postgres at runtime; sqlx-macros pulls every DB backend at
-#   compile time for query!() checks. Vulnerable code is never executed.
-#   No upstream fix available as of 2026-04.
+#   In the lockfile via sqlx-mysql 0.8.6 (sqlx-macros pulls every DB backend at
+#   compile time for query!() checks). Not reachable from the workspace graph:
+#   `cargo tree -i rsa` prints nothing. We run only SQLite/Postgres; the
+#   vulnerable RSA path (MySQL caching_sha2_password) is never executed. No
+#   upstream fix available as of 2026-06.
 #
-# RUSTSEC-2025-0057, fxhash 0.2.1 unmaintained
-#   Pulled via wasmtime 36.x -> fxprof-processed-profile. Out of our
-#   control; tracked upstream in bytecodealliance/wasmtime.
+# RUSTSEC-2025-0057, fxhash 0.2.1 unmaintained (informational)
+#   Pulled via wasmtime 36.x -> fxprof-processed-profile (plugins feature). Out
+#   of our control; tracked upstream in bytecodealliance/wasmtime.
 #
-# RUSTSEC-2024-0436, paste 1.0.15 unmaintained
-#   Pulled via tract-onnx -> tract-core -> tract-linalg. Required by the
-#   reasoning plane; no drop-in replacement available.
+# RUSTSEC-2024-0436, paste 1.0.15 unmaintained (informational)
+#   Pulled via tract-onnx -> tract-core / tract-linalg (ml feature, reasoning
+#   plane). Ubiquitous proc-macro; no drop-in replacement available.
 [advisories]
 ignore = [
   "RUSTSEC-2023-0071",

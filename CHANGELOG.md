@@ -14,6 +14,36 @@ Enterprise overview.
 
 ---
 
+## [1.7.1], 2026-06-19
+
+Documentation and honesty hygiene. **No code-path or wire change:** receipts,
+policy evaluation, and the default build are byte-identical to 1.7.0, and
+receipts written by earlier releases still verify byte-for-byte unchanged.
+Cut after a full audit pass (live end-to-end, tamper-evidence, determinism, and
+the default plus `--all-features` test suites all green).
+
+### Changed
+
+- **Honest layer count.** The server boot banner read "12 Layers ARMED" and the
+  historical `ARCHITECTURE.md` / `CASE_STUDY.md` notes claimed "12 layers"; the
+  executable pipeline runs **8 layers** (two of them — sandbox and
+  formal-verify — are advisory and do not change the verdict), plus four
+  cross-cutting subsystems. The banner now reads "8 Layers ARMED" and the docs
+  state the real count.
+- **Documented the `cargo audit` advisory ignores.** `.cargo/audit.toml` now
+  records, for each of the three ignored RUSTSEC advisories, the exact
+  optional/compile-time path that pulls the crate (`rsa` via `sqlx-mysql`'s
+  compile-time query macros, `fxhash` via `wasmtime`, `paste` via `tract`) and
+  notes that none is in the default build. Re-verified with `cargo tree`.
+- **Version and license hygiene.** The workspace version, the Python and
+  TypeScript SDK manifests, and the BUSL `Licensed Work` line (still stamped
+  `v1.6.0`) are aligned to the release.
+
+### Fixed
+
+- The README install snippet pinned a stale `--tag` (`v1.6.0`); it now matches
+  the release tag.
+
 ## [1.7.0], 2026-06-17
 
 OSS backlog closure toward the roadmap's 1.3-1.6 "cryptographic primitive" track:
