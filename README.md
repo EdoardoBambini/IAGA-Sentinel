@@ -32,10 +32,6 @@
   <img src="docs/media/iaga-pipeline.svg" alt="Animated isometric drawing of the IAGA Sentinel governance pipeline: twelve layers as a stack of plates threaded on one axis, converging on a single endpoint at POST /v1/inspect" width="460" />
 </p>
 
-<p align="center">
-  <img src="docs/media/iaga-evidence.svg" alt="IAGA Sentinel — signed receipts stack into a verifiable Merkle root" width="460" />
-</p>
-
 ---
 
 ## What IAGA Sentinel is
@@ -139,6 +135,11 @@ Paced for the camera, you will watch three real verdicts land in the dashboard L
 - **Beat 3, BLOCK** (risk 81): `rm -rf` on the database, stopped before it runs.
 - **The proof.** The three signed receipts export as one hash-chained run and `iaga-verify` prints `CHAIN OK` with no server, no database and no network. The final receipt attests the Block.
 
+<p align="center">
+  <img src="docs/media/iaga-evidence.svg" alt="Animated isometric drawing of the Merkle append-log: three signed receipts stacking into a single verifiable root" width="380" /><br />
+  <sub><b>One hash-chained run</b> — the three verdicts seal into a single Merkle root; verify the root and you have verified every receipt under it.</sub>
+</p>
+
 The driver asserts every verdict, so a non-deterministic run can never be recorded. To redo a clean take, stop the server with `Ctrl+C` and re-run `demo.ps1` (it re-seeds from scratch).
 
 On Linux and macOS the flow is identical (the driver needs `curl` and `jq`):
@@ -166,20 +167,6 @@ This integration spans the full enforcement ladder: **advisory** (ingest: record
 **In active development.** [`STATUS.md`](examples/integrations/codex/STATUS.md) tracks the honest what-works list and the roadmap: non-disableable managed hooks (`requirements.toml`), a Sentinel egress proxy that allowlists domains and mints a receipt per connection, and human-in-the-loop `ask` verdicts.
 
 → [`examples/integrations/codex/`](examples/integrations/codex/) · [STATUS & roadmap](examples/integrations/codex/STATUS.md) · [ADR 0022](docs/adr/0022-codex-integration.md)
-
----
-
-## In the loop with the Cheshire Cat
-
-The second **vertical plug-in**, and the first for a LangChain-based framework: a [Cheshire Cat](https://github.com/cheshire-cat-ai/core) plug-in that routes **every tool call the Cat's agent tries to run** through `POST /v1/inspect` before the side effect, returns a deterministic `allow` / `review` / `block`, and mints a signed receipt either way.
-
-- **The gate.** A one-time monkeypatch of `CatTool.run` covers every tool of every plug-in, present and future. On `block`/`review` the tool's function never runs and the model receives the policy reason as the tool output; on `allow` it runs normally. **Fail-closed by default**: if Sentinel is unreachable, the tool does not run. (The SDK's LangChain callback is deliberately *not* used — the Cat runs tools outside LangChain's callback manager, so it would silently no-op.)
-- **The planes.** Beyond the per-call tool gate, optional hooks inspect the user message (input plane) and redact the final answer (output plane); both ship off by default.
-- **The proof.** The same Ed25519 + Merkle receipt chain, verifiable offline with `iaga-verify` or the dependency-free `iaga_verify.py`.
-
-Same honest posture as the Codex gate: this is **agent-loop**, cooperative enforcement — real at the application layer, but no kernel and no OS sandbox, so every receipt stays `is_authoritative: false`. The **V2** path (the Cat's MCP-native, async rewrite) opens the strong form: routing the Cat's MCP tools through Sentinel's `iaga-sentinel-mcp` proxy, where interception is structural rather than cooperative.
-
-→ [`cheshire-cat/`](cheshire-cat/) — one-command `docker compose up` demo, three-beat allow/review/block walkthrough, and tests.
 
 ---
 
