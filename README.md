@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/media/iaga-hero.png" alt="IAGA Sentinel: an isometric evidence chain of signed receipts linking into a single verifiable Merkle root" width="860" />
+</p>
+
 <h1 align="center">IAGA Sentinel</h1>
 
 <p align="center">
@@ -28,10 +32,6 @@
   Built in the EU by <a href="https://www.iaga.tech/team">three founders</a> (French, German, Italian) and <a href="https://www.iaga.tech/research">research-validated, not marketing-validated</a>: peer-reviewed at AISec 2026 (ACM CCS).
 </p>
 
-<p align="center">
-  <img src="docs/media/iaga-pipeline.svg" alt="Animated isometric drawing of the IAGA Sentinel governance pipeline: twelve layers as a stack of plates threaded on one axis, converging on a single endpoint at POST /v1/inspect" width="460" />
-</p>
-
 ---
 
 ## What IAGA Sentinel is
@@ -42,8 +42,8 @@ AI agents touch the shell, the filesystem, databases, third-party APIs, and secr
 > Today IAGA Sentinel enforces softly and certifies hard. The signed evidence and the replay are real and verifiable now, from a clean checkout. Authoritative kernel-level enforcement (eBPF/LSM) is not in this open build. `iaga kernel status` says so honestly, and every receipt carries `is_authoritative: false`. We do not market enforcement we do not provide.
 
 <p align="center">
-  <img src="docs/media/iaga-enforcement-kernel.svg" alt="Animated isometric drawing of the enforcement kernel: a governed process cube under a guard plate on four struts with the active policy latch highlighted; soft enforcement, is_authoritative false" width="380" /><br />
-  <sub><b>Soft enforcement, stated in the evidence</b> — the guard latches at the application layer; every receipt carries <code>is_authoritative: false</code>.</sub>
+  <img src="docs/media/iaga-receipt.png" alt="An IAGA Sentinel signed receipt drawn as a precise instrument, sealed with a verification mark and linked into the hash chain" width="640" /><br />
+  <sub>Every governance verdict becomes a signed receipt, sealed with Ed25519 and linked into the Merkle log.</sub>
 </p>
 
 What makes it different:
@@ -52,11 +52,6 @@ What makes it different:
 - **Honest posture.** Soft enforcement is stated inside the evidence itself, not buried in a footnote.
 - **Sovereign by construction.** Runs air-gapped; BUSL-1.1 auto-converts to Apache-2.0; the evidence stays in your hands, with no CLOUD Act exposure.
 - **EU AI Act-shaped.** Receipts line up with Article 12 logging; typed Dictum policies document your risk controls.
-
-<p align="center">
-  <img src="docs/media/iaga-policy-gate.svg" alt="Animated isometric drawing of the deterministic Dictum policy gate: one action enters and the typed policy routes it out exactly one of three branches, allow review or block; allow fired" width="380" /><br />
-  <sub><b>The Dictum policy gate</b> — one action in, exactly one verdict out: allow, review or block.</sub>
-</p>
 
 ---
 
@@ -79,11 +74,6 @@ curl -s -X POST http://localhost:4010/v1/inspect -H 'Content-Type: application/j
 # -> "decision":"block", "risk":{"score":87, ...}   and a signed receipt was just minted
 ```
 
-<p align="center">
-  <img src="docs/media/iaga-signing-key.svg" alt="Animated isometric drawing of the Ed25519 signing key: a toothed shaft ending in a seal ring that stamps each receipt with a detached signature" width="380" /><br />
-  <sub><b>Every verdict is sealed</b> — an Ed25519 detached signature on each receipt, linked into the Merkle append-log.</sub>
-</p>
-
 ### Prove it offline (no server, no network)
 
 The receipt chain verifies with no server, no database and no network, using the standalone `iaga-verify` binary. That binary isn't in the Docker image, so install the CLI (still no clone) and run the same flow locally:
@@ -101,11 +91,6 @@ iaga-verify chain.json                      # -> CHAIN OK
 ```
 
 Postgres (`--features postgres` + `DATABASE_URL`) and `docker compose up -d` are covered in the docs.
-
-<p align="center">
-  <img src="docs/media/iaga-offline-verifier.svg" alt="Animated isometric drawing of the offline verifier reading an exported receipt chain through an intake slot and a public-key port, with no network, emitting CHAIN OK" width="380" /><br />
-  <sub><b>The verifier needs nothing</b> — no server, no database, no network: it reads the exported chain and the public key and prints <code>CHAIN OK</code>.</sub>
-</p>
 
 ---
 
@@ -136,8 +121,8 @@ Paced for the camera, you will watch three real verdicts land in the dashboard L
 - **The proof.** The three signed receipts export as one hash-chained run and `iaga-verify` prints `CHAIN OK` with no server, no database and no network. The final receipt attests the Block.
 
 <p align="center">
-  <img src="docs/media/iaga-evidence.svg" alt="Animated isometric drawing of the Merkle append-log: three signed receipts stacking into a single verifiable root" width="380" /><br />
-  <sub><b>One hash-chained run</b> — the three verdicts seal into a single Merkle root; verify the root and you have verified every receipt under it.</sub>
+  <img src="docs/media/iaga-flow.gif" alt="Animated isometric flow: signed receipts stack and seal into a single verified root" width="760" /><br />
+  <sub>From action to sealed, verifiable evidence.</sub>
 </p>
 
 The driver asserts every verdict, so a non-deterministic run can never be recorded. To redo a clean take, stop the server with `Ctrl+C` and re-run `demo.ps1` (it re-seeds from scratch).
@@ -190,11 +175,6 @@ In this repository:
 This repository is the open build: the source-verifiable evidence core, with signed receipts, offline verification and replay, the Dictum policy engine, cross-platform soft enforcement, BYOK signing, BYO ONNX reasoning, and cost control. Every claim is reproducible from a clean checkout: `git clone && cargo test --workspace`.
 
 IAGA Sentinel Enterprise adds managed, platform-specific, and compliance-delivery capabilities: Annex IV dossier generation, qualified signatures, SSO/RBAC/multi-tenancy, native SIEM and KMS integrations, authoritative kernel enforcement, and curated model packages. The public boundary is documented in [ADR 0010](docs/adr/0010-oss-enterprise-boundary.md); the overview is in [`ENTERPRISE.md`](ENTERPRISE.md).
-
-<p align="center">
-  <img src="docs/media/iaga-annex-dossier.svg" alt="Animated isometric wireframe of the EU AI Act Annex IV conformity dossier: a bound stack of document sheets with the Annex IV index tab marked active" width="380" /><br />
-  <sub><b>Annex IV, as an artifact</b> — the open build emits the receipts that feed the technical file; managed dossier generation is an Enterprise capability.</sub>
-</p>
 
 ---
 
