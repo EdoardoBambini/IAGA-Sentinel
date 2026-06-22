@@ -35,3 +35,9 @@ charts/** linguist-vendored
 # Documentation should not skew the language stats.
 docs/** linguist-documentation
 *.md linguist-documentation
+
+# Test, smoke and demo scripts are tooling, not product code: keep them out
+# of the language bar (JavaScript + PowerShell).
+*.mjs linguist-vendored
+*.cjs linguist-vendored
+*.ps1 linguist-vendored
