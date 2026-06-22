@@ -16,6 +16,10 @@ WORKDIR /app
 # to rebuild the binary). A single-shot build is slower but reliable.
 COPY Cargo.toml Cargo.lock ./
 COPY crates/ crates/
+# The Codex plug-in is a workspace member outside crates/ (plug-ins/codex-plugin).
+# cargo must read every member manifest to resolve the workspace, even though the
+# `iaga` binary does not depend on it.
+COPY plug-ins/codex-plugin/ plug-ins/codex-plugin/
 
 # Build only the production binary we ship. `--locked` enforces that
 # Cargo.lock matches what was committed.
