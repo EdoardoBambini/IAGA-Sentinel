@@ -12,6 +12,10 @@ dist/
 npm-debug.log*
 Thumbs.db
 
+# Local-only staging for unreleased plugins: lives on disk but is NEVER tracked
+# or pushed. Anything here ships in a later, separate release.
+plug-ins/.local/
+
 # Local development files
 .agents/
 skills-lock.json

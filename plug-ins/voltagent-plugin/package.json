@@ -1,0 +1,49 @@
+{
+  "name": "@iaga-sentinel/voltagent",
+  "version": "0.1.0",
+  "description": "IAGA Sentinel plugin for VoltAgent: governs every tool call through a local Sentinel sidecar (allow/review/block) and turns each verdict into a signed, offline-verifiable receipt. Cooperative agent-loop tier.",
+  "license": "BUSL-1.1",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "npm run build && node --test test/*.unit.test.ts",
+    "test:live": "npm run build && node --test test/live.test.ts",
+    "test:e2e": "npm run build && node test/e2e.agent.mjs",
+    "test:e2e:llm": "npm run build && node --env-file-if-exists=.env test/e2e.llm.mjs",
+    "test:e2e:llm:full": "npm run build && node --env-file-if-exists=.env test/e2e.llm.full.mjs",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "voltagent",
+    "iaga-sentinel",
+    "ai-agent",
+    "governance",
+    "guardrails",
+    "eu-ai-act",
+    "audit",
+    "tool-calling"
+  ],
+  "peerDependencies": {
+    "@voltagent/core": ">=2.0.0"
+  },
+  "devDependencies": {
+    "@ai-sdk/openai": "^3.0.74",
+    "@voltagent/core": "^2.7.0",
+    "typescript": "^5.5.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

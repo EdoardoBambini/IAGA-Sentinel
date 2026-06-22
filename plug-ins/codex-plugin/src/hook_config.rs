@@ -13,7 +13,7 @@ pub const DEFAULT_BASE_URL: &str = "http://localhost:4010";
 
 /// Static agent identity for Codex sessions. `/v1/inspect` returns 404
 /// for unregistered agents, so the id must match a registered profile
-/// (`examples/integrations/codex/codex.policy.yaml`). The Codex
+/// (`plug-ins/codex-plugin/codex.policy.yaml`). The Codex
 /// `session_id` rides in the request metadata instead — never in the
 /// agent id.
 pub const DEFAULT_AGENT_ID: &str = "codex";

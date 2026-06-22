@@ -5,7 +5,7 @@ Register `IagaCallbackHandler` on LlamaIndex's `CallbackManager`; it gates the
 block/review -> raises PermissionError. Does not import llama_index: it
 duck-types the event type and the payload keys (`tool`, `function_call`).
 
-See examples/integrations/llamaindex/ for a runnable example.
+See plug-ins/llamaindex-adapter/ for a runnable example.
 """
 from __future__ import annotations
 

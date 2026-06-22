@@ -11,7 +11,7 @@ This module does not import langgraph/langchain; it duck-types the state
 ``invoke``/``func``/callable interface, and builds a ``ToolMessage`` via a lazy
 import (falling back to a plain dict if langchain_core is absent).
 
-See examples/integrations/langgraph/ for a runnable example.
+See plug-ins/langgraph-adapter/ for a runnable example.
 """
 from __future__ import annotations
 

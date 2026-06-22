@@ -14,6 +14,36 @@ Enterprise overview.
 
 ---
 
+## [1.7.2], 2026-06-22
+
+The **VoltAgent plug-in** and a consolidated `plug-ins/` home. **Additive and
+docs-only for the core:** receipts, policy evaluation, and the default build are
+byte-identical to 1.7.1; no wire or receipt-field change.
+
+### Added
+
+- **VoltAgent plug-in** (`@iaga-sentinel/voltagent`, `plug-ins/voltagent-plugin/`): a
+  drop-in, dependency-free (global `fetch` only) in-the-loop plug-in for the
+  [VoltAgent](https://github.com/VoltAgent/voltagent) framework. `createSentinelHooks()`
+  wires VoltAgent's `onToolStart` hook to `POST /v1/inspect`: `allow` runs the tool,
+  `block` throws `ToolDeniedError` so `execute()` never fires, `review` is denied by
+  default (`onReview: "allow"` to pass through). Optional `scanInput` (prompt-injection
+  firewall) and `scanOutput`/`redactOutput` (secret redaction of tool output via
+  `/v1/response/scan`). Fail-closed by default; every receipt stays
+  `is_authoritative: false`. Verified end-to-end against a real sidecar and a real
+  LLM, with offline `CHAIN OK`.
+
+### Changed
+
+- **`plug-ins/` is the home for in-the-loop integrations.** Released plug-ins live as
+  `*-plugin/` (`codex-plugin/`, `voltagent-plugin/`); the copy-paste framework
+  integrations move there as `*-adapter/`. The OpenAI Codex crate moves from
+  `crates/iaga-sentinel-codex` to `plug-ins/codex-plugin` (workspace member and path
+  deps updated; compiled binaries byte-identical). README, CONTRIBUTING, the ADR, and
+  the SDK adapter pointers follow.
+
+---
+
 ## [1.7.1], 2026-06-19
 
 Documentation and honesty hygiene. **No code-path or wire change:** receipts,

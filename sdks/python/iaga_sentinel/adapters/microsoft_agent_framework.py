@@ -10,7 +10,7 @@ Best-effort, duck-typed: it reads `context.function.name` (falling back to
 `context.function_name`) and `context.arguments`; it does not import the
 framework, so it tracks whatever exposes that shape.
 
-See examples/integrations/microsoft-agent-framework/ for a runnable example.
+See plug-ins/microsoft-agent-framework-adapter/ for a runnable example.
 """
 from __future__ import annotations
 

@@ -11,7 +11,7 @@ from ._common import AdapterConfig, build_request, inspect_async, inspect_sync
 class AutoGenSentinelHook:
     """Hook object for AutoGen-style pre-tool-call governance checks.
 
-    See examples/integrations/autogen/ for a runnable example.
+    See plug-ins/autogen-adapter/ for a runnable example.
     """
 
     def __init__(

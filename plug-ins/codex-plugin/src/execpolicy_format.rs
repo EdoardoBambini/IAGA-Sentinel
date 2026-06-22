@@ -1,7 +1,7 @@
 //! THE single place that knows OpenAI Codex **execpolicy** `.rules` syntax.
 //!
 //! Validated against `codex execpolicy check` on the Codex version pinned
-//! in `examples/integrations/codex/README.md` (the single place the
+//! in `plug-ins/codex-plugin/README.md` (the single place the
 //! version is recorded). The confirmed contract:
 //!
 //! - `prefix_rule(pattern, decision, justification?, match?, not_match?)`.

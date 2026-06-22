@@ -188,7 +188,7 @@ where
             Err(InspectError::AgentNotRegistered { agent_id, base_url }) => {
                 eprintln!(
                     "[iaga-codex] agent '{agent_id}' is not registered at {base_url} — \
-                     run: iaga import examples/integrations/codex/codex.policy.yaml"
+                     run: iaga import plug-ins/codex-plugin/codex.policy.yaml"
                 );
                 summary.failed += 1;
                 summary.aborted = true;

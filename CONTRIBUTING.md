@@ -69,9 +69,10 @@ import the target framework, and declare nothing authoritative.
 3. Add a fake test in `sdks/python/tests/` (duck-typed, no framework needed) and,
    when the framework installs, a real test in `sdks/python/tests/e2e/` guarded by
    `pytest.importorskip(...)` and the `e2e` marker.
-4. Add a copy-paste example under `examples/integrations/<framework>/`
+4. Add the integration under `plug-ins/<framework>-adapter/`
    (code + `<framework>.policy.yaml` + `README.md`) and a row in
-   `examples/integrations/README.md`.
+   `plug-ins/README.md`. Promote it (drop the `-adapter` suffix) once it is a
+   self-contained, tested, deployable package like `plug-ins/codex-plugin/`.
 
 ## Commit conventions
 

@@ -69,7 +69,7 @@ is detectable.
 
 **execpolicy contract (validated against the pinned Codex version).** The
 syntax is confirmed against `codex execpolicy check` on the version pinned in
-`examples/integrations/codex/README.md`, and is isolated in one module
+`plug-ins/codex-plugin/README.md`, and is isolated in one module
 (`src/execpolicy_format.rs`):
 
 - `pattern` is an argv prefix; each position is a `str` or a non-empty
@@ -150,7 +150,7 @@ All Codex field-name knowledge is confined to two modules — the hook payload
 to `src/codex_event.rs`, the exec stream to `src/exec_stream.rs` — and to the
 fixtures; correcting a contract touches that one module and its fixtures,
 nothing else. The pinned Codex version is recorded only in
-`examples/integrations/codex/README.md`.
+`plug-ins/codex-plugin/README.md`.
 
 **Spike results (codex-cli 0.138.0-alpha.7).**
 
@@ -217,7 +217,7 @@ cannot leave the machine even if every cooperative check were removed.
 This is enforcement by **Codex's sandbox, not Sentinel**: Sentinel attests the
 attempt and signs the verdict, and `is_authoritative` **stays `false`** — the
 project never claims to own a wire it does not own. The runbook lives in
-`examples/integrations/codex/poisoned-repo/DEMO.md` (Phase 2 section); nothing
+`plug-ins/codex-plugin/poisoned-repo/DEMO.md` (Phase 2 section); nothing
 in the crate, core, or receipt schema changed. An operator-asserted
 `metadata.enforcementLayer` label was considered and **declined** for now: the
 gate cannot verify the sandbox state from a hook event, so it would be a

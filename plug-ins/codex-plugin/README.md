@@ -78,7 +78,7 @@ an unregistered agent means **every tool call is blocked** with a message
 pointing here. Import the bundled policy once:
 
 ```bash
-./target/release/iaga import examples/integrations/codex/codex.policy.yaml
+./target/release/iaga import plug-ins/codex-plugin/codex.policy.yaml
 ```
 
 It maps Codex's tool names to action types and defaults every decision to

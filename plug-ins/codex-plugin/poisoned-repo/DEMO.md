@@ -33,10 +33,10 @@ off-box" — exactly this attack.
 # 1. Build, then start the sidecar with the egress overlay loaded.
 cargo build --release --workspace
 IAGA_SENTINEL_OPEN_MODE=true ./target/release/iaga serve --seed-demo \
-  --policy examples/integrations/codex/poisoned-repo/egress.dictum
+  --policy plug-ins/codex-plugin/poisoned-repo/egress.dictum
 
 # 2. Register the codex agent (in another shell).
-./target/release/iaga import examples/integrations/codex/codex.policy.yaml
+./target/release/iaga import plug-ins/codex-plugin/codex.policy.yaml
 ```
 
 **Gate (in-the-loop block).** A benign command is allowed; the injected
@@ -136,8 +136,8 @@ match on arguments (not a command prefix), the report is honest:
 
 ```bash
 ./target/release/iaga-codex export-rules \
-  --dictum examples/integrations/codex/poisoned-repo/egress.dictum \
-  --out examples/integrations/codex/poisoned-repo/egress.rules
+  --dictum plug-ins/codex-plugin/poisoned-repo/egress.dictum \
+  --out plug-ins/codex-plugin/poisoned-repo/egress.rules
 # EXPORTED  rules=0  runtime_only=3 ...
 ```
 

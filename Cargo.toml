@@ -19,12 +19,12 @@ members = [
     "crates/iaga-sentinel-kernel",
     "crates/iaga-sentinel-verify",
     "crates/iaga-sentinel-integrations",
-    "crates/iaga-sentinel-codex",
+    "plug-ins/codex-plugin",
     "crates/iaga-sentinel-mcp",
 ]
 
 [workspace.package]
-version = "1.7.1"
+version = "1.7.2"
 edition = "2021"
 # Minimum Supported Rust Version. Floor set by transitive deps in Cargo.lock
 # (`home 0.5.12` needs 1.88); bump deliberately, note it in CHANGELOG.md.

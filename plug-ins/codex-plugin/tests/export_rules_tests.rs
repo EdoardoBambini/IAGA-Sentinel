@@ -91,7 +91,7 @@ fn invalid_dictum_exits_compile_error() {
 // ── real round-trip against `codex execpolicy check` ─────────────────────
 //
 // Requires the Codex CLI on PATH (validated against the version pinned in
-// examples/integrations/codex/README.md). Ignored by default so CI without
+// plug-ins/codex-plugin/README.md). Ignored by default so CI without
 // Codex stays green:
 //
 //   cargo test -p iaga-sentinel-codex -- --ignored

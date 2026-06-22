@@ -11,7 +11,7 @@ from ._common import AdapterConfig, build_request, inspect_async, inspect_sync
 class SentinelGuardrail:
     """Guardrail object that can be called before a CrewAI tool/action runs.
 
-    See examples/integrations/crewai/ for a runnable example.
+    See plug-ins/crewai-adapter/ for a runnable example.
     """
 
     def __init__(

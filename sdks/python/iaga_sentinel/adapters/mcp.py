@@ -17,7 +17,7 @@ The default ``framework`` is "model-context-tool" (not "mcp"): the server treats
 explicit MCP-protocol traffic specially (a protocol guard), but this wrapper
 governs the tool *call* at the handler level, not the raw JSON-RPC envelope.
 
-See examples/integrations/mcp/ for a runnable example.
+See plug-ins/mcp-adapter/ for a runnable example.
 """
 from __future__ import annotations
 

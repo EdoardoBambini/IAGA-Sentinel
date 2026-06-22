@@ -255,7 +255,7 @@ async fn unregistered_agent_404_points_to_the_policy_import() {
     assert!(outcome
         .message
         .expect("404 carries a message")
-        .contains("iaga import examples/integrations/codex/codex.policy.yaml"));
+        .contains("iaga import plug-ins/codex-plugin/codex.policy.yaml"));
 }
 
 #[tokio::test]

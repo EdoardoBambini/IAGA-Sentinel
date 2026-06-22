@@ -1,6 +1,6 @@
 """Dependency-light OpenAI wrapper for IAGA Sentinel.
 
-See examples/integrations/openai/ for a runnable example.
+See plug-ins/openai-adapter/ for a runnable example.
 """
 
 from __future__ import annotations

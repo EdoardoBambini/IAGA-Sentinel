@@ -1,0 +1,37 @@
+# Drop-in quickstart: a stock IAGA Sentinel sidecar in open mode (no auth),
+# plus a one-shot runner for the example.
+#
+#   docker compose up sentinel          # just the sidecar on :4010
+#   docker compose run --rm example     # run the gate demo against it
+#
+# Open mode (IAGA_SENTINEL_OPEN_MODE=true) is for local demos only. In
+# production, drop open mode and pass an API key (IAGA_SENTINEL_API_KEY).
+services:
+  sentinel:
+    image: ghcr.io/edoardobambini/iaga-sentinel:v1.7.1
+    command: ["serve"]
+    environment:
+      IAGA_SENTINEL_OPEN_MODE: "true"
+      PORT: "4010"
+    ports:
+      - "4010:4010"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:4010/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  example:
+    image: node:24-alpine
+    working_dir: /app
+    depends_on:
+      sentinel:
+        condition: service_healthy
+    environment:
+      IAGA_SENTINEL_URL: "http://sentinel:4010"
+      IAGA_SENTINEL_AGENT_ID: "voltagent-demo"
+    volumes:
+      - ./:/app
+    command: >
+      sh -c "npm install --no-audit --no-fund &&
+             npx tsx examples/basic-agent.ts"

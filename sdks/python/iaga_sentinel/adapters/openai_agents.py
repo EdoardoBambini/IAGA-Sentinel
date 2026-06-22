@@ -12,7 +12,7 @@ Two hooks (use either or both):
 Does not import `agents`; the guardrail return value uses the SDK's
 `GuardrailFunctionOutput` when available, else a duck-typed fallback.
 
-See examples/integrations/openai-agents/ for a runnable example.
+See plug-ins/openai-agents-adapter/ for a runnable example.
 """
 from __future__ import annotations
 

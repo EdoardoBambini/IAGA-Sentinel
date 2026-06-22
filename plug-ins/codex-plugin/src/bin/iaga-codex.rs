@@ -27,7 +27,7 @@ enum Commands {
     /// Codex command hook: read one hook event (JSON) on stdin, govern it
     /// through IAGA Sentinel's POST /v1/inspect, and exit 0 (allow) or 2
     /// (block). Register it in Codex's config.toml, see
-    /// examples/integrations/codex/README.md.
+    /// plug-ins/codex-plugin/README.md.
     Hook,
 
     /// Compile a Dictum bundle to a native Codex execpolicy `.rules` file:

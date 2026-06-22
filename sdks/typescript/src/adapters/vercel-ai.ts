@@ -71,7 +71,7 @@ function paramsToPayload(params: unknown): JsonObject {
  * duck-typed against the SDK's middleware contract. `inspect(payload)` is also
  * exposed as a standalone escape hatch for governing an arbitrary payload.
  *
- * See examples/integrations/vercel-ai/ for a runnable example.
+ * See plug-ins/vercel-ai-adapter/ for a runnable example.
  */
 export function sentinelMiddleware(options: SentinelMiddlewareOptions) {
   const client = new SentinelClient(options);

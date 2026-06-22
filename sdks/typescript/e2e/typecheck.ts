@@ -4,7 +4,7 @@
 //   node ../node_modules/typescript/bin/tsc -p tsconfig.typecheck.json
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import { SentinelClient } from "@iaga-sentinel/sdk";
-import { iagaCanUseTool } from "../../../examples/integrations/claude-agent-sdk/canUseTool";
+import { iagaCanUseTool } from "../../../plug-ins/claude-agent-sdk-adapter/canUseTool";
 
 type Options = NonNullable<Parameters<typeof query>[0]["options"]>;
 type CanUseToolFn = NonNullable<Options["canUseTool"]>;

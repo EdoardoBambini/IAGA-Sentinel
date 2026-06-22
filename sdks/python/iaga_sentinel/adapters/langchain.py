@@ -1,6 +1,6 @@
 """Dependency-light LangChain callback helpers for IAGA Sentinel.
 
-See examples/integrations/langchain/ for a runnable example.
+See plug-ins/langchain-adapter/ for a runnable example.
 """
 
 from __future__ import annotations

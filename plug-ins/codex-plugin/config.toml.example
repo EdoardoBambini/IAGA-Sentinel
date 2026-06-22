@@ -36,7 +36,7 @@
 [hooks]
 # Directory that contains `hooks.json`. On Windows Codex reads
 # `windows_managed_dir`; on Unix, `managed_dir`. Use an absolute path.
-managed_dir = "/abs/path/to/examples/integrations/codex"
+managed_dir = "/abs/path/to/plug-ins/codex-plugin"
 windows_managed_dir = "C:\\abs\\path\\to\\examples\\integrations\\codex"
 
 # Notes from the spike (codex-cli 0.138.0-alpha.7):

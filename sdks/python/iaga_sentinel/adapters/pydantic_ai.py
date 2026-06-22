@@ -10,7 +10,7 @@ before the body runs. Stack it under `@agent.tool` / `@agent.tool_plain`:
 allow -> runs; block/review -> PermissionError. The `ctx`/`context` argument is
 excluded from the inspected payload.
 
-See examples/integrations/pydantic-ai/ for a runnable example.
+See plug-ins/pydantic-ai-adapter/ for a runnable example.
 """
 from __future__ import annotations
 

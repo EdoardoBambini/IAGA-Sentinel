@@ -1,6 +1,6 @@
 """Decorator for governing tool calls with IAGA Sentinel.
 
-See examples/integrations/custom/ for a runnable example.
+See plug-ins/custom-adapter/ for a runnable example.
 """
 
 from __future__ import annotations

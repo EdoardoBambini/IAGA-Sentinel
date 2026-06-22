@@ -6,7 +6,7 @@
 # you import it (the claude-code hook fails open instead; this gate is an
 # enforcement point, not an observer). Import it once:
 #
-#     iaga import examples/integrations/codex/codex.policy.yaml
+#     iaga import plug-ins/codex-plugin/codex.policy.yaml
 #
 # or copy it to ./iaga-sentinel.yaml, which the server auto-imports on boot.
 #

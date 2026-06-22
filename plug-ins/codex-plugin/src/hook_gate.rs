@@ -124,13 +124,13 @@ pub async fn run(raw: &str, config: &Config) -> GateOutcome {
         Err(InspectError::AgentNotRegistered { agent_id, base_url }) => {
             eprintln!(
                 "[iaga-codex] agent '{agent_id}' is not registered at {base_url} — \
-                 run: iaga import examples/integrations/codex/codex.policy.yaml"
+                 run: iaga import plug-ins/codex-plugin/codex.policy.yaml"
             );
             no_verdict_outcome(
                 config,
                 &format!(
                     "agent '{agent_id}' is not registered \
-                     (run: iaga import examples/integrations/codex/codex.policy.yaml)"
+                     (run: iaga import plug-ins/codex-plugin/codex.policy.yaml)"
                 ),
             )
         }
