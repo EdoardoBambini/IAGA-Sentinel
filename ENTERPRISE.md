@@ -1,12 +1,14 @@
 # IAGA Sentinel Enterprise
 
-IAGA Sentinel Enterprise is the commercial edition built around the same evidence core as the open build. The open repository remains the source-verifiable runtime: signed receipts, deterministic replay, Dictum policies, local verification, the CLI, the HTTP API, and the default dashboard.
+> **Status — in development, not yet available.** IAGA Sentinel Enterprise is a planned commercial edition, currently in active development. The capabilities described on this page are planned directions, not shipping features. Nothing here is an offer to sell, a price quote, or a commitment to deliver any specific feature or date. Want to follow it, help shape it, or be first to try it? Leave your email at `info@iaga.tech` to join the early-access list and we will reach out as it takes shape.
 
-Enterprise is for teams that need managed deployment, compliance workflows, identity integration, platform-specific enforcement, or support obligations that go beyond the public runtime.
+IAGA Sentinel Enterprise is the planned commercial edition built around the same evidence core as the open build. The open repository is, and will remain, the source-verifiable runtime that is available today: signed receipts, deterministic replay, Dictum policies, local verification, the CLI, the HTTP API, and the default dashboard.
+
+Enterprise is being designed for teams that will need managed deployment, compliance workflows, identity integration, platform-specific enforcement, or support arrangements that go beyond the public runtime.
 
 ## Open Build Boundary
 
-The open build includes the public governance primitives:
+The open build includes the public governance primitives, available today:
 
 - Signed receipt schema, Ed25519 signatures, and chain verification.
 - Deterministic replay and the standalone `iaga-verify` verifier.
@@ -18,9 +20,9 @@ The open build includes the public governance primitives:
 
 Features that ship in the open build are not silently moved behind an Enterprise-only gate. The public boundary is documented in [`docs/adr/0010-oss-enterprise-boundary.md`](docs/adr/0010-oss-enterprise-boundary.md).
 
-## Enterprise Scope
+## Planned Enterprise Scope
 
-Enterprise adds managed and platform-specific capabilities around the evidence core:
+The Enterprise edition is planned to add managed and platform-specific capabilities around the evidence core:
 
 - Compliance evidence packaging for regulated reviews.
 - Qualified-signature and managed-key integrations.
@@ -28,12 +30,12 @@ Enterprise adds managed and platform-specific capabilities around the evidence c
 - Native SIEM and managed deployment options.
 - Platform-specific authoritative enforcement implementations.
 - Curated model and threat-intelligence packages.
-- Commercial support and deployment assistance.
+- Support and deployment options.
 
-The open build remains useful on its own. Enterprise exists when a team needs the surrounding operational, compliance, and support layer.
+These are planned directions rather than commitments, and the list will evolve as we build. The open build remains fully useful on its own.
 
-## Evaluation
+## Early access
 
-Start with the open build. It is the best way to inspect the evidence model, verify receipt chains, and decide whether the runtime fits your architecture.
+The open build is the best place to start today. It is the best way to inspect the evidence model, verify receipt chains, and decide whether the runtime fits your architecture.
 
-For Enterprise discussions, contact `info@iaga.tech`.
+If you would like to be among the first to try Enterprise, help shape its priorities, or simply be kept informed, leave your email at `info@iaga.tech` and we will add you to the early-access list. No commitment and no purchase, just early information.

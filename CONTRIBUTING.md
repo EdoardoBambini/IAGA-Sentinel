@@ -106,9 +106,10 @@ We do not require a CLA. BUSL-1.1 plus the automatic Apache-2.0
 conversion baked into the licence is enough to keep the project
 durable for community contributors and forks.
 
-**IAGA Sentinel Enterprise** is a separate commercial product built on
-the same governance kernel. Enterprise modules live in a separate
-repository under a commercial license. Contributions to this repo
+**IAGA Sentinel Enterprise** is the planned commercial edition, currently
+in development, built on the same governance kernel. As it is built,
+Enterprise-only modules will live in a separate repository under a separate
+commercial license. Contributions to this repo
 flow into both editions automatically when they touch the shared
 kernel; the reverse is never true (Enterprise-only code never lands
 here).

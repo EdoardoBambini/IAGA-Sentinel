@@ -5,7 +5,7 @@
 
 ## Context
 
-IAGA Sentinel has an open build and a commercial Enterprise edition. The public repository needs a clear, stable boundary so users understand what they can verify from source and what belongs to the commercial product.
+IAGA Sentinel has an open build and a planned commercial Enterprise edition, currently in development. The public repository needs a clear, stable boundary so users understand what they can verify from source and what belongs to the planned commercial product.
 
 The open build already ships the evidence core: signed receipts, deterministic replay, Dictum, the reasoning abstraction with BYO ONNX, `UserspaceKernel`, the Linux `BpfKernel` scaffold, API and CLI surfaces, SQLite/Postgres storage, and the dashboard.
 

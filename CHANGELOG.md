@@ -8,9 +8,10 @@ For architectural rationale, see the ADRs under [docs/adr/](docs/adr/).
 
 This changelog tracks the **open-source build** of IAGA Sentinel,
 licensed under BUSL-1.1 with Change License: Apache-2.0 baked in.
-IAGA Sentinel Enterprise is a separate commercial product built on the
-same governance kernel; see [`ENTERPRISE.md`](ENTERPRISE.md) for the
-Enterprise overview.
+IAGA Sentinel Enterprise is a planned commercial edition, currently in
+development, built on the same governance kernel; see
+[`ENTERPRISE.md`](ENTERPRISE.md) for the overview and how to join the
+early-access list.
 
 ---
 
@@ -827,8 +828,9 @@ IAGA Sentinel Enterprise per ADR 0010 §2 (20 categories), including:
   Enterprise-only.
 - Forensic time-travel replay (event sourcing + DB-state-per-verdict
   temporal queries) vs OSS's input-capture-only drift replay.
-- Hosted plugin marketplace + supply-chain SLA + signed threat-intel
-  feed integration vs OSS's offline-only Sigstore / SBOM primitive.
+- Planned hosted plugin marketplace + supply-chain support commitment
+  + signed threat-intel feed integration vs OSS's offline-only Sigstore
+  / SBOM primitive.
 - Dictum AOT optimized codegen (cranelift opt-levels, WASI side-effects)
   + curated rule library + LSP / language server.
 - All other ADR 0010 §2 categories: eIDAS qualified signature, managed
@@ -848,8 +850,8 @@ A consolidation + rebrand release. 1.1.0 keeps 1.0.0's runtime
 behaviour and API contract, but **renames the project Agent Armor →
 IAGA Sentinel** across binary, crates, env vars, paths, and
 identifiers (breaking for CLI / ops / crate consumers), and pins **how the OSS line is
-positioned** relative to the IAGA Sentinel Enterprise commercial
-product.
+positioned** relative to the planned IAGA Sentinel Enterprise commercial
+edition.
 
 The 1.0 GA shipped the full governance kernel concept: enforcement
 kernel scaffold + `UserspaceKernel` cross-platform, signed Merkle
@@ -875,8 +877,8 @@ Capabilities originally listed under "Deferred to 1.0.x" or
   evolutions with no scale/UX value beyond what OSS already
   provides; keeping them OSS reinforces the open-core covenant
   without diminishing Enterprise.
-- **Migrated to IAGA Sentinel Enterprise** (separate commercial
-  product): real Aya-rs eBPF/LSM loader on Linux
+- **Scoped to IAGA Sentinel Enterprise** (the planned commercial
+  edition, currently in development): real Aya-rs eBPF/LSM loader on Linux
   (was 1.0.1), macOS Endpoint Security backend + Windows ETW/WFP
   backend (was 1.1), governance mesh single-cluster baseline + the
   pre-existing tier-2 multi-region active-active (was 1.1),
@@ -884,8 +886,9 @@ Capabilities originally listed under "Deferred to 1.0.x" or
   / anomaly-seq) + HuggingFace tokenizer integration + calibration
   framework (was 1.0.2 + 1.1), four native KMS SDK signer backends
   AWS KMS / Azure Key Vault / HashiCorp Vault / PKCS#11 (was 1.1).
-  These require specialist engineering at scale and ship with
-  contractual support, managed lifecycle, and threat-intel feed.
+  These require specialist engineering at scale and are planned to ship
+  in the Enterprise edition with contractual support, managed lifecycle,
+  and a curated threat-intel feed.
   None shipped in 1.0 GA, the **never retroactively remove**
   covenant is preserved.
 

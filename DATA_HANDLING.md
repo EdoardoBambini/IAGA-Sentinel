@@ -196,9 +196,13 @@ not by itself satisfy any regulatory obligation.
 
 The compliance dossier features of IAGA Sentinel Enterprise (for example EU AI Act Annex IV
 generation, RoPA and DPIA generators, and qualified eIDAS signatures that carry legal
-weight in EU jurisdictions) are governed by a separate commercial agreement and are not
-part of this open build or this document. The open build signs with Ed25519, an advanced
-signature; the qualified eIDAS seal is an Enterprise capability.
+weight in EU jurisdictions) are planned for the commercial edition, currently in
+development, and are not part of this open build or this document. The open build signs with
+Ed25519, an advanced signature; the qualified eIDAS seal is planned as an Enterprise capability.
+
+IAGA Sentinel Enterprise is not yet available for purchase. To follow it and get early
+access when it opens, leave your email at `info@iaga.tech` — no purchase, no commitment,
+just early information.
 
 ## Quick reference: environment variables that affect data
 

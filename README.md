@@ -183,7 +183,9 @@ In this repository:
 
 This repository is the open build: the source-verifiable evidence core, with signed receipts, offline verification and replay, the Dictum policy engine, cross-platform soft enforcement, BYOK signing, BYO ONNX reasoning, and cost control. Every claim is reproducible from a clean checkout: `git clone && cargo test --workspace`.
 
-IAGA Sentinel Enterprise adds managed, platform-specific, and compliance-delivery capabilities: Annex IV dossier generation, qualified signatures, SSO/RBAC/multi-tenancy, native SIEM and KMS integrations, authoritative kernel enforcement, and curated model packages. The public boundary is documented in [ADR 0010](docs/adr/0010-oss-enterprise-boundary.md); the overview is in [`ENTERPRISE.md`](ENTERPRISE.md).
+IAGA Sentinel Enterprise is a planned commercial edition, currently in development, designed to add managed, platform-specific, and compliance-delivery capabilities: Annex IV dossier generation, qualified signatures, SSO/RBAC/multi-tenancy, native SIEM and KMS integrations, authoritative kernel enforcement, and curated model packages. These are planned directions, not shipping features, and nothing here is an offer to sell. The public boundary is documented in [ADR 0010](docs/adr/0010-oss-enterprise-boundary.md); the overview is in [`ENTERPRISE.md`](ENTERPRISE.md).
+
+Today, IAGA Sentinel is an open-source project and research effort; the Enterprise edition is not yet available for purchase. If you would like to follow it and get early access when it opens, leave your email at `info@iaga.tech` — no purchase, no commitment, just early information.
 
 ---
 
@@ -195,7 +197,7 @@ EU-sovereign infrastructure for an EU regulation is a question of who builds it.
 - **Justus Moritz Bohr** (CPO, 19, German). Product and business. Third-time founder, 4+ years in business development; leads product for Annex IV and the regulatory UX.
 - **Edoardo Bambini** (CTO, 21, Italian). Software engineer and independent researcher; author of the AISec 2026 paper; architect of the Rust deterministic governance kernel and the cryptographic proof layer.
 
-Average age 20: younger than the compliance suites we replace, older than the EU AI Act we map to. The signature verifies the same either way.
+Average age 20: younger than the compliance suites we aim to replace, older than the EU AI Act we map to. The signature verifies the same either way.
 
 The full team is at [www.iaga.tech/team](https://www.iaga.tech/team).
 
