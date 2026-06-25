@@ -115,3 +115,37 @@ Everything here is **cooperative agent-loop tier**, not kernel enforcement:
 `openai-agents-adapter` · `microsoft-agent-framework-adapter` · `openai-adapter` ·
 `openai-ts-adapter` · `vercel-ai-adapter` · `mcp-adapter` · `crewai-adapter` ·
 `autogen-adapter` · `custom-adapter`
+
+---
+
+## Third-party frameworks & licenses
+
+Each plugin **integrates with** a third-party framework or CLI that you install
+separately — none is bundled or redistributed here, and no upstream source is copied:
+
+- **VoltAgent** ([`voltagent-plugin/`](voltagent-plugin)) — imports the published
+  `@voltagent/core` (MIT) as a peer dependency; the package ships only IAGA's own
+  compiled TypeScript.
+- **Letta** ([`letta-plugin/`](letta-plugin)) — compatibility via the published
+  `letta-client` (Apache-2.0, optional `[letta]` extra); the sidecar client is Python
+  stdlib `urllib`. One transitive dependency of `letta-client`, `certifi`, is MPL-2.0
+  (file-scoped) — informational, not bundled here.
+- **OpenAI Codex** ([`codex-plugin/`](codex-plugin)) — a separate Rust binary that only
+  models Codex's published JSON hook/stream wire format and imports nothing from OpenAI.
+  It depends only on MIT/Apache-2.0 crates plus IAGA's own workspace crates; the full
+  notices for the crates statically linked into the shipped binary are in the repo-root
+  [`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md).
+
+## Trademarks & non-affiliation
+
+These plugins are **independent, community-built integrations**. IAGA Sentinel is **not
+affiliated with, endorsed by, or sponsored by** VoltAgent Inc., Letta, or OpenAI.
+
+- **VoltAgent** is a trademark of VoltAgent Inc.
+- **Letta** (and the Letta logo) are trademarks of Letta / the Letta team.
+- **OpenAI** and **Codex** are trademarks of OpenAI.
+
+Each name is used **only** to identify the framework or CLI the corresponding plugin
+works with (nominative use); no third-party logo or brand asset is used, and no upstream
+source is copied or redistributed — you install each framework's own published package
+separately. See [`TRADEMARKS.md`](../TRADEMARKS.md).
