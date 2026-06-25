@@ -138,32 +138,6 @@ Window layout, captions and a 75 to 100 second timing budget are in [`docs/demo/
 
 ---
 
-## In the loop with VoltAgent
-
-Most integrations **observe**: they ask for a verdict and certify what happened. IAGA Sentinel's plug-in **for [VoltAgent](https://github.com/VoltAgent/voltagent)** also **acts inside the agent's loop** — its flagship in-the-loop, framework-specific plug-in, shipped as the npm package [`@iaga-sentinel/voltagent`](plug-ins/voltagent-plugin/).
-
-```ts
-import { Agent } from "@voltagent/core";
-import { createSentinelHooks } from "@iaga-sentinel/voltagent";
-
-const agent = new Agent({
-  model: /* your model */, tools: [/* … */],
-  hooks: createSentinelHooks({ agentId: "my-agent", sessionId: "run-1" }),
-});
-// A blocked tool throws ToolDeniedError before execute() ever runs.
-```
-
-- **The gate.** `createSentinelHooks()` routes VoltAgent's `onToolStart` hook through `POST /v1/inspect` before every tool runs. `allow` → the tool runs; `review` → denied by default (or pass through with `onReview: "allow"`); `block` → a `ToolDeniedError` aborts the call so `execute()` never fires. **Fail-closed by default**: if the sidecar is unreachable, the tool is denied.
-- **The scanners (opt-in).** `scanInput` runs the tool input through the prompt-injection firewall (`/v1/firewall/scan`); `scanOutput` + `redactOutput` redact secrets in tool output via `/v1/response/scan` in `onToolEnd`, so the model sees `[REDACTED-…]` instead of the real value — verified end-to-end against a real model.
-- **MCP, for free.** VoltAgent MCP tools surface in the same registry, so the same gate governs them — no separate code path.
-- **The evidence.** Every governed action mints a signed receipt under `run_id = <agentId>:<sessionId>`. Verify the whole chain offline: `iaga replay <agentId>:<sessionId> --verify-only` → `CHAIN OK`.
-
-Cooperative agent-loop tier: bypassable if the host strips the hook, and every receipt stays `is_authoritative: false`. The hard guarantee is the signed, offline-verifiable chain, not unbypassable blocking.
-
-→ [`plug-ins/voltagent-plugin/`](plug-ins/voltagent-plugin/) · also a [plug-in for Codex](plug-ins/codex-plugin/) ([ADR 0022](docs/adr/0022-codex-integration.md)) and a [plug-in for Letta](plug-ins/letta-plugin/), plus 15 framework [adapters](plug-ins/)
-
----
-
 ## Documentation
 
 **Everything lives at [www.iaga.tech/docs](https://www.iaga.tech/docs):** the full zero-to-verified-evidence tutorial, framework integrations (LangChain, Claude Code, OpenAI Codex, MCP, and 12 more), the Dictum policy language, cost control and budgets, API keys and scopes, configuration and environment variables, the production checklist, and troubleshooting.
