@@ -4,7 +4,8 @@ IAGA Sentinel's in-the-loop integrations now live in the top-level
 [`plug-ins/`](../../plug-ins) folder:
 
 - Complete, released plugins: [`plug-ins/codex-plugin/`](../../plug-ins/codex-plugin),
-  [`plug-ins/voltagent-plugin/`](../../plug-ins/voltagent-plugin).
+  [`plug-ins/voltagent-plugin/`](../../plug-ins/voltagent-plugin),
+  [`plug-ins/letta-plugin/`](../../plug-ins/letta-plugin).
 - In-progress integrations (copy-paste examples, not yet packaged as standalone
   plugins) are under `plug-ins/<framework>-adapter/` — e.g.
   [`plug-ins/claude-code-adapter/`](../../plug-ins/claude-code-adapter),

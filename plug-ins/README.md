@@ -9,7 +9,8 @@ Two kinds live here:
 
 - **Plugins** (`*-plugin/`) — complete, self-contained, **released** packages you
   drop into a framework: [`codex-plugin/`](codex-plugin) (crate `iaga-sentinel-codex`,
-  bin `iaga-codex`), [`voltagent-plugin/`](voltagent-plugin) (npm `@iaga-sentinel/voltagent`).
+  bin `iaga-codex`), [`voltagent-plugin/`](voltagent-plugin) (npm `@iaga-sentinel/voltagent`),
+  [`letta-plugin/`](letta-plugin) (PyPI `iaga-sentinel-letta`).
 - **Adapters** (`*-adapter/`) — thin, copy-paste integrations that gate tool calls
   but aren't yet packaged as standalone, deployable plugins. One per framework
   (LangChain, LangGraph, CrewAI, Claude Code, …). The reusable client libraries they
@@ -54,7 +55,7 @@ point (a hook, a callback, a middleware, a tool wrapper):
    through if configured; **block** → don't run.
 3. Surface the policy reason into the framework's own error/flow.
 
-The VoltAgent plugin, end to end:
+The IAGA Sentinel plug-in for VoltAgent, end to end:
 
 ```ts
 import { Agent } from "@voltagent/core";
@@ -105,6 +106,7 @@ Everything here is **cooperative agent-loop tier**, not kernel enforcement:
 | --- | --- | --- |
 | [`codex-plugin/`](codex-plugin) | OpenAI Codex CLI | `PreToolUse` hook → `/v1/inspect` (+ rules compiler, ingest) |
 | [`voltagent-plugin/`](voltagent-plugin) | VoltAgent (`@voltagent/core`) | `onToolStart` / `onToolEnd` hooks |
+| [`letta-plugin/`](letta-plugin) | Letta (`letta-client`) | `requires_approval` HITL tool-approval gate → `/v1/inspect` |
 
 ### Adapters (copy-paste, not yet packaged)
 

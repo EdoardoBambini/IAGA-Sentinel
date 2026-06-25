@@ -1,4 +1,4 @@
-# IAGA Sentinel — OpenAI Codex CLI gate
+# IAGA Sentinel — plug-in for the OpenAI Codex CLI
 
 Govern every Codex CLI tool call **inside Codex's own loop**. Before Codex runs
 a shell command, applies a patch, or calls an MCP tool, the `iaga-codex hook`
@@ -256,3 +256,21 @@ check` to validate the generated syntax against the pinned Codex version.
   receipt.
 - **Privacy:** tool payloads can contain secrets; the gate never persists or
   logs them. Redaction happens sidecar-side under the sidecar's policy.
+
+## Third-party & licenses
+
+BUSL-1.1, matching the IAGA Sentinel project. The crate depends only on
+MIT/Apache-2.0 crates from crates.io plus IAGA's own workspace crates; no Codex
+source is copied — `codex_event.rs` / `exec_stream.rs` only model Codex's published
+JSON hook/stream wire format (field names). The full notices for the third-party
+crates statically linked into the shipped binary are in the repo-root
+[`THIRD_PARTY_NOTICES.md`](../../THIRD_PARTY_NOTICES.md).
+
+## Trademarks & non-affiliation
+
+This is an independent, community-built integration. It is **not created, supported,
+certified, endorsed by, or affiliated with OpenAI**, and is not a partnership with
+OpenAI. "OpenAI" and "Codex" are trademarks of OpenAI, used here only to identify the
+CLI this plugin integrates with; no OpenAI logo or brand asset is used. The plugin
+models Codex's published JSON hook/stream wire format and imports nothing from OpenAI —
+no OpenAI source is copied or redistributed.

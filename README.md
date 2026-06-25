@@ -36,7 +36,7 @@
 
 ## What IAGA Sentinel is
 
-AI agents touch the shell, the filesystem, databases, third-party APIs, and secrets. When a regulator, an auditor, or your own DPO asks you to prove what an agent did, and to prove the record was not altered after the fact, most teams have nothing to show. IAGA Sentinel produces that proof: it sits next to your agent stack (HTTP sidecar, MCP proxy, or `iaga run`) and turns every governance verdict into an Ed25519-signed receipt linked into a Merkle append-log, verifiable offline, bit-exact on replay. The record is structured to line up with EU AI Act Article 12 logging and to feed the Annex IV technical documentation a high-risk system needs by 2 August 2026.
+AI agents touch the shell, the filesystem, databases, third-party APIs, and secrets. When a regulator, an auditor, or your own DPO asks you to prove what an agent did, and to prove the record was not altered after the fact, most teams have nothing to show. IAGA Sentinel produces that proof: it sits next to your agent stack (HTTP sidecar, MCP proxy, or `iaga run`) and turns every governance verdict into an Ed25519-signed receipt linked into a Merkle append-log, verifiable offline, with deterministic verdicts and replay-based drift detection. The record is structured to support EU AI Act Article 12 record-keeping and to help produce the Annex IV technical documentation a high-risk system needs by 2 August 2026.
 
 > [!IMPORTANT]
 > Today IAGA Sentinel enforces softly and certifies hard. The signed evidence and the replay are real and verifiable now, from a clean checkout. Authoritative kernel-level enforcement (eBPF/LSM) is not in this open build. `iaga kernel status` says so honestly, and every receipt carries `is_authoritative: false`. We do not market enforcement we do not provide.
@@ -140,7 +140,7 @@ Window layout, captions and a 75 to 100 second timing budget are in [`docs/demo/
 
 ## In the loop with VoltAgent
 
-Most integrations **observe**: they ask for a verdict and certify what happened. The **[VoltAgent](https://github.com/VoltAgent/voltagent)** plug-in also **acts inside the agent's loop** — IAGA Sentinel's flagship in-the-loop, framework-specific plug-in, shipped as the npm package [`@iaga-sentinel/voltagent`](plug-ins/voltagent-plugin/).
+Most integrations **observe**: they ask for a verdict and certify what happened. IAGA Sentinel's plug-in **for [VoltAgent](https://github.com/VoltAgent/voltagent)** also **acts inside the agent's loop** — its flagship in-the-loop, framework-specific plug-in, shipped as the npm package [`@iaga-sentinel/voltagent`](plug-ins/voltagent-plugin/).
 
 ```ts
 import { Agent } from "@voltagent/core";
@@ -160,7 +160,7 @@ const agent = new Agent({
 
 Cooperative agent-loop tier: bypassable if the host strips the hook, and every receipt stays `is_authoritative: false`. The hard guarantee is the signed, offline-verifiable chain, not unbypassable blocking.
 
-→ [`plug-ins/voltagent-plugin/`](plug-ins/voltagent-plugin/) · also a [Codex plug-in](plug-ins/codex-plugin/) ([ADR 0022](docs/adr/0022-codex-integration.md)) and 15 framework [adapters](plug-ins/)
+→ [`plug-ins/voltagent-plugin/`](plug-ins/voltagent-plugin/) · also a [plug-in for Codex](plug-ins/codex-plugin/) ([ADR 0022](docs/adr/0022-codex-integration.md)) and a [plug-in for Letta](plug-ins/letta-plugin/), plus 15 framework [adapters](plug-ins/)
 
 ---
 
@@ -173,7 +173,7 @@ In this repository:
 - [`CHANGELOG.md`](CHANGELOG.md): release notes
 - [`docs/openapi.yaml`](docs/openapi.yaml): the full HTTP API specification
 - [`docs/adr/`](docs/adr/): architectural decision records (0001–0022)
-- [`plug-ins/`](plug-ins/): in-the-loop plugins — released ([Codex](plug-ins/codex-plugin/), [VoltAgent](plug-ins/voltagent-plugin/)) plus `*-adapter/` integrations for 15 more frameworks
+- [`plug-ins/`](plug-ins/): in-the-loop plugins — released ([Codex](plug-ins/codex-plugin/), [VoltAgent](plug-ins/voltagent-plugin/), [Letta](plug-ins/letta-plugin/)) plus `*-adapter/` integrations for 15 more frameworks
 - [`sdks/`](sdks/): Python and TypeScript SDKs
 - [`SECURITY.md`](SECURITY.md) · [`DATA_HANDLING.md`](DATA_HANDLING.md) · [`CONTRIBUTING.md`](CONTRIBUTING.md)
 
@@ -217,7 +217,7 @@ Research-validated, not marketing-validated.
 ## Status
 
 > [!NOTE]
-> **New in 1.7.2: the VoltAgent plug-in + a tidy `plug-ins/` home.** A new released, in-the-loop plug-in for [VoltAgent](https://github.com/VoltAgent/voltagent) ([`@iaga-sentinel/voltagent`](plug-ins/voltagent-plugin/)): an `onToolStart` gate that throws `ToolDeniedError` before a tool's `execute()` runs, optional prompt-injection input-scan and secret redaction of tool output, and offline `CHAIN OK` receipts — verified end-to-end against a real sidecar and a real model. The repo's in-the-loop integrations are consolidated under [`plug-ins/`](plug-ins/) (released `*-plugin/` next to copy-paste `*-adapter/`). Additive and docs-only for the core: receipts and the default build are byte-identical to 1.7.1. See the [CHANGELOG](CHANGELOG.md).
+> **New in 1.7.2: the plug-in for VoltAgent + a tidy `plug-ins/` home.** A new released, in-the-loop plug-in for [VoltAgent](https://github.com/VoltAgent/voltagent) ([`@iaga-sentinel/voltagent`](plug-ins/voltagent-plugin/)): an `onToolStart` gate that throws `ToolDeniedError` before a tool's `execute()` runs, optional prompt-injection input-scan and secret redaction of tool output, and offline `CHAIN OK` receipts — verified end-to-end against a real sidecar and a real model. The repo's in-the-loop integrations are consolidated under [`plug-ins/`](plug-ins/) (released `*-plugin/` next to copy-paste `*-adapter/`). Additive and docs-only for the core: receipts and the default build are byte-identical to 1.7.1. See the [CHANGELOG](CHANGELOG.md).
 
 > [!NOTE]
 > **New in 1.7.1: documentation and honesty hygiene.** No code-path or wire change — receipts, policy evaluation, and the default build are byte-identical to 1.7.0. The boot banner and the architecture notes now state the real pipeline depth (**8 layers**, two of them — sandbox and formal-verify — advisory and not part of the verdict) instead of the old "12 layers" headline; `.cargo/audit.toml` documents which optional/compile-time path pulls each of the three ignored RUSTSEC advisories (none is in the default build, re-verified with `cargo tree`); and the workspace, SDK manifests, and BUSL `Licensed Work` line are aligned to the release. See the [CHANGELOG](CHANGELOG.md).
@@ -234,6 +234,31 @@ Research-validated, not marketing-validated.
 Current release: **1.7.2** ([release notes](CHANGELOG.md)). CI runs the full workspace test suite (default and `--all-features`), live-Postgres receipt tests, SDK end-to-end smokes against a real sidecar, and clippy with `-D warnings`. All green from a clean checkout.
 
 ---
+
+## Acknowledgements
+
+IAGA Sentinel's integration plug-ins build on, and gratefully acknowledge, the
+open-source work of others:
+
+- The **[VoltAgent](https://github.com/VoltAgent/voltagent)** project and its
+  maintainers, for the agent framework the plug-in for VoltAgent integrates with.
+- The **[Letta](https://github.com/letta-ai/letta)** project (formerly MemGPT) and
+  its maintainers, for the stateful-agent framework.
+- **OpenAI Codex**, for the CLI that the plug-in for Codex gates.
+- The wider **Rust open-source ecosystem** — the hundreds of crates the `iaga`
+  binary builds on, each credited with its license in
+  [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+
+These names are used only to identify the projects (see Trademarks below).
+
+## Trademarks & disclaimer
+
+**Disclaimer.** IAGA Sentinel is an independent project. VoltAgent, Letta, OpenAI, and
+Codex are trademarks of their respective owners. IAGA Sentinel is **not affiliated
+with, endorsed by, or sponsored by** VoltAgent Inc., Letta, or OpenAI. Its integration
+plug-ins are independent integrations that work with those frameworks; they do **not**
+bundle or redistribute them — you install each framework's own package separately. See
+[`TRADEMARKS.md`](TRADEMARKS.md).
 
 ## License
 

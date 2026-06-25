@@ -1,7 +1,7 @@
 {
   "name": "@iaga-sentinel/voltagent",
   "version": "0.1.0",
-  "description": "IAGA Sentinel plugin for VoltAgent: governs every tool call through a local Sentinel sidecar (allow/review/block) and turns each verdict into a signed, offline-verifiable receipt. Cooperative agent-loop tier.",
+  "description": "IAGA Sentinel — independent integration for VoltAgent: governs every tool call through a local Sentinel sidecar (allow/review/block) and turns each verdict into a signed, offline-verifiable receipt. Cooperative agent-loop tier. Not affiliated with or endorsed by VoltAgent.",
   "license": "BUSL-1.1",
   "type": "module",
   "main": "dist/index.js",

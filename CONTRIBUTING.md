@@ -106,6 +106,10 @@ We do not require a CLA. BUSL-1.1 plus the automatic Apache-2.0
 conversion baked into the licence is enough to keep the project
 durable for community contributors and forks.
 
+The third-party crates statically linked into the shipped binary are attributed in
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md), generated from `Cargo.lock`.
+Regenerate it whenever dependencies change: `cargo about generate about.hbs > THIRD_PARTY_NOTICES.md`.
+
 **IAGA Sentinel Enterprise** is the planned commercial edition, currently
 in development, built on the same governance kernel. As it is built,
 Enterprise-only modules will live in a separate repository under a separate

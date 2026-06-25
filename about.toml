@@ -1,0 +1,36 @@
+# cargo-about config — generates THIRD_PARTY_NOTICES.md for the shipped binaries.
+#
+# Regenerate after Cargo.lock changes:
+#   cargo about generate about.hbs > THIRD_PARTY_NOTICES.md
+#
+# The distributed artifact is the Linux Docker image / release binary, so we
+# attribute the crates that actually link into it on that target. Build- and
+# dev-only dependencies do not ship in the release binary.
+
+targets = ["x86_64-unknown-linux-gnu"]
+ignore-build-dependencies = true
+ignore-dev-dependencies = true
+
+# Built-in clarifications for crates whose license file cargo-about cannot infer
+# from the crate source alone.
+workarounds = ["ring"]
+
+# Accepted SPDX licenses present in the dependency tree. BUSL-1.1 is IAGA's own
+# license (already shipped as LICENSE); listed so the workspace crates validate.
+accepted = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "Unicode-DFS-2016",
+    "Unicode-3.0",
+    "CC0-1.0",
+    "MPL-2.0",
+    "Unlicense",
+    "OpenSSL",
+    "BSL-1.0",
+    "CDLA-Permissive-2.0",
+    "BUSL-1.1",
+]

@@ -11,6 +11,11 @@
 > formal-verify, are advisory and do not change the verdict); 1.0 added four
 > cross-cutting subsystems on top (supply chain attestation, blast radius,
 > behavioral baseline, counterparty trust).
+>
+> **Trademarks.** VoltAgent, Letta, OpenAI, and Codex are trademarks of their
+> respective owners. IAGA Sentinel is independent and not affiliated with, endorsed
+> by, or sponsored by them; the names identify compatibility only. See
+> [`TRADEMARKS.md`](../TRADEMARKS.md).
 
 ## Release Context
 

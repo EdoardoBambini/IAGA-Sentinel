@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "iaga-sentinel-letta"
+version = "0.1.0"
+description = "IAGA Sentinel — independent governance integration for Letta: adjudicate HITL tool approvals through a local Sentinel sidecar (allow/review/block) and turn each verdict into a signed, offline-verifiable receipt. Not affiliated with or endorsed by Letta."
+readme = "README.md"
+license = "BUSL-1.1"
+requires-python = ">=3.9"
+authors = [{ name = "IAGA", email = "info@iaga.tech" }]
+keywords = ["letta", "memgpt", "iaga-sentinel", "ai-agent", "governance", "guardrails", "eu-ai-act", "audit", "human-in-the-loop"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Security",
+    "Programming Language :: Python :: 3",
+]
+# ponytail: no runtime dependencies. The sidecar client is stdlib urllib;
+# letta-client is only needed to drive a real agent, so it is an extra.
+dependencies = []
+
+[project.optional-dependencies]
+letta = ["letta-client>=1.0"]
+test = ["pytest>=7", "letta-client>=1.0"]
+
+[project.urls]
+Homepage = "https://github.com/EdoardoBambini/IAGA-Sentinel"
+Documentation = "https://github.com/EdoardoBambini/IAGA-Sentinel"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/iaga_letta"]
+
+[tool.pytest.ini_options]
+markers = [
+    "live: end-to-end test against a real Letta server + IAGA sidecar (auto-skips when absent)",
+]

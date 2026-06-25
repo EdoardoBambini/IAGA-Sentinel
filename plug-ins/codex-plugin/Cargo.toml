@@ -6,7 +6,7 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
-description = "IAGA Sentinel, OpenAI Codex CLI plug-in: command hook gating tool calls through POST /v1/inspect (agent-loop enforcement tier)"
+description = "IAGA Sentinel — independent plug-in for the OpenAI Codex CLI: command hook gating tool calls through POST /v1/inspect (agent-loop enforcement tier). Not affiliated with or endorsed by OpenAI."
 
 [lints]
 workspace = true

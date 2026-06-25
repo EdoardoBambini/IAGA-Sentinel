@@ -1,0 +1,38 @@
+cff-version: 1.2.0
+message: "If you use IAGA Sentinel, please cite it as below."
+title: "IAGA Sentinel"
+abstract: >-
+  An EU AI Act conformity-evidence layer for AI agents: it inspects
+  governance-relevant agent actions and turns each verdict into an Ed25519-signed,
+  hash-chained receipt that verifies offline.
+type: software
+authors:
+  - family-names: Bambini
+    given-names: Edoardo
+  - family-names: Petteni
+    given-names: William
+  - family-names: Bohr
+    given-names: Justus Moritz
+version: "1.7.2"
+date-released: "2026-06-22"
+license: BUSL-1.1
+repository-code: "https://github.com/EdoardoBambini/IAGA-Sentinel"
+url: "https://www.iaga.tech"
+keywords:
+  - ai-agents
+  - ai-governance
+  - eu-ai-act
+  - audit
+  - cryptographic-receipts
+  - tamper-evident-logging
+# TODO: when the related AISec 2026 paper has a DOI, add a preferred-citation block so
+# tools cite the paper. Example (fill in title + DOI, then uncomment):
+# preferred-citation:
+#   type: conference-paper
+#   title: "<paper title>"
+#   doi: "<paper DOI>"
+#   year: 2026
+#   collection-title: "Proceedings of the ACM CCS Workshop on Artificial Intelligence and Security (AISec)"
+#   authors:
+#     - family-names: Bambini
+#       given-names: Edoardo

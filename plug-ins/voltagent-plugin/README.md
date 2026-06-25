@@ -1,4 +1,4 @@
-# @iaga-sentinel/voltagent
+# IAGA Sentinel — plug-in for VoltAgent
 
 Govern every [VoltAgent](https://voltagent.dev) tool call through a local
 [IAGA Sentinel](https://github.com/EdoardoBambini/IAGA-Sentinel) sidecar. Each
@@ -133,6 +133,20 @@ tool-call gate.
 Published as `@iaga-sentinel/voltagent`. Ready to submit to
 [`awesome-voltagent`](https://github.com/VoltAgent/awesome-voltagent) — cc the
 VoltAgent maintainers.
+
+## Third-party & licenses
+
+This package ships only IAGA's own compiled TypeScript (`dist/`) — it bundles no
+third-party code. `@voltagent/core` (MIT) is a **peer dependency** you install
+separately; no VoltAgent source is copied into this plugin.
+
+## Trademarks & non-affiliation
+
+This is an independent, community-built integration that connects IAGA Sentinel to
+VoltAgent. It is **not affiliated with, endorsed by, or sponsored by VoltAgent Inc.**
+"VoltAgent" is a trademark of VoltAgent Inc.; the name is used here only to identify the
+framework this plugin integrates with. No VoltAgent logo or brand asset is used, and no
+VoltAgent source is copied — the plugin imports the published `@voltagent/core` package.
 
 ## License
 
