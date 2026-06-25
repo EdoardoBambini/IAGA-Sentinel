@@ -1,9 +1,0 @@
-{"type":"thread.started","thread_id":"019ec04f-3623-7032-addf-09427bac8dd8"}
-{"type":"turn.started"}
-{"type":"item.started","item":{"id":"item_0","type":"command_execution","command":"\"C:\\\\WINDOWS\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command 'echo hello-from-codex-capture'","aggregated_output":"","exit_code":null,"status":"in_progress"}}
-{"type":"item.completed","item":{"id":"item_0","type":"command_execution","command":"\"C:\\\\WINDOWS\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command 'echo hello-from-codex-capture'","aggregated_output":"hello-from-codex-capture\r\n","exit_code":0,"status":"completed"}}
-{"type":"item.completed","item":{"id":"item_1","type":"agent_message","text":"Creating `out.txt` with the requested single word."}}
-{"type":"item.started","item":{"id":"item_2","type":"file_change","changes":[{"path":"C:\\Users\\monti\\Desktop\\agent-armor\\.codex-capture\\out.txt","kind":"add"}],"status":"in_progress"}}
-{"type":"item.completed","item":{"id":"item_2","type":"file_change","changes":[{"path":"C:\\Users\\monti\\Desktop\\agent-armor\\.codex-capture\\out.txt","kind":"add"}],"status":"completed"}}
-{"type":"item.completed","item":{"id":"item_3","type":"agent_message","text":"Done."}}
-{"type":"turn.completed","usage":{"input_tokens":41326,"cached_input_tokens":20608,"output_tokens":105,"reasoning_output_tokens":0}}

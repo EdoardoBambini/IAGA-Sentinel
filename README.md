@@ -140,14 +140,14 @@ Window layout, captions and a 75 to 100 second timing budget are in [`docs/demo/
 
 ## Documentation
 
-**Everything lives at [www.iaga.tech/docs](https://www.iaga.tech/docs):** the full zero-to-verified-evidence tutorial, framework integrations (LangChain, Claude Code, OpenAI Codex, MCP, and 12 more), the Dictum policy language, cost control and budgets, API keys and scopes, configuration and environment variables, the production checklist, and troubleshooting.
+**Everything lives at [www.iaga.tech/docs](https://www.iaga.tech/docs):** the full zero-to-verified-evidence tutorial, framework integrations (LangChain, Claude Code, MCP, and 12 more), the Dictum policy language, cost control and budgets, API keys and scopes, configuration and environment variables, the production checklist, and troubleshooting.
 
 In this repository:
 
 - [`CHANGELOG.md`](CHANGELOG.md): release notes
 - [`docs/openapi.yaml`](docs/openapi.yaml): the full HTTP API specification
-- [`docs/adr/`](docs/adr/): architectural decision records (0001–0022)
-- [`plug-ins/`](plug-ins/): in-the-loop plugins — released ([Codex](plug-ins/codex-plugin/), [VoltAgent](plug-ins/voltagent-plugin/), [Letta](plug-ins/letta-plugin/)) plus `*-adapter/` integrations for 15 more frameworks
+- [`docs/adr/`](docs/adr/): architectural decision records
+- [`plug-ins/`](plug-ins/): in-the-loop plugins — released ([VoltAgent](plug-ins/voltagent-plugin/), [Letta](plug-ins/letta-plugin/)) plus `*-adapter/` integrations for 15 more frameworks
 - [`sdks/`](sdks/): Python and TypeScript SDKs
 - [`SECURITY.md`](SECURITY.md) · [`DATA_HANDLING.md`](DATA_HANDLING.md) · [`CONTRIBUTING.md`](CONTRIBUTING.md)
 
@@ -200,7 +200,7 @@ Research-validated, not marketing-validated.
 > **New in 1.7.0: OSS backlog closure.** Two deterministic Dictum builtins land — `timestamp()` (RFC3339 to epoch, so policies express temporal ranges with the ordinary numeric operators) and `sha256()` (content hashing). The MCP surface gains `iaga mcp-doctor` (health-check any MCP endpoint: handshake, tool-schema shape, and which calls the policy engine would block) and the `iaga-sentinel-mcp` crate exposing `iaga::mcp::GovernedTool` for Rust agents. The threat-feed **format** opens (`threat-intel.toml`, loaded via `IAGA_SENTINEL_THREAT_FEED`; the curated signed feed stays Enterprise), SBOM ingest learns SPDX next to CycloneDX, and `iaga plugin attest --slsa-level N` emits offline in-toto/SLSA statements (DSSE-signable; the level is operator-declared, not verified). All additive — receipts from earlier releases still verify byte-for-byte, and every OSS receipt stays `is_authoritative:false`. See the [CHANGELOG](CHANGELOG.md).
 
 > [!NOTE]
-> **New in 1.5.6: the policy language is now Dictum.** The typed policy DSL (formerly APL / Agent Policy Language) is renamed to Dictum end to end: the `.dictum` file extension, the `iaga-sentinel-dictum` crate, the `dictum` build feature, and the `dictum[...]` reason recorded on every audit event and signed receipt. The rename is behavior-preserving: the signed-receipt wire format stays byte-identical (the `apl_eval_trace` field is kept), and `iaga-codex export-rules --apl` still works as a hidden alias for the new `--dictum` flag. See [ADR 0004](docs/adr/0004-dictum-mvp.md) and the [CHANGELOG](CHANGELOG.md).
+> **New in 1.5.6: the policy language is now Dictum.** The typed policy DSL (formerly APL / Agent Policy Language) is renamed to Dictum end to end: the `.dictum` file extension, the `iaga-sentinel-dictum` crate, the `dictum` build feature, and the `dictum[...]` reason recorded on every audit event and signed receipt. The rename is behavior-preserving: the signed-receipt wire format stays byte-identical (the `apl_eval_trace` field is kept). See [ADR 0004](docs/adr/0004-dictum-mvp.md) and the [CHANGELOG](CHANGELOG.md).
 
 > [!NOTE]
 > **New in 1.5.4: the policy language now enforces what it promised.** The Dictum `secret_ref()` builtin actually detects credentials and PII inside a tool payload (it was a placeholder that always returned false), and a new `url_host()` builtin gives a policy a real per-host egress allowlist that also defeats look-alike-domain bypasses. Three core fixes ship alongside: the workspace egress allowlist is URL-aware, so a full URL to an allowed host is no longer over-blocked; every `block` or `review` now carries its cause in the audit event and the signed receipt, with no silent escalation; and signed receipts hash-chain across a session, so a multi-step run forms one tamper-evident Merkle chain. See [ADR 0023](docs/adr/0023-dictum-secret-detection-host-egress.md) and the [CHANGELOG](CHANGELOG.md).
@@ -218,7 +218,6 @@ open-source work of others:
   maintainers, for the agent framework the plug-in for VoltAgent integrates with.
 - The **[Letta](https://github.com/letta-ai/letta)** project (formerly MemGPT) and
   its maintainers, for the stateful-agent framework.
-- **OpenAI Codex**, for the CLI that the plug-in for Codex gates.
 - The wider **Rust open-source ecosystem** — the hundreds of crates the `iaga`
   binary builds on, each credited with its license in
   [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
@@ -227,9 +226,9 @@ These names are used only to identify the projects (see Trademarks below).
 
 ## Trademarks & disclaimer
 
-**Disclaimer.** IAGA Sentinel is an independent project. VoltAgent, Letta, OpenAI, and
-Codex are trademarks of their respective owners. IAGA Sentinel is **not affiliated
-with, endorsed by, or sponsored by** VoltAgent Inc., Letta, or OpenAI. Its integration
+**Disclaimer.** IAGA Sentinel is an independent project. VoltAgent and Letta are
+trademarks of their respective owners. IAGA Sentinel is **not affiliated
+with, endorsed by, or sponsored by** VoltAgent Inc. or Letta. Its integration
 plug-ins are independent integrations that work with those frameworks; they do **not**
 bundle or redistribute them — you install each framework's own package separately. See
 [`TRADEMARKS.md`](TRADEMARKS.md).

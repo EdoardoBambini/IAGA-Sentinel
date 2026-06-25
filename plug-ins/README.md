@@ -8,8 +8,7 @@ Ed25519-signed, offline-verifiable receipt.
 Two kinds live here:
 
 - **Plugins** (`*-plugin/`) — complete, self-contained, **released** packages you
-  drop into a framework: [`codex-plugin/`](codex-plugin) (crate `iaga-sentinel-codex`,
-  bin `iaga-codex`), [`voltagent-plugin/`](voltagent-plugin) (npm `@iaga-sentinel/voltagent`),
+  drop into a framework: [`voltagent-plugin/`](voltagent-plugin) (npm `@iaga-sentinel/voltagent`),
   [`letta-plugin/`](letta-plugin) (PyPI `iaga-sentinel-letta`).
 - **Adapters** (`*-adapter/`) — thin, copy-paste integrations that gate tool calls
   but aren't yet packaged as standalone, deployable plugins. One per framework
@@ -17,7 +16,7 @@ Two kinds live here:
   build on are in [`sdks/`](../sdks).
 
 > Promotion path: an `*-adapter/` graduates to `*-plugin/` once it is a
-> self-contained, tested, deployable package like `codex-plugin/`.
+> self-contained, tested, deployable package like `voltagent-plugin/`.
 
 ---
 
@@ -39,7 +38,7 @@ production, drop open mode and pass an API key via `IAGA_SENTINEL_API_KEY`.)
 ### 2. Pick your integration
 
 - A released **plugin**? Install it: e.g. `npm i @iaga-sentinel/voltagent` for
-  VoltAgent, or build the `iaga-codex` binary for OpenAI Codex.
+  VoltAgent, or `pip install iaga-sentinel-letta` for Letta.
 - Only an **adapter** for your framework? Copy the folder's snippet into your app.
 - Nothing yet? Follow the same recipe with the SDK client
   ([`sdks/typescript`](../sdks/typescript), [`sdks/python`](../sdks/python)) and
@@ -104,7 +103,6 @@ Everything here is **cooperative agent-loop tier**, not kernel enforcement:
 
 | Plugin | Framework | Interception |
 | --- | --- | --- |
-| [`codex-plugin/`](codex-plugin) | OpenAI Codex CLI | `PreToolUse` hook → `/v1/inspect` (+ rules compiler, ingest) |
 | [`voltagent-plugin/`](voltagent-plugin) | VoltAgent (`@voltagent/core`) | `onToolStart` / `onToolEnd` hooks |
 | [`letta-plugin/`](letta-plugin) | Letta (`letta-client`) | `requires_approval` HITL tool-approval gate → `/v1/inspect` |
 
@@ -130,22 +128,19 @@ separately — none is bundled or redistributed here, and no upstream source is 
   `letta-client` (Apache-2.0, optional `[letta]` extra); the sidecar client is Python
   stdlib `urllib`. One transitive dependency of `letta-client`, `certifi`, is MPL-2.0
   (file-scoped) — informational, not bundled here.
-- **OpenAI Codex** ([`codex-plugin/`](codex-plugin)) — a separate Rust binary that only
-  models Codex's published JSON hook/stream wire format and imports nothing from OpenAI.
-  It depends only on MIT/Apache-2.0 crates plus IAGA's own workspace crates; the full
-  notices for the crates statically linked into the shipped binary are in the repo-root
-  [`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md).
+
+The full notices for the third-party Rust crates statically linked into the shipped
+`iaga` binary are in the repo-root [`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md).
 
 ## Trademarks & non-affiliation
 
 These plugins are **independent, community-built integrations**. IAGA Sentinel is **not
-affiliated with, endorsed by, or sponsored by** VoltAgent Inc., Letta, or OpenAI.
+affiliated with, endorsed by, or sponsored by** VoltAgent Inc. or Letta.
 
 - **VoltAgent** is a trademark of VoltAgent Inc.
 - **Letta** (and the Letta logo) are trademarks of Letta / the Letta team.
-- **OpenAI** and **Codex** are trademarks of OpenAI.
 
-Each name is used **only** to identify the framework or CLI the corresponding plugin
+Each name is used **only** to identify the framework the corresponding plugin
 works with (nominative use); no third-party logo or brand asset is used, and no upstream
 source is copied or redistributed — you install each framework's own published package
 separately. See [`TRADEMARKS.md`](../TRADEMARKS.md).

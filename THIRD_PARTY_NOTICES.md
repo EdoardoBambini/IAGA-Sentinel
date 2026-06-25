@@ -1,7 +1,7 @@
 # Third-Party Notices
 
-The IAGA Sentinel distributed binaries (`iaga`, and the `iaga-codex` plug-in
-binary) statically link the third-party Rust crates listed below. Their copyright
+The IAGA Sentinel distributed binary (`iaga`) statically links the third-party
+Rust crates listed below. Their copyright
 notices and license texts are reproduced here to satisfy the attribution terms of
 those licenses (MIT copyright preservation, Apache-2.0 NOTICE inclusion, and
 similar).
@@ -15,7 +15,7 @@ bill of materials; they are not third-party.
 
 - MIT License: 180
 - Unicode License v3: 19
-- Business Source License 1.1: 10
+- Business Source License 1.1: 9
 - BSD 3-Clause "New" or "Revised" License: 5
 - Apache License 2.0: 3
 - zlib License: 1
@@ -510,7 +510,6 @@ Used by:
 - iaga-sentinel-reasoning 1.7.2
 - iaga-sentinel-receipts 1.7.2
 - iaga-sentinel-verify 1.7.2
-- iaga-sentinel-codex 1.7.2
 
 ```
 Business Source License 1.1

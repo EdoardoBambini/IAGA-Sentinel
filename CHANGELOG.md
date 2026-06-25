@@ -37,11 +37,8 @@ byte-identical to 1.7.1; no wire or receipt-field change.
 ### Changed
 
 - **`plug-ins/` is the home for in-the-loop integrations.** Released plug-ins live as
-  `*-plugin/` (`codex-plugin/`, `voltagent-plugin/`); the copy-paste framework
-  integrations move there as `*-adapter/`. The OpenAI Codex crate moves from
-  `crates/iaga-sentinel-codex` to `plug-ins/codex-plugin` (workspace member and path
-  deps updated; compiled binaries byte-identical). README, CONTRIBUTING, the ADR, and
-  the SDK adapter pointers follow.
+  `*-plugin/` (e.g. `voltagent-plugin/`); the copy-paste framework integrations move
+  there as `*-adapter/`. README, CONTRIBUTING, and the SDK adapter pointers follow.
 
 ---
 
@@ -306,10 +303,6 @@ Enterprise value is left intact.
 - **Receipt read-time integrity.** The receipt store now asserts the ordering
   `seq` column matches the `seq` inside the signed body on read, catching a
   divergent row instead of silently reordering the chain (DET-SEQ-COLUMN-5).
-- **Codex command policies no longer silently bypass.** The Codex adapter
-  synthesizes `commandLine` from `command`, `cmd`, or `argv` (the same aliases
-  the Dictum compiler accepts), so a `contains(action.payload.commandLine, …)`
-  rule fires regardless of which key the payload used (SOUND-CODEX-2).
 - **Signed plugin manifest binds the verifying key.** Verification now requires
   the trusted key that actually verifies the signature to be the one the
   manifest *declares* (`signer_key_id`), so with more than one trusted key a
@@ -319,14 +312,6 @@ Enterprise value is left intact.
   prints `seq=0..N-1` on a `CHAIN OK`, and DATA_HANDLING documents that a
   `CHAIN OK` proves *prefix* integrity only — tail truncation is not detectable
   offline without an external anchor (Enterprise eIDAS B-LTA) (CRYPTO-EXPORT-TRUNC-7).
-- **Codex ingest counts a missing receipt id as a gap.** An inspect verdict that
-  carries no `eventId` (no replayable receipt) is now recorded as a failure with
-  a non-OK exit, instead of a green `ATTESTED` line with an empty receipt id
-  (CRYPTO-CODEX-1).
-- **Codex gate distinguishes auth failures.** A 401/403 from the sidecar reports
-  an authentication failure with a key hint rather than the misleading "sidecar
-  unreachable", and a unit test pins that a Block/Review verdict produces the
-  exit code (2) that stops the pending Codex tool call (SOUND-CODEX-1).
 - **Kernel resolves the env denylist once.** The `UserspaceKernel` resolves the
   sensitive-env denylist at construction instead of re-reading the env + TOML on
   every launch, and logs a stable fingerprint of the scrubbed-variable set per
@@ -384,8 +369,6 @@ receipt behavior changes, and the signed-receipt format is preserved exactly.
 - **Receipt wire format unchanged.** The receipt field `apl_eval_trace` is deliberately
   preserved (the byte-frozen golden vectors pass), so receipts produced before 1.5.6
   still verify bit-identically.
-- **`iaga-codex export-rules --apl`** keeps working as a hidden backward-compatible alias
-  for the new `--dictum` flag.
 
 See [ADR 0004](docs/adr/0004-dictum-mvp.md).
 
@@ -457,47 +440,6 @@ still verify, and a receipt minted without a session id is byte identical to a
   earlier releases.
 
 See [ADR 0023](docs/adr/0023-dictum-secret-detection-host-egress.md).
-
-## [1.5.3], 2026-06-13
-
-Ships the **OpenAI Codex CLI plug-in** (`iaga-codex`) as IAGA Sentinel's first
-*vertical*, in-the-loop integration, plus a Phase 2 milestone: egress the agent
-cannot bypass. Additive and fully isolated — the `iaga` core gains no Codex
-dependency, the receipt schema is untouched, and signed receipts from any prior
-release still verify unchanged.
-
-### Added
-
-- **OpenAI Codex plug-in** (`crates/iaga-sentinel-codex`, binary `iaga-codex`):
-  - **Gate** (`iaga-codex hook`): Codex's native `PreToolUse` hook routes every
-    tool call through `POST /v1/inspect` before it runs; a `block` verdict stops
-    the action inside Codex (exit 2) with the policy reason, and a signed receipt
-    is minted either way. **Fail-closed by default** — this is an enforcement
-    point, not an observer. (`agent-loop` tier.)
-  - **Compiler** (`iaga-codex export-rules`): compiles a Dictum bundle into Codex's
-    native `execpolicy` `.rules` (a static command-prefix layer that holds even
-    when hooks are off); strictest-wins merge. Syntax validated against the
-    pinned Codex version.
-  - **Ingest** (`iaga-codex ingest`): turns a `codex exec --json` session (live
-    pipe, spawned run, or captured file) into the same signed receipt chain —
-    the `advisory` tier (recorded, never applied).
-- **Phase 2 — egress the agent cannot bypass**: a runbook
-  ([`examples/integrations/codex/poisoned-repo/DEMO.md`](examples/integrations/codex/poisoned-repo/DEMO.md))
-  pairing the gate with Codex's native OS sandbox (outbound network denied by
-  default), so a prompt-injected `curl -d @.env …` exfiltration cannot open the
-  socket even if every cooperative check were removed. Honest posture: the OS
-  sandbox enforces, Sentinel attests; receipts stay `is_authoritative: false`.
-- **Honest status doc**
-  ([`examples/integrations/codex/STATUS.md`](examples/integrations/codex/STATUS.md)):
-  the verified what-works list plus the roadmap (non-disableable managed hooks
-  via `requirements.toml`, a Sentinel egress proxy, `review → ask`, …).
-
-### Notes
-
-- All Codex field-name knowledge is confined to two modules
-  (`codex_event.rs`, `exec_stream.rs`); the Codex version is pinned only in the
-  integration README. The `iaga` core, the receipt schema, and crypto are
-  untouched. See [ADR 0022](docs/adr/0022-codex-integration.md).
 
 ## [1.5.2], 2026-06-12
 

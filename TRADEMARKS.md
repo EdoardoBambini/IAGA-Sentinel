@@ -7,10 +7,9 @@ affiliation, endorsement, sponsorship, or partnership.
 
 - **VoltAgent** is a trademark of VoltAgent Inc.
 - **Letta** (and the Letta logo) are trademarks of Letta / the Letta team.
-- **OpenAI** and **Codex** are trademarks of OpenAI.
 
-IAGA Sentinel is **not affiliated with, endorsed by, or sponsored by** VoltAgent Inc.,
-Letta, or OpenAI. The integration plug-ins are independent integrations that work with
+IAGA Sentinel is **not affiliated with, endorsed by, or sponsored by** VoltAgent Inc.
+or Letta. The integration plug-ins are independent integrations that work with
 those frameworks; they do **not** bundle or redistribute them — you install each
 framework's own published package separately, and no third-party source code is copied
 into this repository.

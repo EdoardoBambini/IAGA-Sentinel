@@ -1388,23 +1388,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "iaga-sentinel-codex"
-version = "1.7.2"
-dependencies = [
- "axum",
- "clap",
- "hex",
- "iaga-sentinel-dictum",
- "iaga-sentinel-integrations",
- "reqwest",
- "serde",
- "serde_json",
- "sha2",
- "thiserror 2.0.18",
- "tokio",
-]
-
-[[package]]
 name = "iaga-sentinel-core"
 version = "1.7.2"
 dependencies = [

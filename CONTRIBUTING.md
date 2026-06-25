@@ -72,7 +72,7 @@ import the target framework, and declare nothing authoritative.
 4. Add the integration under `plug-ins/<framework>-adapter/`
    (code + `<framework>.policy.yaml` + `README.md`) and a row in
    `plug-ins/README.md`. Promote it (drop the `-adapter` suffix) once it is a
-   self-contained, tested, deployable package like `plug-ins/codex-plugin/`.
+   self-contained, tested, deployable package like `plug-ins/voltagent-plugin/`.
 
 ## Commit conventions
 

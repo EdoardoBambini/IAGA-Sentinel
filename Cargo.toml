@@ -19,7 +19,6 @@ members = [
     "crates/iaga-sentinel-kernel",
     "crates/iaga-sentinel-verify",
     "crates/iaga-sentinel-integrations",
-    "plug-ins/codex-plugin",
     "crates/iaga-sentinel-mcp",
 ]
 

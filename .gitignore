@@ -16,6 +16,10 @@ Thumbs.db
 # or pushed. Anything here ships in a later, separate release.
 plug-ins/.local/
 
+# Codex plug-in pulled from the public repo for now: kept on disk, never tracked.
+plug-ins/codex-plugin/
+docs/adr/0022-codex-integration.md
+
 # Local development files
 .agents/
 skills-lock.json
