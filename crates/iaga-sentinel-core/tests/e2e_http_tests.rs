@@ -662,7 +662,9 @@ async fn test_http_authenticated_key_management_and_demo_routes() {
         .expect("profiles request should succeed");
     assert_eq!(profiles.status(), StatusCode::OK);
     let profiles_json: Value = profiles.json().await.expect("profiles should be JSON");
-    assert_eq!(profiles_json.as_array().map(|v| v.len()), Some(2));
+    // openclaw-builder-01, openclaw-research-01, and the cli-runner default
+    // agent that backs `iaga run`.
+    assert_eq!(profiles_json.as_array().map(|v| v.len()), Some(3));
 
     let create_key = client
         .post(format!("{}/v1/auth/keys", server.base_url()))
