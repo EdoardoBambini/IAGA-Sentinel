@@ -15,6 +15,51 @@ early-access list.
 
 ---
 
+## [1.8.0], 2026-06-26
+
+Stronger **userspace process confinement** for `iaga run` and **reverse-shell
+detection** in the threat-intel layer. Enforcement stays cooperative/userspace —
+kernel eBPF/LSM confinement remains Enterprise (see
+[ADR 0010](docs/adr/0010-oss-enterprise-boundary.md)), `iaga kernel status`
+reports the posture honestly, and every OSS receipt still carries
+`is_authoritative: false`. The default build and signed-receipt bytes are
+unchanged from 1.7.2 (golden vectors green, including the frozen
+`is_authoritative` shape).
+
+### Added
+
+- **Userspace child hardening** (`UserspaceKernel`): an allowed `iaga run` child
+  is now spawned under `setsid`, with core dumps disabled (`RLIMIT_CORE = 0`),
+  no-new-privileges (`PR_SET_NO_NEW_PRIVS`, Linux), and reaped with its parent
+  (`kill_on_drop`). These are unprivileged POSIX/Linux controls, not eBPF/LSM
+  kernel enforcement; `is_authoritative()` stays `false`.
+- **Reverse-shell threat patterns**: netcat `-e`/`-c`, `bash` redirection to
+  `/dev/tcp`, and `socat … EXEC` are flagged `critical`; recursive `chmod` is
+  matched by regex so `chmod -R 777 /` is caught while `chmod +x` stays clean.
+- **CI `notices` job**: regenerates `THIRD_PARTY_NOTICES.md` with pinned
+  `cargo-about` and fails if it has drifted from `Cargo.lock`.
+
+### Changed
+
+- **`iaga kernel status`** copy clarified and a `containment:` line added
+  (env-scrubbed, reaped); the boot banner now reads "EU AI Act conformity
+  evidence" instead of the retired "Zero-Trust Security Runtime" framing.
+- **`iaga run` default agent**: the `cli-runner` agent and a `ws-cli` workspace
+  are seeded, so process governance works out of the box (a few harmless
+  read-only commands auto-allow; everything else stays governed by the risk and
+  threat-intel layers).
+- **Documentation honesty pass**: corrected `docs/openapi.yaml` from "12-layer"
+  to "8-layer" (two advisory) and softened "mapped to Annex IV" to the honest
+  "structured to support / help produce"; de-softened wording across the README,
+  added a verb to the EU AI Act badge, and added nominative-use / non-affiliation
+  notes where third-party framework names appear. Removed `docs/CASE_STUDY.md`.
+
+### Fixed
+
+- A brittle kernel test that spawned `cargo` (a rustup proxy that breaks under
+  environment scrubbing) now uses an environment-independent command, so the
+  hardening suite is deterministic on Linux and Windows.
+
 ## [1.7.2], 2026-06-22
 
 The **VoltAgent plug-in** and a consolidated `plug-ins/` home. **Additive and

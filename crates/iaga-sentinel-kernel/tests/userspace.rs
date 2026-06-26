@@ -49,10 +49,7 @@ async fn block_policy_prevents_spawn() {
             as std::pin::Pin<Box<dyn std::future::Future<Output = KernelDecision> + Send>>
     });
     let k = UserspaceKernel::new(policy);
-    let out = k
-        .launch(&spec_ok())
-        .await
-        .expect("launch returns");
+    let out = k.launch(&spec_ok()).await.expect("launch returns");
     assert_eq!(out.decision, KernelDecision::Block);
     assert!(out.pid.is_none(), "blocked launch must not spawn");
     assert!(out.exit_code.is_none());
@@ -66,10 +63,7 @@ async fn review_policy_holds_launch() {
             as std::pin::Pin<Box<dyn std::future::Future<Output = KernelDecision> + Send>>
     });
     let k = UserspaceKernel::new(policy);
-    let out = k
-        .launch(&spec_ok())
-        .await
-        .expect("launch returns");
+    let out = k.launch(&spec_ok()).await.expect("launch returns");
     assert_eq!(out.decision, KernelDecision::Review);
     assert!(out.pid.is_none());
     assert!(out.reason.as_deref().unwrap_or("").contains("review"));

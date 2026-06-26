@@ -12,7 +12,7 @@ default.
 ## Quickstart
 
 ```bash
-docker run -p 4010:4010 -e IAGA_SENTINEL_OPEN_MODE=true ghcr.io/edoardobambini/iaga-sentinel:v1.7.2 serve
+docker run -p 4010:4010 -e IAGA_SENTINEL_OPEN_MODE=true ghcr.io/edoardobambini/iaga-sentinel:v1.8.0 serve
 npm i @iaga-sentinel/voltagent @voltagent/core
 ```
 

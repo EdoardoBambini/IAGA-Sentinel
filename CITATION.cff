@@ -13,7 +13,7 @@ authors:
     given-names: William
   - family-names: Bohr
     given-names: Justus Moritz
-version: "1.7.2"
+version: "1.8.0"
 date-released: "2026-06-22"
 license: BUSL-1.1
 repository-code: "https://github.com/EdoardoBambini/IAGA-Sentinel"

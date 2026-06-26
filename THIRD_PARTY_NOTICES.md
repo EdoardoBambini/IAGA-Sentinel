@@ -501,15 +501,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ## Business Source License 1.1
 
 Used by:
-- iaga-sentinel-core 1.7.2
-- iaga-sentinel-cost 1.7.2
-- iaga-sentinel-dictum 1.7.2
-- iaga-sentinel-integrations 1.7.2
-- iaga-sentinel-kernel 1.7.2
-- iaga-sentinel-mcp 1.7.2
-- iaga-sentinel-reasoning 1.7.2
-- iaga-sentinel-receipts 1.7.2
-- iaga-sentinel-verify 1.7.2
+- iaga-sentinel-core 1.8.0
+- iaga-sentinel-cost 1.8.0
+- iaga-sentinel-dictum 1.8.0
+- iaga-sentinel-integrations 1.8.0
+- iaga-sentinel-kernel 1.8.0
+- iaga-sentinel-mcp 1.8.0
+- iaga-sentinel-reasoning 1.8.0
+- iaga-sentinel-receipts 1.8.0
+- iaga-sentinel-verify 1.8.0
 
 ```
 Business Source License 1.1

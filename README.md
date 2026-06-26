@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.7.2-0f9d6b?style=flat-square" alt="version" />
+  <img src="https://img.shields.io/badge/version-1.8.0-0f9d6b?style=flat-square" alt="version" />
   <img src="https://img.shields.io/badge/license-BUSL--1.1-0f9d6b?style=flat-square" alt="license" />
   <img src="https://img.shields.io/badge/EU%20AI%20Act-supports%20Art.%2012%20evidence-0B0F0E?style=flat-square" alt="Supports EU AI Act Article 12 record-keeping" />
   <img src="https://img.shields.io/badge/Rust-stable-0B0F0E?style=flat-square" alt="Rust" />
@@ -79,7 +79,7 @@ curl -s -X POST http://localhost:4010/v1/inspect -H 'Content-Type: application/j
 The receipt chain verifies with no server, no database and no network, using the standalone `iaga-verify` binary. That binary isn't in the Docker image, so install the CLI (still no clone) and run the same flow locally:
 
 ```bash
-cargo install --git https://github.com/EdoardoBambini/IAGA-Sentinel --tag v1.7.2 --locked \
+cargo install --git https://github.com/EdoardoBambini/IAGA-Sentinel --tag v1.8.0 --locked \
   iaga-sentinel-core iaga-sentinel-verify
 IAGA_SENTINEL_OPEN_MODE=true iaga serve --seed-demo     # then POST /v1/inspect as above
 ```
@@ -94,7 +94,7 @@ Postgres (`--features postgres` + `DATABASE_URL`) and `docker compose up -d` are
 
 ---
 
-## Test me now (1.7.2)
+## Test me now (1.8.0)
 
 Do not take our word for it. The repository ships a self-contained demo kit that drives three real verdicts through the live pipeline and proves the receipt offline, on your own machine. Nothing is faked, and you get the same verdicts every run. Two scripts under [`scripts/`](scripts/) and a runbook in [`docs/demo/README.md`](docs/demo/README.md). The primary path is Windows PowerShell; Linux and macOS use the `.sh` twins.
 
@@ -191,6 +191,9 @@ Research-validated, not marketing-validated.
 ## Status
 
 > [!NOTE]
+> **New in 1.8.0: stronger userspace confinement + reverse-shell detection.** `iaga run` now confines an allowed child directly — `setsid`, no core dumps (`RLIMIT_CORE=0`), no privilege escalation (`PR_SET_NO_NEW_PRIVS` on Linux), reaped with its parent — and the threat-intel layer flags reverse shells (netcat `-e`/`-c`, `bash`/`/dev/tcp`, `socat EXEC`) and recursive `chmod 777` as critical. Enforcement stays **cooperative / userspace**: kernel eBPF/LSM confinement remains Enterprise, `iaga kernel status` reports the posture honestly, and every receipt still carries `is_authoritative: false`. The default build and receipt bytes are unchanged from 1.7.2. See the [CHANGELOG](CHANGELOG.md).
+
+> [!NOTE]
 > **New in 1.7.2: the plug-in for VoltAgent + a tidy `plug-ins/` home.** A new released, in-the-loop plug-in for [VoltAgent](https://github.com/VoltAgent/voltagent) ([`@iaga-sentinel/voltagent`](plug-ins/voltagent-plugin/)): an `onToolStart` gate that throws `ToolDeniedError` before a tool's `execute()` runs, optional prompt-injection input-scan and secret redaction of tool output, and offline `CHAIN OK` receipts — verified end-to-end against a real sidecar and a real model. The repo's in-the-loop integrations are consolidated under [`plug-ins/`](plug-ins/) (released `*-plugin/` next to copy-paste `*-adapter/`). Additive and docs-only for the core: receipts and the default build are byte-identical to 1.7.1. See the [CHANGELOG](CHANGELOG.md).
 
 > [!NOTE]
@@ -205,7 +208,7 @@ Research-validated, not marketing-validated.
 > [!NOTE]
 > **New in 1.5.4: the policy language now enforces what it promised.** The Dictum `secret_ref()` builtin actually detects credentials and PII inside a tool payload (it was a placeholder that always returned false), and a new `url_host()` builtin gives a policy a real per-host egress allowlist that also defeats look-alike-domain bypasses. Three core fixes ship alongside: the workspace egress allowlist is URL-aware, so a full URL to an allowed host is no longer over-blocked; every `block` or `review` now carries its cause in the audit event and the signed receipt, with no silent escalation; and signed receipts hash-chain across a session, so a multi-step run forms one tamper-evident Merkle chain. See [ADR 0023](docs/adr/0023-dictum-secret-detection-host-egress.md) and the [CHANGELOG](CHANGELOG.md).
 
-Current release: **1.7.2** ([release notes](CHANGELOG.md)). CI runs the full workspace test suite (default and `--all-features`), live-Postgres receipt tests, SDK end-to-end smokes against a real sidecar, and clippy with `-D warnings`. All green from a clean checkout.
+Current release: **1.8.0** ([release notes](CHANGELOG.md)). CI runs the full workspace test suite (default and `--all-features`), live-Postgres receipt tests, SDK end-to-end smokes against a real sidecar, and clippy with `-D warnings`. All green from a clean checkout.
 
 ---
 

