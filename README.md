@@ -9,13 +9,13 @@
 </p>
 
 <p align="center">
-  Cryptographically signed, replay-verifiable, EU-sovereign proof of every action an agent takes, mapped to AI Act Article 12 and Annex IV.
+  Cryptographically signed, replay-verifiable, EU-sovereign evidence of the agent actions it governs, structured to support AI Act Article 12 record-keeping and Annex IV documentation.
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/version-1.7.2-0f9d6b?style=flat-square" alt="version" />
   <img src="https://img.shields.io/badge/license-BUSL--1.1-0f9d6b?style=flat-square" alt="license" />
-  <img src="https://img.shields.io/badge/EU%20AI%20Act-Art.%2012%20and%20Annex%20IV-0B0F0E?style=flat-square" alt="EU AI Act Article 12 and Annex IV" />
+  <img src="https://img.shields.io/badge/EU%20AI%20Act-supports%20Art.%2012%20evidence-0B0F0E?style=flat-square" alt="Supports EU AI Act Article 12 record-keeping" />
   <img src="https://img.shields.io/badge/Rust-stable-0B0F0E?style=flat-square" alt="Rust" />
   <a href="https://github.com/EdoardoBambini/IAGA-Sentinel/actions/workflows/ci.yml"><img src="https://github.com/EdoardoBambini/IAGA-Sentinel/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
 </p>
@@ -36,10 +36,10 @@
 
 ## What IAGA Sentinel is
 
-AI agents touch the shell, the filesystem, databases, third-party APIs, and secrets. When a regulator, an auditor, or your own DPO asks you to prove what an agent did, and to prove the record was not altered after the fact, most teams have nothing to show. IAGA Sentinel produces that proof: it sits next to your agent stack (HTTP sidecar, MCP proxy, or `iaga run`) and turns every governance verdict into an Ed25519-signed receipt linked into a Merkle append-log, verifiable offline, with deterministic verdicts and replay-based drift detection. The record is structured to support EU AI Act Article 12 record-keeping and to help produce the Annex IV technical documentation a high-risk system needs by 2 August 2026.
+AI agents touch the shell, the filesystem, databases, third-party APIs, and secrets. When a regulator, an auditor, or your own DPO asks you to prove what an agent did, and to prove the record was not altered after the fact, most teams have nothing to show. IAGA Sentinel produces that proof: it sits next to your agent stack (HTTP sidecar, MCP proxy, or `iaga run`) and turns every governance verdict into an Ed25519-signed receipt linked into a Merkle append-log, verifiable offline, with reproducible verdicts (deterministic under fixed risk weights) and replay-based drift detection. The record is structured to support EU AI Act Article 12 record-keeping and to help produce the Annex IV technical documentation a high-risk system needs by 2 August 2026.
 
 > [!IMPORTANT]
-> Today IAGA Sentinel enforces softly and certifies hard. The signed evidence and the replay are real and verifiable now, from a clean checkout. Authoritative kernel-level enforcement (eBPF/LSM) is not in this open build. `iaga kernel status` says so honestly, and every receipt carries `is_authoritative: false`. We do not market enforcement we do not provide.
+> IAGA Sentinel governs in the loop and seals hard. Verdicts are computed before an action proceeds; with `iaga run` a blocked process never starts and an allowed one is confined directly — secrets scrubbed from its environment, no core dumps, no privilege escalation, reaped with its parent. The signed evidence and the offline replay are real and verifiable now, from a clean checkout. Kernel-level confinement (eBPF/LSM syscall and network mediation) is the Enterprise tier and is not in this open build: `iaga kernel status` reports the posture honestly, and every receipt carries `is_authoritative: false`. We do not market enforcement we do not provide.
 
 <p align="center">
   <img src="docs/media/iaga-receipt.png" alt="An IAGA Sentinel signed receipt drawn as a precise instrument, sealed with a verification mark and linked into the hash chain" width="640" /><br />
@@ -49,8 +49,8 @@ AI agents touch the shell, the filesystem, databases, third-party APIs, and secr
 What makes it different:
 
 - **Proof, not testimony.** Ed25519 + Merkle receipts, verifiable offline with the standalone `iaga-verify` binary: no server, no network, no trust in IAGA required.
-- **Honest posture.** Soft enforcement is stated inside the evidence itself, not buried in a footnote.
-- **Sovereign by construction.** Runs air-gapped; BUSL-1.1 auto-converts to Apache-2.0; the evidence stays in your hands, with no CLOUD Act exposure.
+- **Honest posture.** The enforcement posture is recorded inside the signed evidence itself (`is_authoritative: false`), not buried in a footnote.
+- **Sovereign by construction.** Runs fully self-hosted or air-gapped; BUSL-1.1 auto-converts to Apache-2.0; the evidence stays in your hands and need never be handed to a third-party cloud provider.
 - **EU AI Act-shaped.** Receipts line up with Article 12 logging; typed Dictum policies document your risk controls.
 
 ---
@@ -155,11 +155,11 @@ In this repository:
 
 ## Community vs Enterprise
 
-This repository is the open build: the source-verifiable evidence core, with signed receipts, offline verification and replay, the Dictum policy engine, cross-platform soft enforcement, BYOK signing, BYO ONNX reasoning, and cost control. Every claim is reproducible from a clean checkout: `git clone && cargo test --workspace`.
+This repository is the open build: the source-verifiable evidence core, with signed receipts, offline verification and replay, the Dictum policy engine, cross-platform userspace enforcement, BYOK signing, BYO ONNX reasoning, and cost control. Every claim is reproducible from a clean checkout: `git clone && cargo test --workspace`.
 
 IAGA Sentinel Enterprise is a planned commercial edition, currently in development, designed to add managed, platform-specific, and compliance-delivery capabilities: Annex IV dossier generation, qualified signatures, SSO/RBAC/multi-tenancy, native SIEM and KMS integrations, authoritative kernel enforcement, and curated model packages. These are planned directions, not shipping features, and nothing here is an offer to sell. The public boundary is documented in [ADR 0010](docs/adr/0010-oss-enterprise-boundary.md); the overview is in [`ENTERPRISE.md`](ENTERPRISE.md).
 
-Today, IAGA Sentinel is an open-source project and research effort; the Enterprise edition is not yet available for purchase. If you would like to follow it and get early access when it opens, leave your email at `info@iaga.tech` — no purchase, no commitment, just early information.
+Today, IAGA Sentinel is a source-available project (BUSL-1.1) and research effort; the Enterprise edition is not yet available for purchase. If you would like to follow it and get early access when it opens, leave your email at `info@iaga.tech` — no purchase, no commitment, just early information.
 
 ---
 

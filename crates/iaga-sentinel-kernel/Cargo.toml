@@ -34,6 +34,14 @@ tracing = { workspace = true }
 # (IAGA_SENTINEL_ENV_DENYLIST). Small, well-established config parser.
 toml = "0.8"
 
+# Unprivileged process hardening applied to a governed child at spawn
+# (setsid, RLIMIT_CORE=0, PR_SET_NO_NEW_PRIVS on Linux). These are standard
+# POSIX/Linux process controls, NOT eBPF/LSM kernel enforcement, so they stay
+# on the OSS side of the boundary (ADR 0010). Unix-only; Windows uses the
+# cross-platform reaping path (kill_on_drop).
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
 tempfile = "3"

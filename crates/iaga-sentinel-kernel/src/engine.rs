@@ -2,22 +2,24 @@
 //!
 //! Two implementations ship in 1.0:
 //!
-//! - [`crate::userspace::UserspaceKernel`], always available. Spawns
-//!   the child process under the host's existing privileges, with
-//!   environment + working-dir scoping. No kernel hooks. This is
-//!   "soft" enforcement: it works on macOS, Windows and Linux, but
-//!   a determined process can still escape it.
+//! - [`crate::userspace::UserspaceKernel`], always available on every OS.
+//!   Enforces at the process boundary: blocks disallowed launches before
+//!   they start, scrubs secrets from the child's environment, and confines
+//!   the spawned child with unprivileged process controls (no core dumps,
+//!   own session/process-group, `PR_SET_NO_NEW_PRIVS` on Linux, reaped on
+//!   drop). It does not load kernel hooks, so it cannot mediate syscalls or
+//!   network egress in the kernel — that is the Enterprise tier below.
 //!
 //! - [`crate::bpf::BpfKernel`] (feature `linux-bpf`, `cfg(target_os = "linux")`):
-//!   a scaffold today. The actual eBPF LSM program loader and
-//!   syscall hooks land in M4.1 (requires bpf-linker + LLVM 18+,
-//!   which the build host doesn't ship by default). The trait
-//!   surface is wired now so the host can opt into kernel mode at
-//!   construction time.
+//!   a scaffold today. The authoritative eBPF/LSM program loader and
+//!   syscall hooks are an Enterprise implementation (ADR 0010); the trait
+//!   surface is wired now so a host can opt into kernel mode at
+//!   construction time without changing call sites.
 //!
 //! Hosts hold an `Arc<dyn EnforcementKernel>` and treat both backends
-//! identically. Decisions are advisory in the userspace path and
-//! authoritative once `BpfKernel` lands.
+//! identically. `is_authoritative()` reports the posture truthfully:
+//! `false` for the userspace backend (process-boundary enforcement, not
+//! kernel-side), `true` only once an authoritative kernel backend is wired.
 
 use async_trait::async_trait;
 
@@ -55,8 +57,9 @@ pub trait EnforcementKernel: Send + Sync {
     /// Backend identifier for telemetry (`userspace`, `linux-bpf`).
     fn backend_name(&self) -> &'static str;
 
-    /// Whether this backend enforces decisions in the kernel. The
-    /// host advertises this in `iaga kernel status` so operators
-    /// know whether they're in soft or hard mode.
+    /// Whether this backend enforces decisions in the kernel. The host
+    /// advertises this in `iaga kernel status` so operators know whether
+    /// they're in userspace process-boundary mode or authoritative kernel
+    /// mode. The userspace backend reports `false` honestly.
     fn is_authoritative(&self) -> bool;
 }

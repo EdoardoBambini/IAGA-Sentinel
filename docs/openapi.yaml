@@ -5,8 +5,9 @@ info:
   description: >
     IAGA Sentinel is the EU AI Act conformity evidence layer for AI agents.
     It intercepts tool calls, evaluates risk against typed policies, and
-    produces Ed25519-signed, replay-verifiable receipts across a 12-layer
-    governance pipeline, mapped to AI Act Article 12 and Annex IV.
+    produces Ed25519-signed, replay-verifiable receipts across an 8-layer
+    governance pipeline (two of them advisory), structured to support AI Act
+    Article 12 record-keeping and to help produce Annex IV technical documentation.
 
 
     Since 1.5.2 API keys carry a scope: `admin` (default — full access,

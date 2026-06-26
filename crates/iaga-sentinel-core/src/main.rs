@@ -764,7 +764,7 @@ fn print_banner(port: u16) {
     eprintln!("    ║{:^44}║", "");
     eprintln!("    ╚{bar}╝{reset}");
     eprintln!();
-    eprintln!("    {cyan}Zero-Trust Security Runtime for AI Agents{reset}");
+    eprintln!("    {cyan}EU AI Act conformity evidence for AI agents{reset}");
     eprintln!("    {dim}v{}{reset}", env!("CARGO_PKG_VERSION"));
     eprintln!();
     eprintln!("    {green}▸{reset} Port        {bold}{port}{reset}");
@@ -2444,11 +2444,22 @@ fn cmd_kernel_status() {
         if k.is_authoritative() {
             "yes"
         } else {
-            "no (soft enforcement)"
+            "no — userspace process-boundary enforcement (kernel eBPF/LSM is Enterprise)"
         }
     );
+    // What the userspace backend actually confines a governed child with.
+    // Platform-aware so the line never overclaims (e.g. no rlimits on Windows).
+    #[cfg(unix)]
+    let containment = if cfg!(target_os = "linux") {
+        "env-scrubbed, no-core-dumps, no-new-privs, reaped"
+    } else {
+        "env-scrubbed, no-core-dumps, reaped"
+    };
+    #[cfg(not(unix))]
+    let containment = "env-scrubbed, reaped";
+    println!("containment: {containment}");
     if cfg!(feature = "linux-bpf") && cfg!(target_os = "linux") {
-        println!("linux-bpf: scaffold compiled (loader pending M4.1)");
+        println!("linux-bpf: scaffold compiled (authoritative loader is Enterprise, ADR 0010)");
     } else {
         println!("linux-bpf: not active on this build");
     }

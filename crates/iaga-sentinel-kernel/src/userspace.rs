@@ -1,27 +1,33 @@
-//! Cross-platform userspace launcher. Always available, "soft" enforcement.
+//! Cross-platform userspace launcher for governed processes. Always
+//! available, on every OS.
 //!
-//! What it does:
+//! Enforcement happens at the process boundary, and it is real:
 //! - Runs the policy callback before spawning anything. If the policy
-//!   says `Block`, the child never starts.
-//! - Spawns the child via `tokio::process::Command` with a scoped
-//!   environment (only entries explicitly listed in `ProcessSpec.env`
-//!   plus a small allowlist of inherited vars: `PATH`, `HOME`,
-//!   `SystemRoot` on Windows). No accidental leakage of secrets the
-//!   host happens to have in its env.
+//!   says `Block`, the child never starts; on `Review` the host holds it.
+//! - Spawns the child with a scoped environment (only entries explicitly
+//!   listed in `ProcessSpec.env` plus a small allowlist of inherited vars:
+//!   `PATH`, `HOME`, `SystemRoot` on Windows). No accidental leakage of
+//!   secrets the host happens to have in its env.
 //! - Scrubs a denylist of known-sensitive variables (cloud and model
-//!   provider credentials, registry tokens, the receipt signing key
-//!   path) from the final child environment, even when passed explicitly
-//!   via `ProcessSpec.env`. The denylist is extendable via a TOML file
-//!   at `IAGA_SENTINEL_ENV_DENYLIST` (1.3.1).
+//!   provider credentials, registry tokens, the receipt signing key path)
+//!   from the final child environment, even when passed explicitly via
+//!   `ProcessSpec.env`. Extendable via a TOML file at
+//!   `IAGA_SENTINEL_ENV_DENYLIST` (1.3.1).
+//! - Confines the spawned child with standard *unprivileged* process
+//!   controls (1.8): no core dumps (`RLIMIT_CORE=0`, so in-memory secrets
+//!   can't spill to disk), its own session/process-group (`setsid`: clean
+//!   reaping, detached from the controlling tty), and — on Linux —
+//!   `PR_SET_NO_NEW_PRIVS` so the child can't gain privileges through a
+//!   setuid binary. The launch is reaped if the host drops it
+//!   (`kill_on_drop`). These are POSIX/Linux primitives, not eBPF/LSM.
 //! - Sets the working directory if specified.
 //!
-//! What it does NOT do (deliberate, deferred to `BpfKernel`):
-//! - Restrict syscalls.
-//! - Prevent `execve` of arbitrary binaries the child decides to run.
-//! - Cap network egress at the kernel layer.
-//! - Mediate filesystem access beyond what cwd + env can express.
-//!
-//! For all of that you want the eBPF LSM backend (M4.1).
+//! Where the boundary sits (Enterprise tier, ADR 0010): kernel-level
+//! confinement — syscall filtering, network-egress mediation in the kernel,
+//! and interception of arbitrary `execve` — needs an authoritative eBPF/LSM
+//! backend (`BpfKernel`). That is an Enterprise implementation; this
+//! userspace backend reports its posture truthfully (`is_authoritative()`
+//! is `false`) and never pretends otherwise.
 
 use std::collections::HashMap;
 use std::process::Stdio;
@@ -322,18 +328,26 @@ impl EnforcementKernel for UserspaceKernel {
             "governed launch environment scrubbed"
         );
 
-        let mut cmd = tokio::process::Command::new(&spec.program);
-        cmd.args(&spec.args);
-        cmd.env_clear();
+        // Build a std `Command` first so we can attach the unprivileged
+        // process hardening via `pre_exec` (1.8) — tokio's `Command` has no
+        // such hook. Converting std -> tokio afterwards is the documented path.
+        let mut std_cmd = std::process::Command::new(&spec.program);
+        std_cmd.args(&spec.args);
+        std_cmd.env_clear();
         for (k, v) in env {
-            cmd.env(k, v);
+            std_cmd.env(k, v);
         }
         if let Some(cwd) = &spec.working_dir {
-            cmd.current_dir(cwd);
+            std_cmd.current_dir(cwd);
         }
-        cmd.stdin(Stdio::null());
-        cmd.stdout(Stdio::inherit());
-        cmd.stderr(Stdio::inherit());
+        std_cmd.stdin(Stdio::null());
+        std_cmd.stdout(Stdio::inherit());
+        std_cmd.stderr(Stdio::inherit());
+        harden_child(&mut std_cmd);
+
+        let mut cmd = tokio::process::Command::from(std_cmd);
+        // Reap the child if the host drops the launch future (cross-platform).
+        cmd.kill_on_drop(true);
 
         let mut child = cmd.spawn().map_err(|e| KernelError::Spawn {
             program: spec.program.clone(),
@@ -363,9 +377,52 @@ impl EnforcementKernel for UserspaceKernel {
     }
 
     fn is_authoritative(&self) -> bool {
+        // Stays `false` even with the 1.8 process hardening: setsid,
+        // RLIMIT_CORE=0 and PR_SET_NO_NEW_PRIVS are unprivileged process
+        // controls, not kernel-side enforcement. Only an authoritative
+        // eBPF/LSM backend (Enterprise, ADR 0010) flips this to `true`.
+        // Reporting the posture honestly is the whole point of the flag.
         false
     }
 }
+
+/// Apply standard *unprivileged* process hardening to a governed child at
+/// spawn. These are POSIX/Linux process controls (not eBPF/LSM), so they stay
+/// on the OSS side of the boundary (ADR 0010) and run under the host's existing
+/// privileges. Best-effort by design: a step that fails (e.g. `setsid` when the
+/// caller already leads a process group) must never abort an otherwise-allowed
+/// launch — the posture is then simply no stronger than the pre-1.8 behaviour.
+#[cfg(unix)]
+#[allow(unsafe_code)] // `pre_exec` is inherently unsafe; the closure is async-signal-safe.
+fn harden_child(cmd: &mut std::process::Command) {
+    use std::os::unix::process::CommandExt;
+    // SAFETY: `pre_exec` requires the closure to be async-signal-safe. It runs
+    // in the forked child before `exec` and calls only async-signal-safe libc
+    // functions with no allocation. The enclosing `unsafe` covers the closure
+    // body too, so the libc calls need no further `unsafe`.
+    unsafe {
+        cmd.pre_exec(|| {
+            // Own session/process-group: detach from the controlling tty and
+            // let the host reap the whole tree.
+            libc::setsid();
+            // No core dumps: a core file can spill in-memory secrets to disk.
+            let no_core = libc::rlimit {
+                rlim_cur: 0,
+                rlim_max: 0,
+            };
+            libc::setrlimit(libc::RLIMIT_CORE, &no_core);
+            // Linux: the child cannot gain privileges via a setuid binary.
+            #[cfg(target_os = "linux")]
+            libc::prctl(libc::PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
+            Ok(())
+        });
+    }
+}
+
+/// Non-Unix hosts rely on the cross-platform `kill_on_drop` reaping path.
+/// Windows Job Object resource caps are a possible future follow-up.
+#[cfg(not(unix))]
+fn harden_child(_cmd: &mut std::process::Command) {}
 
 #[cfg(test)]
 mod tests {

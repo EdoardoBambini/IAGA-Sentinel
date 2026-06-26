@@ -6,7 +6,7 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 For architectural rationale, see the ADRs under [docs/adr/](docs/adr/).
 
-This changelog tracks the **open-source build** of IAGA Sentinel,
+This changelog tracks the **open, source-available build** of IAGA Sentinel,
 licensed under BUSL-1.1 with Change License: Apache-2.0 baked in.
 IAGA Sentinel Enterprise is a planned commercial edition, currently in
 development, built on the same governance kernel; see

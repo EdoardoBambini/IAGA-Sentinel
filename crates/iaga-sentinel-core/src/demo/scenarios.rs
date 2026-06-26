@@ -33,6 +33,29 @@ pub fn demo_profiles() -> Vec<AgentProfile> {
             baseline_action_types: vec![ActionType::Http],
             tool_trust: 0.7,
         },
+        // Default agent for `iaga run` (the CLI's `--agent-id` default). Without
+        // a profile, `iaga run` fails closed with "Agent not found"; seeding it
+        // makes the documented default actually work. The allowlist is a small
+        // set of harmless, read-only commands so `iaga run -- hostname` shows a
+        // real governed + confined launch (Allow). Anything unregistered (rm,
+        // nc, `curl … | sh`, …) still escalates as an unknown tool and the
+        // pattern / threat-intel layers block it — default-deny is preserved.
+        AgentProfile {
+            agent_id: "cli-runner".into(),
+            tenant_id: None,
+            workspace_id: "ws-cli".into(),
+            framework: "iaga-sentinel-kernel".into(),
+            role: AgentRole::Builder,
+            approved_tools: vec![
+                "echo".into(),
+                "hostname".into(),
+                "whoami".into(),
+                "true".into(),
+            ],
+            approved_secrets: vec![],
+            baseline_action_types: vec![ActionType::Shell],
+            tool_trust: 0.7,
+        },
     ]
 }
 
@@ -60,6 +83,43 @@ pub fn demo_workspace_policies() -> Vec<WorkspacePolicy> {
                 allowed_action_types: vec![ActionType::Shell],
                 max_decision: GovernanceDecision::Review,
                 requires_human_review: true,
+            },
+        ],
+        threshold_block: 70,
+        threshold_review: 35,
+    },
+    // Workspace for the `cli-runner` default agent (see demo_profiles). Only a
+    // few harmless read-only commands are auto-allowed; anything else is an
+    // unregistered tool and stays governed by the risk / threat-intel layers.
+    WorkspacePolicy {
+        workspace_id: "ws-cli".into(),
+        tenant_id: None,
+        allowed_protocols: vec![ProtocolKind::Mcp, ProtocolKind::HttpFunction],
+        allowed_domains: vec![],
+        tools: vec![
+            ToolPolicy {
+                tool_name: "echo".into(),
+                allowed_action_types: vec![ActionType::Shell],
+                max_decision: GovernanceDecision::Allow,
+                requires_human_review: false,
+            },
+            ToolPolicy {
+                tool_name: "hostname".into(),
+                allowed_action_types: vec![ActionType::Shell],
+                max_decision: GovernanceDecision::Allow,
+                requires_human_review: false,
+            },
+            ToolPolicy {
+                tool_name: "whoami".into(),
+                allowed_action_types: vec![ActionType::Shell],
+                max_decision: GovernanceDecision::Allow,
+                requires_human_review: false,
+            },
+            ToolPolicy {
+                tool_name: "true".into(),
+                allowed_action_types: vec![ActionType::Shell],
+                max_decision: GovernanceDecision::Allow,
+                requires_human_review: false,
             },
         ],
         threshold_block: 70,

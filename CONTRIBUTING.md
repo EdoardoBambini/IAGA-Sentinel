@@ -96,7 +96,7 @@ chore(ci): cache cargo registry across jobs
 
 ## License and the OSS / Enterprise relationship
 
-IAGA Sentinel (the open-source build, this repository) is licensed under
+IAGA Sentinel (the open, source-available build in this repository) is licensed under
 [Business Source License 1.1](LICENSE) with **Change License:
 Apache-2.0** and a Change Date of four years from publication. By
 submitting a contribution you agree to license your work under the

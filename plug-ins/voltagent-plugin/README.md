@@ -12,7 +12,7 @@ default.
 ## Quickstart
 
 ```bash
-docker run -p 4010:4010 -e IAGA_SENTINEL_OPEN_MODE=true ghcr.io/edoardobambini/iaga-sentinel:v1.7.1 serve
+docker run -p 4010:4010 -e IAGA_SENTINEL_OPEN_MODE=true ghcr.io/edoardobambini/iaga-sentinel:v1.7.2 serve
 npm i @iaga-sentinel/voltagent @voltagent/core
 ```
 
@@ -82,7 +82,7 @@ MCP proxy can also sit in front of `MCPConfiguration` servers.)
 | `logger` | – | – | optional; VoltAgent's logger fits |
 | `inferActionType` | heuristic | – | override the tool-name → action-type mapping |
 
-## Posture: enforces softly, certifies hard
+## Posture: cooperative governance, hard evidence
 
 This plugin is **cooperative agent-loop tier**, not kernel enforcement. Be clear
 about what that means:

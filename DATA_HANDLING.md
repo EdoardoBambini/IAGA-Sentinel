@@ -40,7 +40,7 @@ stable order; fields that are empty or absent are omitted from the JSON.
 | `risk_score` | integer | always | Numeric risk for the decision. |
 | `timestamp` | string | always | RFC3339 UTC time of the verdict. |
 | `signer_key_id` | string | always | Identifier of the signing key, for example `ed25519-1c81ae26...`. Not the key itself. |
-| `is_authoritative` | boolean | open build (1.3.1+) | `false` on every open-build receipt: enforcement is soft, no authoritative kernel ships in the open build. Added in 1.3.1; absent on receipts produced before 1.3.1 and elided when unset, so old receipts verify unchanged. |
+| `is_authoritative` | boolean | open build (1.3.1+) | `false` on every open-build receipt: the open build enforces at the process boundary (userspace), not in the kernel, so no authoritative eBPF/LSM kernel ships here. Added in 1.3.1; absent on receipts produced before 1.3.1 and elided when unset, so old receipts verify unchanged. |
 | `signature` | string | always | Hex Ed25519 signature over the canonical body (on the receipt wrapper). |
 | `plugin_digests` | array | reserved | Present in the schema but not populated in this build (always empty, so omitted). |
 | `model_digests` | array | conditional | Digests of ML models consulted. Present only with the `ml` feature and ML evidence; otherwise omitted. |

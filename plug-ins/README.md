@@ -27,9 +27,9 @@ Two kinds live here:
 Pull the pinned image and run it in open mode (no auth — for local dev/demos):
 
 ```bash
-docker pull ghcr.io/edoardobambini/iaga-sentinel:v1.7.1
+docker pull ghcr.io/edoardobambini/iaga-sentinel:v1.7.2
 docker run -p 4010:4010 -e IAGA_SENTINEL_OPEN_MODE=true \
-  ghcr.io/edoardobambini/iaga-sentinel:v1.7.1 serve --seed-demo
+  ghcr.io/edoardobambini/iaga-sentinel:v1.7.2 serve --seed-demo
 ```
 
 The REST API and operator dashboard are now at <http://localhost:4010/>. (In
@@ -83,7 +83,7 @@ iaga-verify chain.json                               # -> CHAIN OK
 
 ---
 
-## Shared posture: enforces softly, certifies hard
+## Shared posture: cooperative governance, hard evidence
 
 Everything here is **cooperative agent-loop tier**, not kernel enforcement:
 
@@ -135,10 +135,12 @@ The full notices for the third-party Rust crates statically linked into the ship
 ## Trademarks & non-affiliation
 
 These plugins are **independent, community-built integrations**. IAGA Sentinel is **not
-affiliated with, endorsed by, or sponsored by** VoltAgent Inc. or Letta.
+affiliated with, endorsed by, or sponsored by** any of the frameworks they integrate with.
 
 - **VoltAgent** is a trademark of VoltAgent Inc.
 - **Letta** (and the Letta logo) are trademarks of Letta / the Letta team.
+- **OpenAI**, **Claude** / **Claude Code** (Anthropic), **LangChain** / **LangGraph**, **LlamaIndex**, **CrewAI**, **AutoGen**, the **Microsoft Agent Framework**, **Pydantic AI**, the **Vercel AI SDK**, and the **Model Context Protocol (MCP)** are trademarks of their respective owners.
+- All other product and company names are trademarks of their respective owners; nominative use only. See [`TRADEMARKS.md`](../TRADEMARKS.md).
 
 Each name is used **only** to identify the framework the corresponding plugin
 works with (nominative use); no third-party logo or brand asset is used, and no upstream

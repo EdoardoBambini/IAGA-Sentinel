@@ -11,6 +11,10 @@ lightweight adapters for common agent frameworks.
   sequence-aware governance
 - dependency-light adapters exist for OpenAI, LangChain, CrewAI, and AutoGen
 
+OpenAI, LangChain, CrewAI, and AutoGen are trademarks of their respective owners;
+these adapters are independent integrations, not affiliated with or endorsed by them.
+See the repository [`TRADEMARKS.md`](../../TRADEMARKS.md) for details.
+
 ## Offline receipt verification (no dependencies)
 
 `iaga_verify.py` is a standalone, dependency-free offline verifier (Python

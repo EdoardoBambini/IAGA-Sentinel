@@ -124,7 +124,7 @@ In every case IAGA records an Ed25519-signed receipt. The plugin signs nothing.
 | `scan_output` | `False` | – | scan tool output via `/v1/response/scan` (detection only — see below) |
 | `timeout_ms` | `5000` | – | per-request timeout |
 
-## Posture: holds cooperatively, certifies hard
+## Posture: holds cooperatively, seals hard
 
 - Letta holds the tool via `requires_approval` and waits for this plugin's
   approve/deny. The hold is **Letta's** mechanism, not IAGA enforcement.
