@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.8.0-0f9d6b?style=flat-square" alt="version" />
+  <img src="https://img.shields.io/badge/version-1.8.1-0f9d6b?style=flat-square" alt="version" />
   <img src="https://img.shields.io/badge/license-BUSL--1.1-0f9d6b?style=flat-square" alt="license" />
   <img src="https://img.shields.io/badge/EU%20AI%20Act-supports%20Art.%2012%20evidence-0B0F0E?style=flat-square" alt="Supports EU AI Act Article 12 record-keeping" />
   <img src="https://img.shields.io/badge/Rust-stable-0B0F0E?style=flat-square" alt="Rust" />
@@ -79,7 +79,7 @@ curl -s -X POST http://localhost:4010/v1/inspect -H 'Content-Type: application/j
 The receipt chain verifies with no server, no database and no network, using the standalone `iaga-verify` binary. That binary isn't in the Docker image, so install the CLI (still no clone) and run the same flow locally:
 
 ```bash
-cargo install --git https://github.com/EdoardoBambini/IAGA-Sentinel --tag v1.8.0 --locked \
+cargo install --git https://github.com/EdoardoBambini/IAGA-Sentinel --tag v1.8.1 --locked \
   iaga-sentinel-core iaga-sentinel-verify
 IAGA_SENTINEL_OPEN_MODE=true iaga serve --seed-demo     # then POST /v1/inspect as above
 ```
@@ -94,7 +94,7 @@ Postgres (`--features postgres` + `DATABASE_URL`) and `docker compose up -d` are
 
 ---
 
-## Test me now (1.8.0)
+## Test me now (1.8.1)
 
 Do not take our word for it. The repository ships a self-contained demo kit that drives three real verdicts through the live pipeline and proves the receipt offline, on your own machine. Nothing is faked, and you get the same verdicts every run. Two scripts under [`scripts/`](scripts/) and a runbook in [`docs/demo/README.md`](docs/demo/README.md). The primary path is Windows PowerShell; Linux and macOS use the `.sh` twins.
 

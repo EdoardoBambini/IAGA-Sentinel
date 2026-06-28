@@ -15,6 +15,49 @@ early-access list.
 
 ---
 
+## [1.8.1], 2026-06-28
+
+A **rebuilt Operator Console** and **cost visibility on by default**. The
+governance kernel is unchanged, and signed-receipt bytes stay identical when a
+caller reports no `usage` (golden vectors green) — enabling cost metering only
+records usage the caller actually supplies.
+
+### Added
+
+- **Rebuilt Operator Console** (served at `/`): a structured multi-view app with
+  a left section nav (Overview, Decisions, Agents, Live, Receipts, Telemetry,
+  Audit, Reviews & sandbox, Cost, Security, Identity, Plugins, Settings) instead
+  of one long page. Strict monochrome (ink-on-paper, brutalist, zero radius),
+  system fonts, no external assets (stays air-gapped). The Overview leads with
+  the posture question and live charts — governance activity over time, risk
+  distribution, most-blocked tools — and every panel renders real endpoint data
+  or an honest empty state that names the call to populate it.
+- **Downloadable audit reports** (Audit view): fleet-wide or per single agent,
+  with 7/30/90/365-day and all-time range presets, exported as **CSV, JSON, or a
+  formatted PDF** (KPIs, charts, decision mix, models/frameworks, and the full
+  action timeline). The PDF is produced through the browser print pipeline, so
+  the console adds no dependency and works offline.
+- **Settings view**: API-token connection, runtime/health status, refresh
+  interval, and API-key create/list/delete.
+
+### Changed
+
+- **`cost-control` is on by default** (ADR 0020 revised). Token/cost metering,
+  the `/v1/cost` API, the cost ledger, and per-model/agent/tool breakdowns are
+  available out of the box, so the Cost view and audit reports surface real spend
+  and the model(s) each agent used. Receipts stay byte-identical when no `usage`
+  is reported (determinism and golden vectors unaffected); build with
+  `--no-default-features` for the pre-1.5 wire.
+
+### Fixed
+
+- **Receipts panel** read the run summary with camelCase keys while the
+  `/v1/receipts` wire is snake_case (`receipt_count`, `last_timestamp`,
+  `terminal_verdict`); the receipt-count and last-seen columns now render.
+- Internal cleanup: removed the empty legacy `policy_store` module and the unused
+  `verify_all_policies`; the pipeline moves the canonical payload `Value` into
+  plugin evaluation instead of cloning it.
+
 ## [1.8.0], 2026-06-26
 
 Stronger **userspace process confinement** for `iaga run` and **reverse-shell
