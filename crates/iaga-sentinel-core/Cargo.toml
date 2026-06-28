@@ -26,7 +26,7 @@ name = "iaga"
 path = "src/main.rs"
 
 [features]
-default = ["demo", "sqlite", "receipts", "dictum", "reasoning", "kernel"]
+default = ["demo", "sqlite", "receipts", "dictum", "reasoning", "kernel", "cost-control"]
 demo = []
 sqlite = ["sqlx/sqlite", "iaga-sentinel-receipts?/sqlite"]
 postgres = ["sqlx/postgres", "iaga-sentinel-receipts?/postgres"]
@@ -70,8 +70,12 @@ otel-receipts = ["receipts"]
 plugin-manifest-signing = ["receipts", "dep:ed25519-dalek", "dep:base64"]
 # 1.5 cost-control (ADR 0020): token/cost metering, the receipts + audit cost
 # ledger, the /v1/cost API, Dictum budget enforcement, and the response cache.
-# Default OFF, so the default build stays byte-identical to 1.4.0. Pure marker
-# feature: iaga-sentinel-cost is a non-optional leaf dependency.
+# Default ON (since 1.8): operators expect cost + model visibility out of the
+# box. Receipts stay byte-identical when a caller reports no `usage` (the field
+# is `skip_serializing_if = None`), so determinism/golden vectors are unaffected;
+# usage is only embedded when the caller actually supplies it. iaga-sentinel-cost
+# is a non-optional leaf dependency. Disable with `--no-default-features` for a
+# build byte-identical to the pre-1.5 wire.
 cost-control = []
 
 [dependencies]
