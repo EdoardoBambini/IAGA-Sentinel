@@ -341,8 +341,3 @@ pub fn verify_policy(policy: &WorkspacePolicy) -> VerificationResult {
         timestamp: now_ms(),
     }
 }
-
-/// Verify multiple policies and cross-check for conflicts
-pub fn verify_all_policies(policies: &[WorkspacePolicy]) -> Vec<VerificationResult> {
-    policies.iter().map(verify_policy).collect()
-}

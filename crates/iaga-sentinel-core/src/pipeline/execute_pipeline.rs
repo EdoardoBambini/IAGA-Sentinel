@@ -449,7 +449,9 @@ pub async fn execute_pipeline_at(
         tool_name: input.action.tool_name.clone(),
         action_type: action_type_s.to_string(),
         framework: input.framework.clone(),
-        payload: payload_json.clone(),
+        // ponytail: last use of payload_json, move it in instead of cloning the
+        // whole payload Value a second time (the build above is the only clone).
+        payload: payload_json,
         risk_score: adaptive_result.total_score,
     });
 
