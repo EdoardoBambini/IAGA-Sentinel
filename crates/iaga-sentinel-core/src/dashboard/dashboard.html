@@ -1,2836 +1,914 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>IAGA Sentinel Operator Console</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IAGA Sentinel · Operator Console</title>
 <style>
-  :root {
-    --bg: #fbfdfc;
-    --panel: #fefffe;
-    --panel-2: #f2f5f4;
-    --ink: #0B0F0E;
-    --muted: #5b6b66;
-    --mint: #5BE0B4;
-    --mint-weak: #e3f7ee;
-    --green: #0f7a54;
-    --green-weak: #e3f7ee;
-    --amber: #8a5f00;
-    --amber-weak: #faf1d8;
-    --red: #c22f2f;
-    --red-weak: #fbe5e5;
-    --violet: #4d5a74;
-    --violet-weak: #eaedf3;
-    --hair: #dde4e1;
-    --mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
-    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    --ease: cubic-bezier(0.22, 1, 0.36, 1);
-  }
-
-  * { box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
-
-  body {
-    margin: 0;
-    min-height: 100vh;
-    background: var(--bg);
-    color: var(--ink);
-    font-family: var(--sans);
-    font-size: 14px;
-    line-height: 1.5;
-  }
-
-  button, input, select { font: inherit; color: inherit; }
-  code, pre, .mono { font-family: var(--mono); }
-
-  :focus-visible {
-    outline: 2px solid var(--ink);
-    outline-offset: 2px;
-  }
-
-  .shell {
-    max-width: 1560px;
-    margin: 0 auto;
-    padding: 24px;
-  }
-
-  /* ── Header ── */
-
-  .topbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    gap: 16px 24px;
-    flex-wrap: wrap;
-    padding-bottom: 18px;
-    border-bottom: 2px solid var(--ink);
-  }
-
-  .brand .kicker {
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.14em;
-    font-size: 11px;
-    font-family: var(--mono);
-  }
-
-  .brand h1 {
-    margin: 4px 0 0;
-    font-size: 32px;
-    line-height: 1.05;
-    letter-spacing: -0.02em;
-  }
-
-  .brand p {
-    margin: 8px 0 0;
-    color: var(--muted);
-    max-width: 70ch;
-    font-size: 13px;
-  }
-
-  .pill-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    border: 1px solid var(--ink);
-    background: var(--panel);
-    font-size: 12px;
-    font-family: var(--mono);
-    white-space: nowrap;
-  }
-
-  .pill::before {
-    content: "";
-    width: 8px;
-    height: 8px;
-    background: var(--muted);
-    flex: none;
-  }
-
-  .pill.success::before { background: var(--mint); }
-  .pill.warn::before { background: var(--amber); }
-  .pill.error::before { background: var(--red); }
-
-  /* ── Section nav ── */
-
-  .section-nav {
-    position: sticky;
-    top: 0;
-    z-index: 40;
-    background: var(--bg);
-    border-bottom: 1px solid var(--ink);
-    margin: 0 -24px;
-    padding: 0 24px;
-    display: flex;
-    gap: 2px;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: thin;
-  }
-
-  .section-nav a {
-    flex: none;
-    padding: 12px 12px;
-    color: var(--muted);
-    text-decoration: none;
-    font-size: 12px;
-    font-family: var(--mono);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    border-bottom: 3px solid transparent;
-    min-height: 44px;
-    display: inline-flex;
-    align-items: center;
-  }
-
-  .section-nav a:hover { color: var(--ink); background: var(--mint-weak); }
-  .section-nav a.active { color: var(--ink); border-bottom-color: var(--mint); }
-
-  section[id] { scroll-margin-top: 56px; }
-
-  /* ── Panels ── */
-
-  .panel {
-    background: var(--panel);
-    border: 1px solid var(--ink);
-    padding: 20px;
-    margin-top: 16px;
-  }
-
-  .section-head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin-bottom: 16px;
-  }
-
-  .section-head h2 { margin: 0; font-size: 19px; line-height: 1.15; }
-  .section-head h3 { margin: 0; font-size: 16px; line-height: 1.15; }
-
-  .section-head p {
-    margin: 6px 0 0;
-    color: var(--muted);
-    font-size: 13px;
-    max-width: 72ch;
-  }
-
-  .section-kicker {
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    font-size: 11px;
-    font-family: var(--mono);
-  }
-
-  .grid-2 {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(460px, 100%), 1fr));
-    gap: 16px;
-    align-items: start;
-  }
-
-  .grid-3 {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr));
-    gap: 16px;
-    align-items: start;
-  }
-
-  .grid-2 > .panel, .grid-3 > .panel { margin-top: 0; }
-  .grid-2, .grid-3 { margin-top: 16px; }
-
-  /* ── Stat strip (ledger) ── */
-
-  .stat-strip {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    border: 1px solid var(--ink);
-    background: var(--hair);
-    gap: 1px;
-  }
-
-  .stat {
-    padding: 14px 16px;
-    background: var(--panel);
-    min-width: 0;
-  }
-
-  .stat .label {
-    font-size: 11px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--muted);
-    font-family: var(--mono);
-    white-space: nowrap;
-  }
-
-  .stat .value {
-    margin-top: 6px;
-    font-size: 24px;
-    font-weight: 700;
-    line-height: 1.1;
-    font-variant-numeric: tabular-nums;
-    overflow-wrap: anywhere;
-  }
-
-  .stat .sub {
-    margin-top: 4px;
-    color: var(--muted);
-    font-size: 12px;
-    overflow-wrap: anywhere;
-  }
-
-  .value.allow { color: var(--green); }
-  .value.review { color: var(--amber); }
-  .value.block { color: var(--red); }
-
-  /* ── Meters ── */
-
-  .meter {
-    display: flex;
-    height: 10px;
-    border: 1px solid var(--ink);
-    background: var(--panel-2);
-    overflow: hidden;
-  }
-
-  .meter span { display: block; height: 100%; }
-  .meter .seg-allow { background: var(--mint); }
-  .meter .seg-review { background: var(--amber); }
-  .meter .seg-block { background: var(--red); }
-
-  .meter-legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px 18px;
-    margin-top: 8px;
-    font-size: 12px;
-    color: var(--muted);
-    font-family: var(--mono);
-  }
-
-  .meter-legend b { color: var(--ink); font-variant-numeric: tabular-nums; }
-
-  .weight-row { margin-top: 10px; }
-  .weight-row .weight-head {
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
-    font-size: 12px;
-    font-family: var(--mono);
-    color: var(--muted);
-  }
-  .weight-row .weight-head b { color: var(--ink); font-variant-numeric: tabular-nums; }
-  .weight-row .track {
-    margin-top: 4px;
-    height: 8px;
-    border: 1px solid var(--ink);
-    background: var(--panel-2);
-  }
-  .weight-row .fill { height: 100%; background: var(--mint); }
-
-  /* ── Trend bars ── */
-
-  .trend {
-    display: flex;
-    align-items: flex-end;
-    gap: 2px;
-    height: 96px;
-    border-bottom: 1px solid var(--ink);
-    margin-top: 12px;
-  }
-
-  .trend .bar {
-    flex: 1;
-    min-width: 4px;
-    background: var(--mint);
-    border: 1px solid var(--ink);
-    border-bottom: none;
-  }
-
-  .trend-note {
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
-    margin-top: 6px;
-    font-size: 11px;
-    font-family: var(--mono);
-    color: var(--muted);
-  }
-
-  /* ── Forms + buttons ── */
-
-  .auth-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    align-items: flex-end;
-  }
-
-  .auth-grid .field { flex: 1 1 280px; }
-
-  .field label {
-    display: block;
-    margin-bottom: 6px;
-    color: var(--muted);
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-family: var(--mono);
-  }
-
-  .field input,
-  .field select {
-    width: 100%;
-    padding: 10px 12px;
-    border: 1px solid var(--ink);
-    background: var(--panel);
-    min-height: 42px;
-  }
-
-  .field input::placeholder { color: var(--muted); }
-
-  .button-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .btn {
-    appearance: none;
-    border: 1px solid var(--ink);
-    padding: 10px 16px;
-    background: var(--panel);
-    color: var(--ink);
-    cursor: pointer;
-    font-weight: 600;
-    min-height: 42px;
-    transition: background-color 150ms var(--ease);
-  }
-
-  .btn:hover { background: var(--mint-weak); }
-  .btn.primary { background: var(--mint); }
-  .btn.primary:hover { background: #4ccfa4; }
-  .btn.danger { background: var(--red-weak); color: #8f1f1f; }
-  .btn.danger:hover { background: #f6d3d3; }
-  .btn.ghost { background: transparent; }
-  .btn.ghost:hover { background: var(--mint-weak); }
-  .btn.small { padding: 6px 12px; min-height: 36px; font-size: 13px; }
-  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
-
-  .auth-help { margin-top: 12px; color: var(--muted); font-size: 13px; }
-
-  .banner {
-    padding: 13px 16px;
-    border: 1px solid var(--ink);
-    margin-top: 16px;
-    font-size: 14px;
-  }
-
-  .banner.info { background: var(--panel-2); }
-  .banner.success { background: var(--mint-weak); border-color: var(--green); }
-  .banner.warn { background: var(--amber-weak); border-color: var(--amber); }
-  .banner.error { background: var(--red-weak); border-color: var(--red); }
-
-  .hidden { display: none !important; }
-
-  /* ── Controls row ── */
-
-  .controls {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-bottom: 14px;
-  }
-
-  .controls .field { flex: 1 1 180px; min-width: 0; }
-
-  /* ── Tables ── */
-
-  .table-wrap {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    border: 1px solid var(--ink);
-    background: var(--panel);
-  }
-
-  .table-wrap.scroll-y {
-    max-height: 420px;
-    overflow-y: auto;
-  }
-
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    min-width: 560px;
-  }
-
-  th, td {
-    padding: 10px 12px;
-    text-align: left;
-    border-bottom: 1px solid var(--hair);
-    vertical-align: top;
-    font-size: 13px;
-  }
-
-  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
-
-  th {
-    color: var(--muted);
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    font-family: var(--mono);
-    font-weight: 600;
-    background: var(--panel-2);
-    position: sticky;
-    top: 0;
-    white-space: nowrap;
-  }
-
-  tbody tr:last-child td { border-bottom: 0; }
-  tbody tr.row-click { cursor: pointer; }
-  tbody tr.row-click:hover { background: var(--mint-weak); }
-  tbody tr.selected { background: var(--mint-weak); }
-
-  /* ── Badges ── */
-
-  .badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 4px 8px;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    font-family: var(--mono);
-    border: 1px solid currentColor;
-    white-space: nowrap;
-  }
-
-  .badge.allow { background: var(--green-weak); color: var(--green); }
-  .badge.review { background: var(--amber-weak); color: var(--amber); }
-  .badge.block { background: var(--red-weak); color: var(--red); }
-  .badge.pending { background: var(--violet-weak); color: var(--violet); }
-  .badge.neutral { background: var(--panel-2); color: var(--muted); }
-  /* Advisory: unsigned signals. Deliberately distinct from the solid,
-     UPPERCASE signed-verdict badges — dashed, lowercase, muted — so it can
-     never be mistaken for the signed decision. */
-  .badge.advisory {
-    background: transparent;
-    color: var(--muted);
-    border-style: dashed;
-    text-transform: none;
-    letter-spacing: 0.02em;
-  }
-
-  /* ── Detail + lists ── */
-
-  .detail {
-    border: 1px solid var(--ink);
-    background: var(--panel);
-    padding: 16px;
-  }
-
-  .detail h4 { margin: 0 0 12px; font-size: 14px; overflow-wrap: anywhere; }
-
-  .kv {
-    display: grid;
-    grid-template-columns: 150px 1fr;
-    gap: 10px;
-    font-size: 13px;
-    padding: 7px 0;
-    border-bottom: 1px solid var(--hair);
-  }
-
-  .kv:last-child { border-bottom: 0; }
-
-  .kv .k {
-    color: var(--muted);
-    font-family: var(--mono);
-    font-size: 12px;
-  }
-
-  .kv > div:last-child { min-width: 0; overflow-wrap: anywhere; }
-
-  .kv-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 12px;
-    padding: 7px 0;
-    border-bottom: 1px solid var(--hair);
-  }
-
-  .kv-row:last-child { border-bottom: none; }
-  .kv-key { color: var(--muted); font-size: 12px; font-family: var(--mono); flex: none; }
-  .kv-val { font-size: 13px; text-align: right; min-width: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
-
-  .stack { display: flex; flex-direction: column; gap: 12px; }
-
-  .queue-item {
-    border: 1px solid var(--ink);
-    background: var(--panel);
-    padding: 14px;
-  }
-
-  .queue-item h4 { margin: 0 0 6px; font-size: 14px; overflow-wrap: anywhere; }
-  .queue-item p { margin: 0; color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
-
-  .queue-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 12px;
-  }
-
-  .empty {
-    border: 1px dashed var(--ink);
-    padding: 16px;
-    color: var(--muted);
-    background: var(--panel);
-    font-size: 13px;
-    overflow-wrap: anywhere;
-  }
-
-  .empty code { background: var(--panel-2); padding: 1px 5px; }
-
-  .list { display: flex; flex-direction: column; gap: 8px; }
-
-  .list-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 10px 12px;
-    border: 1px solid var(--ink);
-    background: var(--panel);
-    font-size: 13px;
-  }
-
-  .list-item > div:first-child { min-width: 0; overflow-wrap: anywhere; }
-  .list-item .right { color: var(--muted); text-align: right; flex: none; }
-
-  .json {
-    margin: 0;
-    border: 1px solid var(--ink);
-    background: var(--panel-2);
-    color: var(--ink);
-    padding: 14px;
-    overflow: auto;
-    font-size: 12px;
-    line-height: 1.45;
-    max-height: 320px;
-  }
-
-  .spark {
-    display: flex;
-    align-items: flex-end;
-    gap: 2px;
-    height: 64px;
-    margin-top: 10px;
-    border-bottom: 1px solid var(--ink);
-  }
-
-  .spark-bar {
-    flex: 1;
-    min-width: 4px;
-    background: var(--mint);
-    border: 1px solid var(--ink);
-    border-bottom: none;
-  }
-
-  .small { font-size: 12px; color: var(--muted); }
-  .muted { color: var(--muted); }
-
-  .hint {
-    font-size: 12px;
-    color: var(--muted);
-    background: var(--panel-2);
-    border: 1px solid var(--hair);
-    padding: 8px 10px;
-    overflow-wrap: anywhere;
-  }
-
-  .hint code { background: var(--panel); border: 1px solid var(--hair); padding: 0 4px; }
-
-  /* ── Tabs ── */
-
-  .tab-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0;
-    border: 1px solid var(--ink);
-    width: fit-content;
-    max-width: 100%;
-  }
-
-  .tab {
-    appearance: none;
-    border: none;
-    border-right: 1px solid var(--ink);
-    background: var(--panel);
-    padding: 8px 14px;
-    cursor: pointer;
-    font-size: 12px;
-    font-family: var(--mono);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    min-height: 38px;
-  }
-
-  .tab:last-child { border-right: none; }
-  .tab:hover { background: var(--mint-weak); }
-  .tab.active { background: var(--mint); font-weight: 700; }
-
-  /* ── Live feed ── */
-
-  .live-head {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-  }
-
-  .live-dot {
-    width: 10px;
-    height: 10px;
-    background: var(--muted);
-    flex: none;
-  }
-
-  .live-dot.on {
-    background: var(--mint);
-    animation: livePulse 1.6s ease-in-out infinite;
-  }
-
-  @keyframes livePulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.35; }
-  }
-
-  .feed {
-    margin-top: 14px;
-    border: 1px solid var(--ink);
-    background: var(--panel);
-    max-height: 380px;
-    overflow-y: auto;
-  }
-
-  .feed-row {
-    display: flex;
-    gap: 10px;
-    align-items: baseline;
-    padding: 8px 12px;
-    border-bottom: 1px solid var(--hair);
-    font-size: 12px;
-    font-family: var(--mono);
-  }
-
-  .feed-row:last-child { border-bottom: none; }
-  .feed-row .t { color: var(--muted); flex: none; }
-  .feed-row .body { min-width: 0; overflow-wrap: anywhere; }
-
-  footer.console-foot {
-    margin-top: 24px;
-    padding-top: 14px;
-    border-top: 2px solid var(--ink);
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
-    flex-wrap: wrap;
-    color: var(--muted);
-    font-size: 12px;
-    font-family: var(--mono);
-  }
-
-  /* ── Responsive ── */
-
-  @media (max-width: 1100px) {
-    .brand h1 { font-size: 28px; }
-  }
-
-  @media (max-width: 720px) {
-    .shell { padding: 16px; }
-    .section-nav { margin: 0 -16px; padding: 0 16px; }
-    .panel { padding: 16px; }
-    .topbar { align-items: flex-start; flex-direction: column; }
-    .stat .value { font-size: 21px; }
-    .kv { grid-template-columns: 1fr; gap: 2px; }
-    .kv .k { font-size: 11px; }
-    .controls .field { flex-basis: 100%; }
-    .auth-grid .field { flex-basis: 100%; }
-    .button-row .btn { flex: 1 1 auto; }
-    .queue-actions .btn { flex: 1 1 auto; }
-    th, td { padding: 9px 10px; }
-  }
-
-  @media (max-width: 480px) {
-    .brand h1 { font-size: 24px; }
-    .pill { font-size: 11px; padding: 7px 10px; }
-    .tab-row { width: 100%; }
-    .tab { flex: 1 1 auto; text-align: center; }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    html { scroll-behavior: auto; }
-    .btn, .section-nav a { transition: none; }
-    .live-dot.on { animation: none; }
-  }
-
-  @media print {
-    .section-nav, .auth-panel, .banner, .btn, .controls, .live-controls { display: none !important; }
-    .panel, .stat-strip, .table-wrap, .detail { border-color: #000; }
-    body { background: #fff; }
-  }
+/* ─────────────────────────────────────────────────────────────────────
+   IAGA Sentinel Operator Console — structured multi-view app.
+   Strict monochrome (ink on paper). Brutalist restraint: 0 radius,
+   1px ink borders, no shadows, system fonts. Decision state is carried
+   by ink-density + text labels only (no color). Self-contained, no CDN.
+   IAGA Sentinel is an advisory governance & evidence layer, NOT a gateway.
+   ───────────────────────────────────────────────────────────────────── */
+:root{
+  --bg:#fbfdfc; --panel:#fefffe; --panel-2:#f1f4f3; --panel-3:#e7ecea;
+  --ink:#0b0f0e; --ink-2:#2b3331; --muted:#566661; --faint:#8a948f; --hair:#dce3e0;
+  --g1:#0b0f0e; --g2:#3f4a46; --g3:#6d7872; --g4:#a3aca8; --g5:#cdd4d0;
+  --mono:ui-monospace,"Cascadia Mono",Consolas,Menlo,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --ease:cubic-bezier(0.22,1,0.36,1);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.45;font-variant-numeric:tabular-nums;overflow-x:hidden}
+code,.mono{font-family:var(--mono)}
+h1,h2,h3,h4{margin:0;font-weight:700;letter-spacing:-0.01em}
+button,input,select{font-family:inherit;font-size:14px;color:inherit}
+::selection{background:var(--ink);color:var(--bg)}
+a{color:inherit}
+
+/* ── Top bar ── */
+.topbar{position:sticky;top:0;z-index:40;background:var(--panel);border-bottom:1px solid var(--ink);height:53px}
+.topbar-inner{height:100%;display:flex;align-items:center;gap:16px;padding:0 18px}
+.brand{display:flex;align-items:baseline;gap:10px;margin-right:auto}
+.brand .mark{font-weight:700;font-size:16px;letter-spacing:-0.02em}
+.brand .sub{font-family:var(--mono);font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em}
+.pills{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.pill{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid var(--hair);padding:3px 8px;color:var(--muted);white-space:nowrap;text-decoration:none}
+a.pill:hover{border-color:var(--ink);color:var(--ink)}
+.pill.strong{border-color:var(--ink);color:var(--ink)}
+.live{display:inline-flex;align-items:center;gap:6px}
+.live-dot{width:8px;height:8px;background:var(--faint);display:inline-block}
+.live-dot.on{background:var(--ink);animation:pulse 1.6s steps(2) infinite}
+@keyframes pulse{50%{opacity:.25}}
+.menu-btn{display:none;border:1px solid var(--ink);background:var(--panel);width:40px;height:36px;cursor:pointer}
+
+/* ── App shell ── */
+.app{display:grid;grid-template-columns:236px 1fr;min-height:calc(100vh - 53px)}
+.sidebar{border-right:1px solid var(--ink);background:var(--panel);position:sticky;top:53px;height:calc(100vh - 53px);overflow-y:auto;padding:6px 0}
+.side-group{padding:12px 16px 4px;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:0.12em;color:var(--faint)}
+.side-link{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 16px;color:var(--muted);text-decoration:none;font-size:13px;cursor:pointer;border:0;background:none;width:100%;text-align:left}
+.side-link:hover{background:var(--panel-2);color:var(--ink)}
+.side-link.active{background:var(--ink);color:var(--bg);font-weight:600}
+.side-link .ct{font-family:var(--mono);font-size:11px;border:1px solid currentColor;padding:0 5px;opacity:.8}
+
+/* ── Main / views ── */
+.main{min-width:0;overflow-x:hidden}
+.view{display:none;padding:22px;max-width:1340px}
+.view.active{display:block}
+.view-head{margin-bottom:18px}
+.kicker{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:0.12em;color:var(--muted)}
+.view-head h2{font-size:24px;margin-top:3px}
+.view-head .lede{color:var(--muted);font-size:13px;max-width:74ch;margin-top:5px}
+
+/* ── Banner ── */
+.banner{border:1px solid var(--ink);padding:10px 14px;margin-bottom:18px;font-size:13px}
+.banner.hidden{display:none}
+.banner code{background:var(--panel-2);padding:1px 5px}
+
+/* ── Panels / grids ── */
+.panel{border:1px solid var(--ink);background:var(--panel);padding:16px}
+.grid{display:grid;gap:14px}
+.cols-2{grid-template-columns:repeat(auto-fit,minmax(330px,1fr))}
+.cols-3{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.grid>*{min-width:0}
+.panel h3{font-size:13px;text-transform:uppercase;letter-spacing:0.06em;font-family:var(--mono);margin-bottom:10px}
+.panel .sub{color:var(--muted);font-size:12px}
+.section-gap{margin-top:14px}
+
+/* ── Stat strip ── */
+.stats{display:flex;flex-wrap:wrap;border:1px solid var(--ink);background:var(--panel)}
+.stat{flex:1 1 150px;padding:12px 16px;border-right:1px solid var(--hair)}
+.stat:last-child{border-right:0}
+.stat .lbl{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted)}
+.stat .val{font-size:28px;font-weight:700;letter-spacing:-0.02em;margin-top:2px}
+.stat .val.sm{font-size:19px}
+.stat .note{font-size:11px;color:var(--faint);margin-top:1px}
+/* Value lead band (Overview hero, brutalist inverted) */
+.lead{border:1px solid var(--ink);background:var(--ink);color:var(--bg);padding:22px 24px}
+.lead-q{font-size:21px;font-weight:700;letter-spacing:-0.015em;line-height:1.25;max-width:30ch}
+.lead-metrics{display:flex;flex-wrap:wrap;margin-top:18px}
+.lm{flex:1 1 110px;padding:2px 20px 2px 0;margin-right:20px;border-right:1px solid rgba(255,255,255,.16)}
+.lm:last-child{border-right:0;margin-right:0}
+.lm-v{font-size:30px;font-weight:700;letter-spacing:-0.02em;line-height:1}
+.lm-l{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;color:rgba(255,255,255,.66);margin-top:5px}
+.chart-cap{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);margin-top:6px}
+
+/* ── Badges / chips ── */
+.badge{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:0.03em;border:1px solid var(--ink);padding:1px 6px;display:inline-block;white-space:nowrap}
+.badge.allow{background:var(--bg);color:var(--ink)}
+.badge.review{background:var(--panel-3);color:var(--ink)}
+.badge.block{background:var(--ink);color:var(--bg)}
+.badge.pending{background:var(--bg);color:var(--ink);border-style:dashed}
+.badge.neutral{border-color:var(--hair);color:var(--muted)}
+.chip{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:0.03em;border:1px dashed var(--faint);color:var(--muted);padding:1px 5px;display:inline-block;margin:2px 4px 0 0}
+
+/* ── Buttons ── */
+.btn{font-family:var(--mono);font-size:12px;text-transform:uppercase;letter-spacing:0.04em;border:1px solid var(--ink);background:var(--panel);color:var(--ink);padding:7px 12px;cursor:pointer;min-height:40px;transition:background .15s var(--ease)}
+.btn:hover{background:var(--panel-2)}
+.btn.primary{background:var(--ink);color:var(--bg)}
+.btn.primary:hover{background:var(--ink-2)}
+.btn.sm{min-height:32px;padding:4px 9px;font-size:11px}
+.btn:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,.side-link:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* ── Tables ── */
+.table-wrap{border:1px solid var(--ink);background:var(--panel);overflow-x:auto;min-width:0}
+table{border-collapse:collapse;width:100%;font-size:13px}
+.table-wrap table{min-width:560px}
+thead th{position:sticky;top:0;background:var(--panel-2);text-align:left;font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);padding:8px 12px;border-bottom:1px solid var(--ink);white-space:nowrap}
+tbody td{padding:8px 12px;border-bottom:1px solid var(--hair);vertical-align:top}
+tbody tr:last-child td{border-bottom:0}
+tbody tr.click{cursor:pointer}
+tbody tr.click:hover,tbody tr.sel{background:var(--panel-2)}
+td.num,th.num{text-align:right}
+.id{font-family:var(--mono);font-size:12px}
+
+/* ── KV ── */
+.kv{display:flex;flex-direction:column}
+.kv .row{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--hair)}
+.kv .row:last-child{border-bottom:0}
+.kv .k{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted)}
+.kv .v{text-align:right;font-weight:600}
+.kv .v.mono{font-weight:400;font-family:var(--mono);font-size:12px;word-break:break-all}
+
+/* ── Meters / bars / charts ── */
+.meter{height:8px;background:var(--panel-3);border:1px solid var(--hair);position:relative;overflow:hidden}
+.meter > i{position:absolute;left:0;top:0;bottom:0;background:var(--ink);display:block}
+.hbar{height:8px;background:var(--panel-3)}
+.hbar > i{display:block;height:100%;background:var(--g2)}
+.weight-row{margin-bottom:10px}
+.weight-row .top{display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px}
+.weight-row .top .k{font-family:var(--mono);text-transform:uppercase;font-size:11px;color:var(--muted)}
+svg.chart{display:block;width:100%;height:auto}
+.segbar{height:16px;border:1px solid var(--ink);display:flex;overflow:hidden}
+.segbar > i{display:block;height:100%}
+.s-allow{background:var(--g4)} .s-review{background:var(--g2)} .s-block{background:var(--g1)}
+.legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;font-size:12px}
+.legend .it{display:flex;align-items:center;gap:6px}
+.legend .sw{width:12px;height:12px;border:1px solid var(--ink);display:inline-block}
+.legend .sw.allow{background:var(--g4)} .legend .sw.review{background:var(--g2)} .legend .sw.block{background:var(--g1)}
+
+/* ── Items / lists ── */
+.items{display:flex;flex-direction:column;gap:10px}
+.item{border:1px solid var(--hair);padding:12px}
+.item .hd{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.item h4{font-size:14px}
+.item .meta{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:6px;display:flex;gap:14px;flex-wrap:wrap}
+.item .reasons{color:var(--muted);font-size:12px;margin-top:6px}
+.item .acts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+
+/* ── Empty / controls / feed ── */
+.empty{border:1px dashed var(--faint);color:var(--muted);padding:18px;font-size:13px;text-align:center}
+.empty code{background:var(--panel-2);padding:1px 5px;font-size:12px}
+.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px}
+.controls input,.controls select{border:1px solid var(--ink);background:var(--panel);padding:7px 9px;min-height:40px}
+.controls input[type=search]{min-width:220px}
+.controls label{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+.note{font-size:12px;color:var(--muted)}
+.spread{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+.feed{display:flex;flex-direction:column;border:1px solid var(--ink);background:var(--panel);max-height:600px;overflow:auto}
+.feed .ev{display:grid;grid-template-columns:84px 88px 1fr;gap:10px;padding:8px 12px;border-bottom:1px solid var(--hair);align-items:start}
+.feed .ev:last-child{border-bottom:0}
+.feed .ev .t{font-family:var(--mono);font-size:11px;color:var(--muted)}
+
+@media (max-width:900px){
+  .app{grid-template-columns:1fr}
+  .sidebar{position:static;height:auto;min-width:0;display:flex;gap:2px;overflow-x:auto;border-right:0;border-bottom:1px solid var(--ink);padding:4px 8px}
+  .side-group{display:none}
+  .side-link{width:auto;flex:0 0 auto;white-space:nowrap;padding:9px 12px}
+  .side-link.active{background:var(--ink)}
+  .brand .sub{display:none}
+  .cols-2,.cols-3{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){ *{transition:none!important;animation:none!important} }
 </style>
 </head>
 <body>
-  <div class="shell">
-    <header class="topbar">
-      <div class="brand">
-        <div class="kicker">IAGA Sentinel · Community build</div>
-        <h1>Operator Console</h1>
-        <p>
-          Wired to the running runtime: every value on this page comes from a live endpoint.
-          No decorative counters, no demo fallback data.
-        </p>
-      </div>
-      <div class="pill-row">
-        <div class="pill" id="service-pill">Loading runtime context</div>
-        <div class="pill" id="auth-pill">Checking auth mode</div>
-        <div class="pill" id="refresh-pill">Last refresh: never</div>
-      </div>
-    </header>
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <span class="mark">IAGA Sentinel</span>
+      <span class="sub">Governance &amp; evidence console</span>
+    </div>
+    <div class="pills">
+      <span class="pill" id="pill-service">loading…</span>
+      <a class="pill" id="pill-auth" href="#/settings">auth…</a>
+      <span class="pill" id="pill-refresh">never refreshed</span>
+      <span class="pill live"><span class="live-dot" id="live-dot"></span><span id="live-label">offline</span></span>
+    </div>
+  </div>
+</header>
 
-    <nav class="section-nav" id="section-nav" aria-label="Console sections">
-      <a href="#overview">Overview</a>
-      <a href="#cost">Cost</a>
-      <a href="#audit">Audit</a>
-      <a href="#queues">Queues</a>
-      <a href="#agents">Agents</a>
-      <a href="#evidence">Evidence</a>
-      <a href="#policy">Policy</a>
-      <a href="#runtime">Runtime</a>
-      <a href="#plugins">Plugins</a>
-      <a href="#webhooks">Webhooks</a>
-      <a href="#identities">Identities</a>
-      <a href="#live">Live feed</a>
-    </nav>
+<div class="app">
+  <nav class="sidebar" id="sidebar" aria-label="Sections"></nav>
+  <main class="main" id="main">
+    <div class="banner hidden" id="banner"></div>
 
-    <section class="panel auth-panel">
-      <div class="section-head">
-        <div>
-          <div class="section-kicker">Connection</div>
-          <h2>Runtime access</h2>
-          <p>Use the same Bearer token as the HTTP API. The token stays in this browser's local storage for this origin only.</p>
-        </div>
-      </div>
-      <div class="auth-grid">
-        <div class="field">
-          <label for="api-token">API key</label>
-          <input id="api-token" type="password" placeholder="Paste Bearer token" autocomplete="off">
-        </div>
-        <div class="button-row">
-          <button type="button" class="btn primary" id="connect-button">Connect</button>
-          <button type="button" class="btn ghost" id="refresh-button">Refresh</button>
-          <button type="button" class="btn danger" id="clear-button">Clear token</button>
-        </div>
-      </div>
-      <div class="auth-help" id="auth-help">Loading runtime context.</div>
+    <!-- OVERVIEW -->
+    <section class="view" id="v-overview" data-title="Overview" data-lede="What your agents did, what it cost, and whether you can prove it. Every value is live.">
+      <div id="ov-body"></div>
     </section>
 
-    <div class="banner info" id="connection-banner">Checking runtime status.</div>
-
-    <main id="dashboard" class="hidden">
-
-      <!-- ── Overview ── -->
-      <section class="panel" id="overview">
-        <div class="section-head">
-          <div>
-            <div class="section-kicker">Overview</div>
-            <h2>Current posture</h2>
-          </div>
-        </div>
-        <div class="stat-strip">
-          <div class="stat">
-            <div class="label">Total events</div>
-            <div class="value" id="stat-total">0</div>
-            <div class="sub" id="stat-total-sub">No audit events yet</div>
-          </div>
-          <div class="stat">
-            <div class="label">Allow</div>
-            <div class="value allow" id="stat-allow">0</div>
-            <div class="sub">Allowed decisions</div>
-          </div>
-          <div class="stat">
-            <div class="label">Review</div>
-            <div class="value review" id="stat-review">0</div>
-            <div class="sub">Routed to operators</div>
-          </div>
-          <div class="stat">
-            <div class="label">Block</div>
-            <div class="value block" id="stat-block">0</div>
-            <div class="sub">High-risk actions stopped</div>
-          </div>
-          <div class="stat">
-            <div class="label">Sessions</div>
-            <div class="value" id="stat-sessions">0</div>
-            <div class="sub">Active session graphs</div>
-          </div>
-          <div class="stat">
-            <div class="label">Agents</div>
-            <div class="value" id="stat-agents">0</div>
-            <div class="sub" id="stat-agents-sub">Average risk 0.0</div>
-          </div>
-        </div>
-        <div style="margin-top:16px;">
-          <div class="meter" id="decision-meter" role="img" aria-label="Decision mix"></div>
-          <div class="meter-legend" id="decision-meter-legend"></div>
-        </div>
-      </section>
-
-      <!-- ── Cost ── -->
-      <section class="panel" id="cost">
-        <div class="section-head">
-          <div>
-            <div class="section-kicker">Cost control</div>
-            <h2>LLM spend</h2>
-            <p>Reported usage priced locally, no external billing API. Net is what was paid; gross is before cache savings.</p>
-          </div>
-        </div>
-        <div id="cost-disabled" class="hidden"></div>
-        <div id="cost-enabled">
-          <div class="stat-strip">
-            <div class="stat">
-              <div class="label">Net spend</div>
-              <div class="value" id="cost-net">$0.0000</div>
-              <div class="sub" id="cost-actions-sub">0 priced actions</div>
-            </div>
-            <div class="stat">
-              <div class="label">Gross spend</div>
-              <div class="value" id="cost-gross">$0.0000</div>
-              <div class="sub">Before cache savings</div>
-            </div>
-            <div class="stat">
-              <div class="label">Saved by cache</div>
-              <div class="value allow" id="cost-saved">$0.0000</div>
-              <div class="sub" id="cost-cache-sub">0 cache hits</div>
-            </div>
-            <div class="stat">
-              <div class="label">Total tokens</div>
-              <div class="value" id="cost-tokens">0</div>
-              <div class="sub">Across priced actions</div>
-            </div>
-            <div class="stat">
-              <div class="label">Session budget</div>
-              <div class="value" id="cost-budget">—</div>
-              <div class="sub" id="cost-budget-sub">No session budget set</div>
-            </div>
-          </div>
-
-          <div class="grid-2">
-            <div>
-              <div class="section-head" style="margin-bottom:10px;">
-                <h3>Spend breakdown</h3>
-                <div class="tab-row" aria-label="Cost breakdown dimension">
-                  <button type="button" class="tab active" aria-pressed="true" data-cost-tab="model">By model</button>
-                  <button type="button" class="tab" aria-pressed="false" data-cost-tab="agent">By agent</button>
-                  <button type="button" class="tab" aria-pressed="false" data-cost-tab="tool">By tool</button>
-                </div>
-              </div>
-              <div class="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th id="cost-breakdown-key-head">Model</th>
-                      <th class="num">Net</th>
-                      <th class="num">Saved</th>
-                      <th class="num">Tokens</th>
-                      <th class="num">Actions</th>
-                      <th>Share</th>
-                    </tr>
-                  </thead>
-                  <tbody id="cost-breakdown-body"></tbody>
-                </table>
-              </div>
-            </div>
-            <div>
-              <div class="section-head" style="margin-bottom:10px;">
-                <h3>Spend over time</h3>
-                <span class="small" id="cost-trend-meta"></span>
-              </div>
-              <div id="cost-trend-wrap">
-                <div class="trend" id="cost-trend"></div>
-                <div class="trend-note" id="cost-trend-note"></div>
-              </div>
-              <div class="hint" style="margin-top:14px;" id="cost-pricing-hint"></div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ── Audit ── -->
-      <section class="panel" id="audit">
-        <div class="section-head">
-          <div>
-            <div class="section-kicker">Audit explorer</div>
-            <h2>Governed actions</h2>
-            <p>The audit rows currently stored by the runtime. Click a row to inspect the full record.</p>
-          </div>
-          <div class="button-row">
-            <button type="button" class="btn ghost" id="export-audit-button">Export visible CSV</button>
-          </div>
-        </div>
-        <div class="controls">
-          <div class="field">
-            <label for="audit-search">Search</label>
-            <input id="audit-search" type="text" placeholder="agent, tool, framework, reason">
-          </div>
-          <div class="field">
-            <label for="audit-decision">Decision</label>
-            <select id="audit-decision">
-              <option value="all">All</option>
-              <option value="allow">Allow</option>
-              <option value="review">Review</option>
-              <option value="block">Block</option>
-            </select>
-          </div>
-        </div>
-        <div class="small" id="audit-count" style="margin-bottom:8px;"></div>
-        <div class="table-wrap scroll-y">
-          <table>
-            <thead>
-              <tr>
-                <th>Time</th>
-                <th>Agent</th>
-                <th>Tool</th>
-                <th>Decision</th>
-                <th class="num">Risk</th>
-                <th>Review</th>
-              </tr>
-            </thead>
-            <tbody id="audit-body"></tbody>
-          </table>
-        </div>
-        <div style="margin-top: 14px;" id="audit-detail-container"></div>
-      </section>
-
-      <!-- ── Queues ── -->
-      <div class="grid-2" id="queues">
-        <section class="panel">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Review queue</div>
-              <h2>Pending decisions</h2>
-              <p>Approve or reject the pending review items stored in the runtime.</p>
-            </div>
-          </div>
-          <div class="stack" id="review-list"></div>
-        </section>
-
-        <section class="panel">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Sandbox</div>
-              <h2>Dry-run approvals</h2>
-              <p>Side-effect actions executed in the sandbox first; their impact analysis waits here for an operator.</p>
-            </div>
-          </div>
-          <div class="stack" id="sandbox-list"></div>
-        </section>
+    <!-- DECISIONS -->
+    <section class="view" id="v-decisions" data-title="Decisions" data-lede="Every governed action. Click a row for the full record and its payload commitment.">
+      <div class="controls">
+        <input type="search" id="audit-search" placeholder="Filter agent, tool, framework, reason…">
+        <select id="audit-decision"><option value="all">All decisions</option><option value="allow">Allow</option><option value="review">Review</option><option value="block">Block</option></select>
+        <button class="btn sm" id="audit-export">Export visible CSV</button>
+        <span class="note" id="audit-count"></span>
       </div>
-
-      <!-- ── Agents ── -->
-      <div class="grid-2" id="agents">
-        <section class="panel">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Agents</div>
-              <h2>Agent activity</h2>
-              <p>Sourced from the audit store. Click an agent to load fingerprint and rate-limit state.</p>
-            </div>
-          </div>
-          <div class="small" id="agents-count" style="margin-bottom:8px;"></div>
-          <div class="table-wrap scroll-y">
-            <table>
-              <thead>
-                <tr>
-                  <th>Agent</th>
-                  <th class="num">Requests</th>
-                  <th class="num">Avg risk</th>
-                  <th class="num">Trust</th>
-                  <th>Top tool</th>
-                </tr>
-              </thead>
-              <tbody id="agents-body"></tbody>
-            </table>
-          </div>
-        </section>
-
-        <section class="panel">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Agent detail</div>
-              <h2>Selected agent</h2>
-              <p>Joined from analytics, fingerprint, and rate-limit endpoints.</p>
-            </div>
-          </div>
-          <div id="agent-detail"></div>
-        </section>
+      <div class="grid cols-2">
+        <div class="table-wrap" style="max-height:600px"><table>
+          <thead><tr><th>Time</th><th>Agent</th><th>Tool</th><th>Decision</th><th class="num">Risk</th><th>Review</th></tr></thead>
+          <tbody id="audit-rows"></tbody></table></div>
+        <div class="panel" id="audit-detail"><div class="empty">Select an action to inspect it.</div></div>
       </div>
+    </section>
 
-      <!-- ── Evidence ── -->
-      <div class="grid-2" id="evidence">
-        <section class="panel">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Signed receipts</div>
-              <h2>Receipt chains</h2>
-              <p>Ed25519-signed Merkle log per run. Verify any run offline: <code class="mono">iaga replay &lt;run_id&gt; --export chain.json</code> then <code class="mono">iaga-verify chain.json</code>.</p>
-            </div>
-          </div>
-          <div id="receipts-meta" class="stack"></div>
-          <div class="table-wrap" style="margin-top: 12px;">
-            <table>
-              <thead>
-                <tr>
-                  <th>Run</th>
-                  <th>Verdict</th>
-                  <th class="num">Receipts</th>
-                  <th>Last</th>
-                </tr>
-              </thead>
-              <tbody id="receipts-body"></tbody>
-            </table>
-          </div>
-        </section>
-
-        <section class="panel">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Telemetry</div>
-              <h2>Spans & metrics</h2>
-              <p>In-process OpenTelemetry feed. Build with <code class="mono">--features otel-receipts</code> to emit one span per signed receipt.</p>
-            </div>
-          </div>
-          <div id="telemetry-panel" class="stack"></div>
-        </section>
+    <!-- AGENTS -->
+    <section class="view" id="v-agents" data-title="Agents" data-lede="Ranked by average risk. Click an agent for its fingerprint and rate-limit state.">
+      <div class="grid cols-2">
+        <div class="table-wrap" style="max-height:600px"><table>
+          <thead><tr><th>Agent</th><th class="num">Reqs</th><th class="num">Avg risk</th><th class="num">Trust</th><th>Top tool</th></tr></thead>
+          <tbody id="agent-rows"></tbody></table></div>
+        <div class="panel" id="agent-detail"><div class="empty">Select an agent to inspect it.</div></div>
       </div>
+      <p class="note section-gap" id="agent-count"></p>
+    </section>
 
-      <!-- ── Policy ── -->
-      <div class="grid-2" id="policy">
-        <section class="panel">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Dictum overlay</div>
-              <h2>Policy language</h2>
-              <p>Typed DSL merged stricter-wins over the YAML profile system: Dictum can tighten a verdict, never relax it.</p>
-            </div>
-          </div>
-          <div id="dictum-overlay-panel" class="stack"></div>
-        </section>
+    <!-- LIVE -->
+    <section class="view" id="v-live" data-title="Live feed" data-lede="Real-time governance events over SSE. Dashed chips are unsigned advisory signals, never the signed verdict.">
+      <div class="spread" style="margin-bottom:12px"><span class="note" id="live-meta"></span>
+        <div style="display:flex;gap:8px"><button class="btn sm" id="live-toggle">Pause</button><button class="btn sm" id="live-clear">Clear</button></div></div>
+      <div class="feed" id="feed"></div>
+    </section>
 
-        <section class="panel">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Policy verification</div>
-              <h2>Workspace policy state</h2>
-            </div>
-          </div>
-          <div class="controls">
-            <div class="field">
-              <label for="workspace-select">Workspace</label>
-              <select id="workspace-select"></select>
-            </div>
-            <div class="field" style="flex:0 0 auto; align-self:flex-end;">
-              <button type="button" class="btn ghost" id="policy-refresh-button">Re-verify</button>
-            </div>
-          </div>
-          <div id="policy-panel"></div>
-        </section>
+    <!-- RECEIPTS -->
+    <section class="view" id="v-receipts" data-title="Signed receipts" data-lede="Ed25519-signed receipt runs in a Merkle log, verifiable offline. The core of the evidence layer.">
+      <div class="panel" id="receipts-panel"></div>
+    </section>
+
+    <!-- TELEMETRY -->
+    <section class="view" id="v-telemetry" data-title="Telemetry" data-lede="In-process OpenTelemetry metrics and spans. Chain divergence is surfaced, not hidden.">
+      <div class="panel" id="telemetry-panel"></div>
+    </section>
+
+    <!-- REPORTS -->
+    <section class="view" id="v-audit" data-title="Audit export" data-lede="Download the audit trail for the whole fleet or a single agent: cost, frameworks, the model(s) used, and a full action timeline, over 30 days or more.">
+      <div class="controls">
+        <label>Scope<select id="report-scope"><option value="__all__">All agents (fleet)</option></select></label>
+        <label>Decision<select id="report-decision"><option value="">Any</option><option value="allow">Allow</option><option value="review">Review</option><option value="block">Block</option></select></label>
+        <label>From<input type="date" id="report-from"></label>
+        <label>To<input type="date" id="report-to"></label>
+        <label>Max rows<input type="number" id="report-limit" value="50000" min="1" max="1000000" style="width:120px"></label>
+        <button class="btn primary" id="report-build">Build report</button>
+        <button class="btn primary" id="report-pdf" disabled>Download PDF</button>
+        <button class="btn" id="report-csv" disabled>CSV</button>
+        <button class="btn" id="report-json" disabled>JSON</button>
       </div>
-
-      <!-- ── Runtime ── -->
-      <section class="panel" id="runtime">
-        <div class="section-head">
-          <div>
-            <div class="section-kicker">Runtime</div>
-            <h2>Security systems</h2>
-            <p>Kernel, reasoning, firewall, threat intel, adaptive risk, rate limits, and session state, straight from the runtime.</p>
-          </div>
-        </div>
-        <div class="grid-3" style="margin-top:0;">
-          <div class="detail">
-            <h4>Enforcement kernel</h4>
-            <div id="kernel-panel" class="stack"></div>
-          </div>
-          <div class="detail">
-            <h4>Reasoning plane</h4>
-            <div id="reasoning-panel" class="stack"></div>
-          </div>
-          <div class="detail">
-            <h4>Adaptive risk weights</h4>
-            <div id="risk-weights-panel"></div>
-          </div>
-          <div class="detail">
-            <h4>Injection firewall</h4>
-            <div id="firewall-panel" class="stack"></div>
-          </div>
-          <div class="detail">
-            <h4>Threat intel</h4>
-            <div id="threat-panel" class="stack"></div>
-          </div>
-          <div class="detail">
-            <h4>Rate limits & templates</h4>
-            <div id="rate-panel" class="stack"></div>
-          </div>
-        </div>
-        <div class="grid-2">
-          <div class="detail">
-            <h4>Active sessions</h4>
-            <div class="stack" id="session-list"></div>
-          </div>
-          <div class="detail">
-            <h4>Runtime health</h4>
-            <div id="health-panel" class="stack"></div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ── Plugins ── -->
-      <section class="panel" id="plugins">
-        <div class="section-head">
-          <div>
-            <div class="section-kicker">Plugins</div>
-            <h2>WASM plugins</h2>
-            <p>Loaded from the plugin directory; findings merge into the policy verdict. Validate with <code class="mono">iaga plugins validate &lt;file.wasm&gt;</code>.</p>
-          </div>
-          <div class="button-row">
-            <button type="button" class="btn ghost" id="plugins-reload-button">Reload plugins</button>
-          </div>
-        </div>
-        <div id="plugins-meta" class="stack" style="margin-bottom:12px;"></div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Version</th>
-                <th>Status</th>
-                <th>Path</th>
-              </tr>
-            </thead>
-            <tbody id="plugins-body"></tbody>
-          </table>
-        </div>
-        <div id="plugin-errors" style="margin-top:12px;"></div>
-      </section>
-
-      <!-- ── Webhooks ── -->
-      <div class="grid-2" id="webhooks">
-        <section class="panel">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Webhooks</div>
-              <h2>Registered endpoints</h2>
-              <p>Governance events are delivered to these URLs, HMAC-signed when a secret is set.</p>
-            </div>
-          </div>
-          <div class="controls">
-            <div class="field">
-              <label for="webhook-url-input">Endpoint URL</label>
-              <input id="webhook-url-input" type="url" placeholder="https://example.org/hooks/iaga">
-            </div>
-            <div class="field" style="flex:0 0 auto; align-self:flex-end;">
-              <button type="button" class="btn primary" id="webhook-create-button">Register</button>
-            </div>
-          </div>
-          <div class="stack" id="webhook-list"></div>
-        </section>
-
-        <section class="panel">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Dead letter queue</div>
-              <h2>Failed deliveries</h2>
-              <p>Deliveries that exhausted retries. Retry or drop them here.</p>
-            </div>
-          </div>
-          <div class="stack" id="dlq-list"></div>
-        </section>
+      <div class="controls" style="margin-top:-4px">
+        <span class="note">Range</span>
+        <button class="btn sm" data-range="7">7 days</button>
+        <button class="btn sm" data-range="30">30 days</button>
+        <button class="btn sm" data-range="90">90 days</button>
+        <button class="btn sm" data-range="365">1 year</button>
+        <button class="btn sm" data-range="all">All time</button>
+        <span class="note" id="report-range-note"></span>
       </div>
+      <p class="note">The audit log is long-lived signed evidence: pull 30 days or more, the whole point of the store. Action payloads are committed as <code>inputSha256</code> (hash), not kept in cleartext; specific targets surface in an action's reasons when flagged. Reports are generated in your browser.</p>
+      <div id="report-preview" class="section-gap"><div class="empty">Pick a scope and <strong>Build report</strong> to preview and download.</div></div>
+    </section>
 
-      <!-- ── Identities ── -->
-      <section class="panel" id="identities">
-        <div class="section-head">
-          <div>
-            <div class="section-kicker">Non-human identities</div>
-            <h2>Agent identities</h2>
-            <p>Registered NHI identities with SPIFFE IDs, attestation state, and capability grants.</p>
+    <!-- QUEUES -->
+    <section class="view" id="v-queues" data-title="Reviews &amp; sandbox" data-lede="Human-in-the-loop decisions and side-effect dry-runs awaiting approval.">
+      <div class="grid cols-2">
+        <div class="panel"><h3>Review queue</h3><div class="items" id="review-list"></div></div>
+        <div class="panel"><h3>Sandbox approvals</h3><div class="items" id="sandbox-list"></div></div>
+      </div>
+    </section>
+
+    <!-- COST -->
+    <section class="view" id="v-cost" data-title="Cost control" data-lede="Token spend, cache savings, and budget burn, metered from real usage on each action.">
+      <div id="cost-body"></div>
+    </section>
+
+    <!-- SECURITY -->
+    <section class="view" id="v-security" data-title="Runtime security systems" data-lede="The layered defenses and their live state. Soft enforcement is labeled as soft.">
+      <div class="grid cols-3" id="systems-grid"></div>
+      <div class="panel section-gap" id="policy-verify"></div>
+    </section>
+
+    <!-- IDENTITY -->
+    <section class="view" id="v-identity" data-title="Identity &amp; sessions" data-lede="Non-human identities and the live session graph.">
+      <div class="grid cols-2">
+        <div><h3 class="panel" style="border-bottom:0;margin:0">Non-human identities</h3>
+          <div class="table-wrap" style="max-height:480px"><table>
+            <thead><tr><th>Agent</th><th>SPIFFE</th><th>Attestation</th><th class="num">Trust</th><th>Created</th></tr></thead>
+            <tbody id="identity-rows"></tbody></table></div></div>
+        <div class="panel"><h3>Sessions</h3><div class="items" id="session-list"></div></div>
+      </div>
+    </section>
+
+    <!-- PLUGINS -->
+    <section class="view" id="v-plugins" data-title="Plugins &amp; webhooks" data-lede="WASM governance plugins and outbound event delivery.">
+      <div class="panel" id="plugins-panel"></div>
+      <div class="grid cols-2 section-gap">
+        <div class="panel" id="webhooks-panel"></div>
+        <div class="panel" id="dlq-panel"></div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="view" id="v-settings" data-title="Settings" data-lede="Connect to the runtime, manage API keys, and tune the console.">
+      <div class="grid cols-2">
+        <div class="panel">
+          <h3>Connection</h3>
+          <p class="note" id="auth-help" style="margin-bottom:10px"></p>
+          <div class="controls" style="margin-bottom:0">
+            <input id="api-token" type="password" placeholder="Bearer token" autocomplete="off" style="min-width:240px;border:1px solid var(--ink);padding:7px 9px;min-height:40px">
+            <button class="btn primary" id="btn-connect">Connect</button>
+            <button class="btn" id="btn-clear">Clear</button>
           </div>
         </div>
-        <div class="small" id="identities-count" style="margin-bottom:8px;"></div>
-        <div class="table-wrap scroll-y">
-          <table>
-            <thead>
-              <tr>
-                <th>Agent</th>
-                <th>SPIFFE ID</th>
-                <th>Attestation</th>
-                <th class="num">Trust</th>
-                <th>Capabilities</th>
-                <th>Created</th>
-              </tr>
-            </thead>
-            <tbody id="identities-body"></tbody>
-          </table>
-        </div>
-      </section>
-
-      <!-- ── Live feed ── -->
-      <section class="panel" id="live">
-        <div class="section-head">
-          <div>
-            <div class="section-kicker">Live feed</div>
-            <h2 class="live-head"><span class="live-dot" id="live-dot"></span> Governance events</h2>
-            <p>Streamed from <code class="mono">/v1/events/stream</code> over server-sent events: one row per verdict, review, and resolution.</p>
-          </div>
-          <div class="button-row live-controls">
-            <button type="button" class="btn ghost small" id="live-toggle-button">Pause</button>
-            <button type="button" class="btn ghost small" id="live-clear-button">Clear</button>
+        <div class="panel"><h3>Runtime</h3><div class="kv" id="settings-runtime"></div></div>
+      </div>
+      <div class="grid cols-2 section-gap">
+        <div class="panel">
+          <h3>Refresh</h3>
+          <div class="controls" style="margin-bottom:0">
+            <label>Interval<select id="refresh-interval">
+              <option value="5000">5 seconds</option><option value="15000" selected>15 seconds</option>
+              <option value="30000">30 seconds</option><option value="60000">60 seconds</option><option value="0">Off</option>
+            </select></label>
+            <button class="btn" id="refresh-now">Refresh now</button>
           </div>
         </div>
-        <div class="feed-legend small muted" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:2px 0 8px;">
-          <span><span class="badge allow">allow</span> proceeds</span>
-          <span><span class="badge review">review</span> held for a human</span>
-          <span><span class="badge block">block</span> denied</span>
-          <span style="opacity:0.85;"><span class="badge advisory">adv …</span> advisory signal — <strong>not</strong> part of the signed verdict</span>
-        </div>
-        <div class="small" id="live-status">Stream idle.</div>
-        <div class="feed" id="live-feed"></div>
-      </section>
+        <div class="panel" id="apikeys-panel"></div>
+      </div>
+    </section>
 
-      <footer class="console-foot">
-        <span>IAGA Sentinel · evidence, not testimony</span>
-        <span id="foot-version"></span>
-      </footer>
-    </main>
-  </div>
+    <footer style="margin:24px 22px 0;padding-top:18px;border-top:1px solid var(--hair);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:12px">
+      <span>IAGA Sentinel · evidence, not testimony</span>
+      <span id="foot-version"></span>
+    </footer>
+  </main>
+</div>
 
 <script>
+"use strict";
+
+/* ── Navigation model ── */
+const NAV = [
+  { group:null, items:[['overview','Overview']] },
+  { group:'Monitor', items:[['decisions','Decisions'],['agents','Agents'],['live','Live feed']] },
+  { group:'Evidence', items:[['receipts','Receipts'],['telemetry','Telemetry'],['audit','Audit']] },
+  { group:'Operations', items:[['queues','Reviews & sandbox'],['cost','Cost'],['security','Security'],['identity','Identity'],['plugins','Plugins']] },
+  { group:'System', items:[['settings','Settings']] }
+];
+const VIEWS = NAV.flatMap(g=>g.items.map(i=>i[0]));
+const VIEW_GROUP = {}; NAV.forEach(g=>g.items.forEach(([id])=>{VIEW_GROUP[id]=g.group;}));
+
+/* ── State ── */
 const state = {
   token: localStorage.getItem('iaga-sentinel-api-key') || '',
-  context: null,
-  connected: false,
-  unauthorized: false,
-  lastError: '',
-  selectedAuditId: null,
-  selectedAgentId: null,
-  selectedWorkspaceId: '',
-  refreshTimer: null,
-  refreshing: false,
-  costTab: 'model',
-  live: {
-    enabled: true,
-    running: false,
-    abort: null,
-    events: []
-  },
-  data: {
-    auditStats: null,
-    audit: [],
-    reviews: [],
-    sandbox: [],
-    agents: [],
-    sessions: [],
-    firewall: null,
-    threat: null,
-    telemetryMetrics: [],
-    telemetrySpans: [],
-    dlq: [],
-    webhooks: [],
-    rateConfig: null,
-    templates: null,
-    workspaces: [],
-    riskWeights: null,
-    plugins: null,
-    identities: [],
-    receipts: null,
-    policyOverlay: null,
-    reasoningStatus: null,
-    kernelStatus: null,
-    cost: null,
-    costByModel: null,
-    costByAgent: null,
-    costByTool: null,
-    costOverTime: null,
-    costBudget: null,
-    costPricing: null,
-    policyVerify: null,
-    selectedAgent: { analytics: null, fingerprint: null, rate: null }
-  }
+  context:null, connected:false, refreshing:false, refreshTimer:null, refreshMs:15000,
+  view:'overview', selectedAuditId:null, selectedAgentId:null, selectedWorkspace:'', costTab:'model',
+  createdKey:null, report:{events:null,scope:''}, live:{enabled:true,running:false,abort:null,events:[]}, data:{}
 };
+const FEED_MAX=100;
 
-const REFRESH_MS = 15000;
-const FEED_MAX = 100;
+/* ── Helpers ── */
+const $=(id)=>document.getElementById(id);
+function esc(v){const d=document.createElement('div');d.textContent=v==null?'':String(v);return d.innerHTML;}
+function num(v,digits=0){const n=Number(v||0);return Number.isFinite(n)?n.toLocaleString(undefined,{maximumFractionDigits:digits,minimumFractionDigits:digits}):'--';}
+function usd(v,digits=2){const n=Number(v||0);return '$'+(Number.isFinite(n)?n.toFixed(digits):'0.00');}
+function ts(v){if(!v)return '--';const d=new Date(v);return Number.isNaN(d.getTime())?String(v):d.toLocaleString();}
+function epoch(v){const n=Number(v||0);if(!n)return '--';const ms=n>1e12?n:n*1000;const d=new Date(ms);return Number.isNaN(d.getTime())?String(v):d.toLocaleString();}
+function pick(o,...k){for(const x of k){if(o&&o[x]!=null)return o[x];}return undefined;}
+function decClass(d){d=String(d||'').toLowerCase();return d==='allow'||d==='approved'?'allow':d==='review'||d==='pending'?'review':d==='block'||d==='rejected'?'block':'neutral';}
+function badge(label,cls){return `<span class="badge ${cls||decClass(label)}">${esc(label||'—')}</span>`;}
+function usageCostUsd(u){if(!u)return 0;if(u.costMicros!=null)return Number(u.costMicros)/1e6;if(u.costUsd!=null)return Number(u.costUsd);return 0;}
+function tupleName(e){return Array.isArray(e)?(e[0]||'—'):(e&&typeof e==='object'?(e.name||e.tool||e.agent||'—'):(e||'—'));}
+function tupleCount(e){return Array.isArray(e)?(e[1]||0):(e&&typeof e==='object'?(e.count||e.value||0):0);}
 
-function $(id) {
-  return document.getElementById(id);
+function vBars(rows,opts){opts=opts||{};if(!rows||!rows.length)return '<div class="empty">No data yet.</div>';
+  const W=600,H=opts.height||120,pad=18,n=rows.length,max=Math.max(...rows.map(r=>Number(r.value)||0),1),bw=(W-pad*2)/n,gap=Math.min(3,bw*0.18);
+  let bars='';rows.forEach((r,i)=>{const v=Number(r.value)||0,h=(v/max)*(H-pad*2),x=pad+i*bw,y=H-pad-h;
+    bars+=`<rect x="${(x+gap/2).toFixed(1)}" y="${y.toFixed(1)}" width="${(bw-gap).toFixed(1)}" height="${Math.max(0,h).toFixed(1)}" fill="var(--g2)"><title>${esc(r.label||'')}: ${esc(opts.fmt?opts.fmt(v):v)}</title></rect>`;});
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="${esc(opts.aria||'bar chart')}"><line x1="${pad}" y1="${H-pad}" x2="${W-pad}" y2="${H-pad}" stroke="var(--hair)"/>${bars}</svg>`;}
+function spark(values){if(!values||!values.length)return '';const W=240,H=34,n=values.length,max=Math.max(...values.map(Number),1),bw=W/n;
+  let b='';values.forEach((v,i)=>{const h=(Number(v)/max)*H;b+=`<rect x="${(i*bw).toFixed(1)}" y="${(H-h).toFixed(1)}" width="${Math.max(1,bw-1).toFixed(1)}" height="${h.toFixed(1)}" fill="var(--g3)"/>`;});
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${b}</svg>`;}
+function miniRanked(pairs){if(!pairs||!pairs.length)return '<div class="empty">No data yet.</div>';
+  const max=Math.max(...pairs.map(p=>tupleCount(p)),1);
+  return `<table><tbody>${pairs.slice(0,6).map(p=>`<tr><td class="id">${esc(tupleName(p))}</td><td class="num">${num(tupleCount(p))}</td><td style="width:120px"><div class="hbar"><i style="width:${(tupleCount(p)/max*100).toFixed(1)}%"></i></div></td></tr>`).join('')}</tbody></table>`;}
+// Bucket audit events into a time series of allow/review/block counts.
+function timeline(events){
+  if(!events||!events.length)return {unit:'day',buckets:[]};
+  const times=events.map(e=>new Date(e.timestamp).getTime()).filter(t=>!isNaN(t));
+  if(!times.length)return {unit:'day',buckets:[]};
+  const span=Math.max(...times)-Math.min(...times);
+  const unit=span<2*3600e3?'minute':span<2*86400e3?'hour':'day';
+  const size=unit==='minute'?60e3:unit==='hour'?3600e3:86400e3;
+  const map={};
+  events.forEach(e=>{const t=new Date(e.timestamp).getTime();if(isNaN(t))return;const b=Math.floor(t/size)*size;const d=String(e.decision||'').toLowerCase();const m=map[b]||(map[b]={allow:0,review:0,block:0,total:0});if(m[d]!=null)m[d]++;m.total++;});
+  let keys=Object.keys(map).map(Number).sort((a,b)=>a-b).slice(-40);
+  const fmt=unit==='day'?(t=>new Date(t).toISOString().slice(5,10)):(t=>new Date(t).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));
+  return {unit,buckets:keys.map(t=>({label:fmt(t),allow:map[t].allow,review:map[t].review,block:map[t].block,total:map[t].total}))};
+}
+function riskHist(events){const bins=new Array(10).fill(0);(events||[]).forEach(e=>{const r=Math.max(0,Math.min(99,Number(e.riskScore||0)));bins[Math.floor(r/10)]++;});return bins.map((v,i)=>({label:(i*10)+'-'+(i*10+9),value:v}));}
+function stackedBars(buckets,opts){opts=opts||{};
+  if(!buckets||!buckets.length)return '<div class="empty">No activity in this range.</div>';
+  const W=640,H=opts.height||150,pad=20,n=buckets.length,max=Math.max(...buckets.map(b=>b.total),1),bw=(W-pad*2)/n,gap=Math.min(3,bw*0.2);
+  const fills={allow:'var(--g4)',review:'var(--g2)',block:'var(--g1)'};
+  const bars=buckets.map((b,i)=>{const x=pad+i*bw+gap/2,w=bw-gap;let y=H-pad,segs='';['allow','review','block'].forEach(k=>{const h=(b[k]/max)*(H-pad*2);if(h>0){y-=h;segs+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="${fills[k]}"/>`;}});return `<g><title>${esc(b.label)}: ${b.total} (A ${b.allow} / R ${b.review} / B ${b.block})</title>${segs}</g>`;}).join('');
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="${esc(opts.aria||'governance activity over time')}"><line x1="${pad}" y1="${H-pad}" x2="${W-pad}" y2="${H-pad}" stroke="var(--hair)"/>${bars}</svg>`;}
+function pdfTable(obj){const ent=Object.entries(obj).sort((a,b)=>b[1]-a[1]);if(!ent.length)return '<div class="note">none</div>';return '<table><tbody>'+ent.map(e=>`<tr><td>${esc(e[0])}</td><td class="num">${num(e[1])}</td></tr>`).join('')+'</tbody></table>';}
+
+/* ── HTTP ── */
+async function fetchJson(path,options={}){
+  const headers=new Headers(options.headers||{});
+  if(options.body&&!headers.has('Content-Type'))headers.set('Content-Type','application/json');
+  if(state.token)headers.set('Authorization',`Bearer ${state.token}`);
+  try{const res=await fetch(path,{...options,headers});const text=await res.text();let data=null;try{data=text?JSON.parse(text):null;}catch(_){}
+    return {ok:res.ok,status:res.status,data,text};}catch(e){return {ok:false,status:0,data:null,text:'',error:e.message||String(e)};}
 }
 
-function esc(value) {
-  const div = document.createElement('div');
-  div.textContent = value == null ? '' : String(value);
-  return div.innerHTML;
+/* ── Router / sidebar ── */
+function buildSidebar(){
+  const counts=()=>state.data;
+  $('sidebar').innerHTML = NAV.map(g=>
+    (g.group?`<div class="side-group">${esc(g.group)}</div>`:'')+
+    g.items.map(([id,label])=>`<a class="side-link" data-view="${id}" href="#/${id}">${esc(label)}<span class="ct" id="ct-${id}" hidden></span></a>`).join('')
+  ).join('');
 }
-
-function formatNumber(value, digits = 0) {
-  const number = Number(value || 0);
-  return Number.isFinite(number)
-    ? number.toLocaleString(undefined, { maximumFractionDigits: digits, minimumFractionDigits: digits })
-    : '--';
-}
-
-function formatUsd(value, digits = 4) {
-  const number = Number(value || 0);
-  return '$' + (Number.isFinite(number) ? number.toFixed(digits) : '0.0000');
-}
-
-function formatTimestamp(value) {
-  if (!value) return '--';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
-}
-
-function formatEpoch(value) {
-  const n = Number(value || 0);
-  if (!n) return '--';
-  const ms = n > 1e12 ? n : n * 1000;
-  const date = new Date(ms);
-  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
-}
-
-function formatDecisionBadge(decision) {
-  const d = String(decision || 'unknown').toLowerCase();
-  const tone = d === 'allow' || d === 'approved' ? 'allow'
-    : d === 'review' || d === 'pending' ? 'review'
-    : d === 'block' || d === 'rejected' ? 'block'
-    : 'neutral';
-  return `<span class="badge ${tone}">${esc(decision || 'unknown')}</span>`;
-}
-
-function listOrFallback(items, fallback) {
-  return items && items.length ? items.join(', ') : fallback;
-}
-
-function tupleName(entry) {
-  if (Array.isArray(entry)) return entry[0] || '--';
-  if (entry && typeof entry === 'object') return entry.name || entry.tool || entry.agent || '--';
-  return entry || '--';
-}
-
-function tupleCount(entry) {
-  if (Array.isArray(entry)) return entry[1] || 0;
-  if (entry && typeof entry === 'object') return entry.count || entry.value || 0;
-  return 0;
-}
-
-function topToolName(topTools) {
-  return topTools && topTools.length ? tupleName(topTools[0]) : '--';
-}
-
-function decisionCount(stats, key) {
-  if (!stats || !stats.decisions) return 0;
-  return Number(stats.decisions[key] || 0);
-}
-
-function updatePill(id, text, tone) {
-  const el = $(id);
-  el.textContent = text;
-  el.className = `pill ${tone || ''}`.trim();
-}
-
-function setBanner(tone, html) {
-  const banner = $('connection-banner');
-  banner.className = `banner ${tone}`;
-  banner.innerHTML = html;
-}
-
-async function fetchJson(path, options = {}) {
-  const headers = new Headers(options.headers || {});
-  if (options.body && !headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json');
+function setCount(id,n){const el=$('ct-'+id);if(!el)return;if(n>0){el.textContent=n;el.hidden=false;}else{el.hidden=true;}}
+function showView(name){
+  if(!VIEWS.includes(name))name='overview';
+  state.view=name;
+  document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id==='v-'+name));
+  document.querySelectorAll('.side-link').forEach(a=>a.classList.toggle('active',a.getAttribute('data-view')===name));
+  const v=$('v-'+name);
+  if(v && !v.querySelector('.view-head')){
+    const h=document.createElement('div');h.className='view-head';
+    const grp=VIEW_GROUP[name];
+    h.innerHTML=`${grp?`<div class="kicker">${esc(grp)}</div>`:''}<h2>${esc(v.dataset.title||name)}</h2>${v.dataset.lede?`<p class="lede">${v.dataset.lede}</p>`:''}`;
+    v.insertBefore(h,v.firstChild);
   }
-  if (state.token) {
-    headers.set('Authorization', `Bearer ${state.token}`);
-  }
+  $('main').scrollTo?$('main').scrollTo(0,0):window.scrollTo(0,0);
+}
+function route(){ const h=location.hash.replace(/^#\/?/,''); showView(h||'overview'); }
 
-  try {
-    const response = await fetch(path, { ...options, headers });
-    const text = await response.text();
-    let data = null;
-    try {
-      data = text ? JSON.parse(text) : null;
-    } catch (_) {}
-    return { ok: response.ok, status: response.status, data, text };
-  } catch (error) {
-    return { ok: false, status: 0, data: null, text: '', error: error.message || String(error) };
-  }
+/* ── Context ── */
+function pill(id,text,strong){const el=$(id);el.textContent=text;el.className=(el.tagName==='A'?'pill':'pill')+(strong?' strong':'');}
+function setBanner(html){const b=$('banner');if(!html){b.className='banner hidden';return;}b.className='banner';b.innerHTML=html;}
+async function loadContext(){
+  const r=await fetchJson('/dashboard/context');state.context=r.ok?r.data:null;const c=state.context;
+  if(!c){pill('pill-service','runtime unavailable',true);pill('pill-auth','—');return;}
+  pill('pill-service',`${c.service} ${c.version}`,true);
+  $('foot-version').textContent=`${c.service} ${c.version}`;
+  if(c.openMode)pill('pill-auth','open mode');
+  else if(c.apiKeysConfigured)pill('pill-auth','key required',!state.token);
+  else pill('pill-auth','no key',true);
+  renderSettings();
 }
 
-async function loadContext() {
-  const response = await fetchJson('/dashboard/context');
-  if (response.ok) {
-    state.context = response.data;
-  }
-  renderContext();
+/* ── Refresh ── */
+const ENDPOINTS={auditStats:'/v1/audit/stats',audit:'/v1/audit',agents:'/v1/analytics/agents',sessions:'/v1/sessions',
+  identities:'/v1/nhi/identities',reviews:'/v1/reviews',sandbox:'/v1/sandbox/pending',firewall:'/v1/firewall/stats',
+  threat:'/v1/threat-intel/stats',riskWeights:'/v1/risk/weights',kernel:'/v1/kernel/status',reasoning:'/v1/reasoning/status',
+  rateConfig:'/v1/rate-limit/config',templates:'/v1/templates',overlay:'/v1/policy/overlay',receipts:'/v1/receipts',
+  metrics:'/v1/telemetry/metrics',spans:'/v1/telemetry/spans',workspaces:'/v1/workspaces',plugins:'/v1/plugins',
+  webhooks:'/v1/webhooks',dlq:'/v1/webhooks/dlq',apiKeys:'/v1/auth/keys',costSummary:'/v1/cost/summary',
+  costByModel:'/v1/cost/by-model',costByAgent:'/v1/cost/by-agent',costByTool:'/v1/cost/by-tool',
+  costOverTime:'/v1/cost/over-time',costBudget:'/v1/cost/budget',costPricing:'/v1/cost/pricing'};
+async function refreshData(){
+  if(state.refreshing)return;state.refreshing=true;
+  const keys=Object.keys(ENDPOINTS);const results=await Promise.all(keys.map(k=>fetchJson(ENDPOINTS[k])));
+  let unauthorized=false;
+  keys.forEach((k,i)=>{const r=results[i];if(r.status===401)unauthorized=true;state.data[k]=r.ok?r.data:(state.data[k]??null);});
+  state.connected=!unauthorized&&results.some(r=>r.ok);
+  if(unauthorized)setBanner(state.context&&state.context.apiKeysConfigured?'Unauthorized. Add a key in <a href="#/settings">Settings</a> and press Connect.':'Unauthorized. Run <code>iaga gen-key</code>, then add it in <a href="#/settings">Settings</a>.');
+  else if(!state.connected)setBanner('Could not reach the runtime. Is <code>iaga serve</code> running on this origin?');
+  else setBanner('');
+  pill('pill-refresh','refreshed '+new Date().toLocaleTimeString());
+  state.refreshing=false;renderAll();
 }
 
-function renderContext() {
-  const context = state.context;
-  if (!context) {
-    updatePill('service-pill', 'Runtime context unavailable', 'error');
-    updatePill('auth-pill', 'Auth mode unavailable', 'error');
-    $('auth-help').textContent = 'Failed to load public runtime context from /dashboard/context.';
-    return;
-  }
-
-  updatePill(
-    'service-pill',
-    `${context.service} ${context.version} · ${context.mode}`,
-    context.ok ? 'success' : 'error'
-  );
-  $('foot-version').textContent = `${context.service} ${context.version}`;
-
-  if (context.openMode) {
-    updatePill('auth-pill', 'Open mode', 'success');
-    $('auth-help').textContent = 'Open mode is enabled. The console loads live data without an API key.';
-  } else if (context.apiKeysConfigured) {
-    updatePill('auth-pill', 'API key required', 'warn');
-    $('auth-help').innerHTML = 'Protected runtime. Paste a valid API key, then <code>Connect</code> to load live data.';
-  } else {
-    updatePill('auth-pill', 'No API key configured', 'warn');
-    $('auth-help').innerHTML = 'The runtime is protected and no key exists yet. Run <code>iaga gen-key</code>, then paste the generated key here.';
-  }
-}
-
-async function connectAndRefresh() {
-  state.token = $('api-token').value.trim();
-  if (state.token) {
-    localStorage.setItem('iaga-sentinel-api-key', state.token);
-  } else {
-    localStorage.removeItem('iaga-sentinel-api-key');
-  }
-  await refreshData();
-}
-
-async function refreshData() {
-  if (state.refreshing) return;
-
-  state.refreshing = true;
-  $('refresh-button').disabled = true;
-  $('connect-button').disabled = true;
-
-  try {
-    await loadContext();
-
-    const auditStatsResponse = await fetchJson('/v1/audit/stats');
-    if (auditStatsResponse.status === 401) {
-      state.connected = false;
-      state.unauthorized = true;
-      state.lastError = '';
-      stopLiveFeed();
-      renderAll();
-      return;
-    }
-
-    if (!auditStatsResponse.ok) {
-      state.connected = false;
-      state.unauthorized = false;
-      state.lastError = auditStatsResponse.error || `Failed to load dashboard data (${auditStatsResponse.status || 'network error'})`;
-      stopLiveFeed();
-      renderAll();
-      return;
-    }
-
-    state.connected = true;
-    state.unauthorized = false;
-    state.lastError = '';
-    state.data.auditStats = auditStatsResponse.data;
-
-    const responses = await Promise.all([
-      fetchJson('/v1/audit'),
-      fetchJson('/v1/reviews'),
-      fetchJson('/v1/sandbox/pending'),
-      fetchJson('/v1/analytics/agents'),
-      fetchJson('/v1/sessions'),
-      fetchJson('/v1/firewall/stats'),
-      fetchJson('/v1/threat-intel/stats'),
-      fetchJson('/v1/telemetry/metrics'),
-      fetchJson('/v1/telemetry/spans'),
-      fetchJson('/v1/webhooks'),
-      fetchJson('/v1/webhooks/dlq'),
-      fetchJson('/v1/rate-limit/config'),
-      fetchJson('/v1/templates'),
-      fetchJson('/v1/workspaces'),
-      fetchJson('/v1/risk/weights'),
-      fetchJson('/v1/plugins'),
-      fetchJson('/v1/nhi/identities'),
-      fetchJson('/v1/receipts?limit=20'),
-      fetchJson('/v1/policy/overlay'),
-      fetchJson('/v1/reasoning/status'),
-      fetchJson('/v1/kernel/status'),
-      fetchJson('/v1/cost/summary'),
-      fetchJson('/v1/cost/by-model'),
-      fetchJson('/v1/cost/by-agent'),
-      fetchJson('/v1/cost/by-tool'),
-      fetchJson('/v1/cost/over-time?bucket=hour'),
-      fetchJson('/v1/cost/budget'),
-      fetchJson('/v1/cost/pricing')
-    ]);
-
-    const [
-      audit, reviews, sandbox, agents, sessions, firewall, threat,
-      telemetryMetrics, telemetrySpans, webhooks, dlq, rateConfig, templates,
-      workspaces, riskWeights, plugins, identities, receipts, policyOverlay,
-      reasoningStatus, kernelStatus, cost, costByModel, costByAgent,
-      costByTool, costOverTime, costBudget, costPricing
-    ] = responses;
-
-    state.data.audit = Array.isArray(audit.data) ? audit.data : [];
-    state.data.reviews = Array.isArray(reviews.data) ? reviews.data : [];
-    state.data.sandbox = Array.isArray(sandbox.data) ? sandbox.data : [];
-    state.data.agents = Array.isArray(agents.data) ? agents.data : [];
-    state.data.sessions = Array.isArray(sessions.data) ? sessions.data : [];
-    state.data.firewall = firewall.ok ? firewall.data : null;
-    state.data.threat = threat.ok ? threat.data : null;
-    state.data.telemetryMetrics = Array.isArray(telemetryMetrics.data) ? telemetryMetrics.data : [];
-    state.data.telemetrySpans = Array.isArray(telemetrySpans.data) ? telemetrySpans.data : [];
-    state.data.webhooks = Array.isArray(webhooks.data) ? webhooks.data : [];
-    state.data.dlq = Array.isArray(dlq.data) ? dlq.data : [];
-    state.data.rateConfig = rateConfig.ok ? rateConfig.data : null;
-    state.data.templates = templates.ok ? templates.data : null;
-    state.data.workspaces = Array.isArray(workspaces.data) ? workspaces.data : [];
-    state.data.riskWeights = riskWeights.ok ? riskWeights.data : null;
-    state.data.plugins = plugins.ok ? plugins.data : null;
-    state.data.identities = Array.isArray(identities.data) ? identities.data : [];
-    state.data.receipts = receipts.ok ? receipts.data : null;
-    state.data.policyOverlay = policyOverlay.ok ? policyOverlay.data : null;
-    state.data.reasoningStatus = reasoningStatus.ok ? reasoningStatus.data : null;
-    state.data.kernelStatus = kernelStatus.ok ? kernelStatus.data : null;
-    state.data.cost = cost.ok ? cost.data : null;
-    state.data.costByModel = costByModel.ok ? costByModel.data : null;
-    state.data.costByAgent = costByAgent.ok ? costByAgent.data : null;
-    state.data.costByTool = costByTool.ok ? costByTool.data : null;
-    state.data.costOverTime = costOverTime.ok ? costOverTime.data : null;
-    state.data.costBudget = costBudget.ok ? costBudget.data : null;
-    state.data.costPricing = costPricing.ok ? costPricing.data : null;
-
-    if (state.data.workspaces.length > 0) {
-      const stillThere = state.data.workspaces.some((w) => w.workspaceId === state.selectedWorkspaceId);
-      if (!state.selectedWorkspaceId || !stillThere) {
-        state.selectedWorkspaceId = state.data.workspaces[0].workspaceId;
-      }
-      await loadPolicyVerification();
-    } else {
-      state.selectedWorkspaceId = '';
-      state.data.policyVerify = null;
-    }
-
-    if (!state.selectedAuditId && state.data.audit.length > 0) {
-      state.selectedAuditId = state.data.audit[0].eventId;
-    }
-
-    if (!state.selectedAgentId && state.data.agents.length > 0) {
-      state.selectedAgentId = state.data.agents[0].agentId;
-    }
-
-    await loadSelectedAgentDetail();
-
-    updatePill('refresh-pill', `Last refresh: ${new Date().toLocaleTimeString()}`, 'success');
-    renderAll();
-
-    if (state.live.enabled && !state.live.running) {
-      startLiveFeed();
-    }
-  } finally {
-    state.refreshing = false;
-    $('refresh-button').disabled = false;
-    $('connect-button').disabled = false;
-  }
-}
-
-async function loadPolicyVerification() {
-  if (!state.selectedWorkspaceId) {
-    state.data.policyVerify = null;
-    return;
-  }
-  const response = await fetchJson(`/v1/policy/verify/${encodeURIComponent(state.selectedWorkspaceId)}`);
-  state.data.policyVerify = response.ok ? response.data : null;
-}
-
-async function loadSelectedAgentDetail() {
-  if (!state.connected || !state.selectedAgentId) {
-    state.data.selectedAgent = { analytics: null, fingerprint: null, rate: null };
-    return;
-  }
-
-  const [analytics, fingerprint, rate] = await Promise.all([
-    fetchJson(`/v1/analytics/agents/${encodeURIComponent(state.selectedAgentId)}`),
-    fetchJson(`/v1/fingerprint/${encodeURIComponent(state.selectedAgentId)}`),
-    fetchJson(`/v1/rate-limit/status/${encodeURIComponent(state.selectedAgentId)}`)
-  ]);
-
-  state.data.selectedAgent = {
-    analytics: Array.isArray(analytics.data) ? analytics.data[0] || null : null,
-    fingerprint: fingerprint.ok ? fingerprint.data : null,
-    rate: rate.ok ? rate.data : null
-  };
-}
-
-function filteredAuditRows() {
-  const search = $('audit-search').value.trim().toLowerCase();
-  const decision = $('audit-decision').value;
-
-  return state.data.audit.filter((event) => {
-    if (decision !== 'all' && event.decision !== decision) return false;
-    if (!search) return true;
-
-    const haystack = [
-      event.agentId,
-      event.toolName,
-      event.framework,
-      event.actionType,
-      event.reviewStatus,
-      (event.reasons || []).join(' ')
-    ]
-      .filter(Boolean)
-      .join(' ')
-      .toLowerCase();
-
-    return haystack.includes(search);
-  });
-}
-
-function renderAll() {
-  renderConnectionState();
-  $('dashboard').classList.toggle('hidden', !state.connected);
-  if (!state.connected) return;
-  renderOverview();
-  renderCost();
-  renderAudit();
-  renderReviews();
-  renderSandbox();
-  renderAgents();
-  renderAgentDetail();
-  renderReceipts();
-  renderTelemetry();
-  renderDictumOverlay();
-  renderPolicyPanel();
-  renderKernel();
-  renderReasoning();
-  renderRiskWeights();
-  renderFirewall();
-  renderThreat();
-  renderRateAndTemplates();
-  renderSessions();
-  renderHealth();
-  renderPlugins();
-  renderWebhooks();
-  renderDlq();
-  renderIdentities();
-}
-
-function renderConnectionState() {
-  if (state.connected) {
-    setBanner('success', 'Connected. Every panel below is backed by the live HTTP API state.');
-    return;
-  }
-
-  if (state.unauthorized) {
-    if (state.context && !state.context.apiKeysConfigured && !state.context.openMode) {
-      setBanner('warn', 'This runtime is protected and no API key is configured for browser access yet. Run <code>iaga gen-key</code>, then paste the key above and reconnect.');
-    } else {
-      setBanner('warn', 'This console only renders live data. Paste a valid API key above to access the protected runtime endpoints.');
-    }
-    return;
-  }
-
-  if (state.lastError) {
-    setBanner('error', esc(state.lastError));
-    return;
-  }
-
-  setBanner('info', 'Waiting for a live runtime connection.');
+/* ── Render orchestrator ── */
+function renderAll(){
+  renderOverview();renderAudit();renderAgents();renderReportScope();renderCost();
+  renderReceipts();renderTelemetry();renderSystems();renderIdentity();renderQueues();renderOps();renderSettings();
+  setCount('queues',(state.data.reviews||[]).filter(r=>String(r.status||'').toLowerCase()==='pending').length+(state.data.sandbox||[]).length);
+  setCount('decisions',(state.data.audit||[]).length);
+  setCount('agents',(state.data.agents||[]).length);
 }
 
 /* ── Overview ── */
+function renderOverview(){
+  const s=state.data.auditStats||{},dec=s.decisions||{},agents=state.data.agents||[],audit=state.data.audit||[];
+  const rc=state.data.receipts||{},k=state.data.kernel||{},rs=state.data.reasoning||{},ov=state.data.overlay||{},metrics=state.data.metrics||[];
+  const a=Number(dec.allow||0),r=Number(dec.review||0),b=Number(dec.block||0),sum=a+r+b,pct=x=>sum?(x/sum*100):0;
+  const signed=metrics.filter(m=>String(m.name||'').includes('receipts.signed')).reduce((n,m)=>n+Number(m.value||0),0);
+  const runs=(rc.runs||[]).length;
+  const blockedByTool={};audit.forEach(e=>{if(String(e.decision||'').toLowerCase()==='block'){const t=e.toolName||'(none)';blockedByTool[t]=(blockedByTool[t]||0)+1;}});
+  const tl=timeline(audit);
+  const lead=`<div class="lead"><div class="lead-q">What did your agents do, what did it cost, and can you prove it?</div>
+    <div class="lead-metrics">
+      <div class="lm"><div class="lm-v">${num(s.totalEvents)}</div><div class="lm-l">actions governed</div></div>
+      <div class="lm"><div class="lm-v">${num(b)}</div><div class="lm-l">blocked</div></div>
+      <div class="lm"><div class="lm-v">${num(runs||signed)}</div><div class="lm-l">signed receipt runs</div></div>
+      <div class="lm"><div class="lm-v">${num(agents.length)}</div><div class="lm-l">agents governed</div></div>
+      <div class="lm"><div class="lm-v">${num(s.avgRiskScore,1)}</div><div class="lm-l">avg risk / 100</div></div>
+    </div></div>`;
+  const activity=`<div class="panel"><div class="spread"><h3 style="margin:0">Governance activity</h3><span class="note">${tl.buckets.length} ${tl.unit} buckets</span></div>${stackedBars(tl.buckets,{aria:'governance activity over time'})}<div class="legend"><span class="it"><span class="sw allow"></span>Allow</span><span class="it"><span class="sw review"></span>Review</span><span class="it"><span class="sw block"></span>Block</span></div></div>`;
+  const risk=`<div class="panel"><h3>Risk distribution</h3>${vBars(riskHist(audit),{aria:'risk distribution',fmt:v=>v+' actions'})}<div class="chart-cap">Risk score 0–100, bins of 10</div></div>`;
+  const mix=sum>0?`<div class="panel"><h3>Decision mix</h3><div class="segbar"><i class="s-allow" style="width:${pct(a)}%"></i><i class="s-review" style="width:${pct(r)}%"></i><i class="s-block" style="width:${pct(b)}%"></i></div><div class="legend"><span class="it"><span class="sw allow"></span>Allow ${num(a)} · ${pct(a).toFixed(0)}%</span><span class="it"><span class="sw review"></span>Review ${num(r)} · ${pct(r).toFixed(0)}%</span><span class="it"><span class="sw block"></span>Block ${num(b)} · ${pct(b).toFixed(0)}%</span></div></div>`:`<div class="panel"><h3>Decision mix</h3><div class="empty">No decisions yet. <code>POST /v1/inspect</code>.</div></div>`;
+  const enforce=`<div class="panel"><h3>Enforcement posture</h3><div class="kv">${[
+    ['Kernel backend',esc(k.backend||'—')],
+    ['Enforcement',k.authoritative?badge('authoritative','block'):badge('advisory / soft','pending')],
+    ['Reasoning',`${esc(rs.engine||'—')} ${rs.mlFeatureCompiled?badge('ml','review'):badge('noop','neutral')}`],
+    ['Dictum overlay',ov.enabled?(ov.loaded?badge('loaded · '+num(ov.policyCount),'review'):badge('no overlay','neutral')):badge('not compiled','neutral')],
+    ['Receipts',rc.enabled?badge('signing','review'):badge('disabled','neutral')]
+  ].map(x=>`<div class="row"><span class="k">${x[0]}</span><span class="v">${x[1]}</span></div>`).join('')}</div></div>`;
+  const blocked=`<div class="panel"><h3>Most blocked tools</h3>${Object.keys(blockedByTool).length?kvTable(blockedByTool):'<div class="empty">Nothing blocked yet.</div>'}</div>`;
+  const topAgents=`<div class="panel"><h3>Most active agents</h3>${miniRanked(s.topAgents||agents.slice(0,6).map(x=>[x.agentId,x.totalRequests]))}</div>`;
+  const topTools=`<div class="panel"><h3>Most used tools</h3>${miniRanked(s.topTools)}</div>`;
+  $('ov-body').innerHTML=lead
+    +`<div class="grid cols-2 section-gap">${activity}${risk}</div>`
+    +`<div class="grid cols-3 section-gap">${mix}${enforce}${blocked}</div>`
+    +`<div class="grid cols-2 section-gap">${topAgents}${topTools}</div>`;
+}
 
-function renderOverview() {
-  const stats = state.data.auditStats || {};
-  const pendingReviews = state.data.reviews.filter((review) => review.status === 'pending').length;
-  const allow = decisionCount(stats, 'allow');
-  const review = decisionCount(stats, 'review');
-  const block = decisionCount(stats, 'block');
-  const total = Number(stats.totalEvents || 0);
+/* ── Decisions ── */
+function auditFiltered(){const all=state.data.audit||[];const q=($('audit-search').value||'').toLowerCase().trim();const d=$('audit-decision').value;
+  return all.filter(e=>{if(d!=='all'&&String(e.decision||'').toLowerCase()!==d)return false;if(!q)return true;
+    return [e.agentId,e.toolName,e.framework,e.actionType,e.reviewStatus,(e.reasons||[]).join(' ')].join(' ').toLowerCase().includes(q);});}
+function renderAudit(){
+  const rows=auditFiltered();$('audit-count').textContent=`${rows.length} of ${(state.data.audit||[]).length} actions`;
+  const body=$('audit-rows');
+  body.innerHTML=rows.length?rows.slice(0,200).map(e=>`<tr class="click${e.eventId===state.selectedAuditId?' sel':''}" data-audit="${esc(e.eventId)}"><td class="id">${esc(ts(e.timestamp))}</td><td class="id">${esc(e.agentId)}</td><td>${esc(e.toolName)}</td><td>${badge(e.decision)}</td><td class="num">${num(e.riskScore)}</td><td>${badge(e.reviewStatus,'neutral')}</td></tr>`).join('')
+    :`<tr><td colspan="6"><div class="empty">No matching actions. <code>POST /v1/inspect</code> to produce audit events.</div></td></tr>`;
+  renderAuditDetail();
+}
+function renderAuditDetail(){
+  const e=(state.data.audit||[]).find(x=>x.eventId===state.selectedAuditId);const box=$('audit-detail');
+  if(!e){box.innerHTML=`<div class="empty">Select an action to inspect it.</div>`;return;}
+  const u=e.usage;const rows=[['Event',`<span class="mono">${esc(e.eventId)}</span>`],['Agent',`<span class="mono">${esc(e.agentId)}</span>`],['Framework',esc(e.framework)],['Action',`${esc(e.actionType)} · ${esc(e.toolName)}`],['Decision',badge(e.decision)],['Risk',num(e.riskScore)+' / 100'],['Review',badge(e.reviewStatus,'neutral')],['Time',esc(ts(e.timestamp))],['Session',e.sessionId?`<span class="mono">${esc(e.sessionId)}</span>`:'—'],['Payload hash',e.inputSha256?`<span class="mono">${esc(e.inputSha256)}</span>`:'<span class="note">not recorded</span>']];
+  if(u){rows.push(['Model',`${esc(u.provider||'')} ${esc(u.model||'')}`.trim()||'—'],['Cost',usd(usageCostUsd(u),4)],['Tokens',num(u.totalTokens)],['Cache hit',u.cacheHit?'yes':'no']);}
+  box.innerHTML=`<h3>Action record</h3><div class="kv">${rows.map(([k,v])=>`<div class="row"><span class="k">${k}</span><span class="v mono">${v}</span></div>`).join('')}</div>`+(e.reasons&&e.reasons.length?`<h3 class="section-gap">Reasons</h3><ul style="margin:0;padding-left:18px">${e.reasons.map(r=>`<li>${esc(r)}</li>`).join('')}</ul>`:'');
+}
+function exportVisibleCsv(){const rows=auditFiltered();const cols=['eventId','timestamp','agentId','framework','actionType','toolName','decision','reviewStatus','riskScore','reasons'];
+  const csv=[cols.join(',')].concat(rows.map(e=>cols.map(c=>{let v=c==='reasons'?(e.reasons||[]).join('; '):e[c];v=v==null?'':String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}).join(','))).join('\n');
+  downloadBlob('iaga-audit-visible.csv','text/csv',csv);}
 
-  $('stat-total').textContent = formatNumber(total);
-  $('stat-total-sub').textContent = `${pendingReviews} pending review${pendingReviews === 1 ? '' : 's'}`;
-  $('stat-allow').textContent = formatNumber(allow);
-  $('stat-review').textContent = formatNumber(review);
-  $('stat-block').textContent = formatNumber(block);
-  $('stat-sessions').textContent = formatNumber(state.data.sessions.length);
-  $('stat-agents').textContent = formatNumber(state.data.agents.length);
-  $('stat-agents-sub').textContent = `Average risk ${formatNumber(stats.avgRiskScore || 0, 1)}`;
+/* ── Agents ── */
+function renderAgents(){
+  const agents=(state.data.agents||[]).slice().sort((a,b)=>Number(b.avgRiskScore||0)-Number(a.avgRiskScore||0));
+  $('agent-count').textContent=agents.length>100?`Showing the 100 riskiest of ${agents.length}.`:`${agents.length} agents.`;
+  const body=$('agent-rows');
+  body.innerHTML=agents.length?agents.slice(0,100).map(a=>{const top=(a.topTools&&a.topTools[0])?tupleName(a.topTools[0]):'—';
+    return `<tr class="click${a.agentId===state.selectedAgentId?' sel':''}" data-agent="${esc(a.agentId)}"><td class="id">${esc(a.agentId)}</td><td class="num">${num(a.totalRequests)}</td><td class="num">${num(a.avgRiskScore,1)}</td><td class="num">${num(a.trustScore,2)}</td><td>${esc(top)}</td></tr>`;}).join('')
+    :`<tr><td colspan="5"><div class="empty">No agent activity yet.</div></td></tr>`;
+  renderAgentDetail();
+}
+async function selectAgent(id){state.selectedAgentId=id;renderAgents();const box=$('agent-detail');box.innerHTML=`<div class="empty">Loading ${esc(id)}…</div>`;
+  const [fp,rl]=await Promise.all([fetchJson('/v1/fingerprint/'+encodeURIComponent(id)),fetchJson('/v1/rate-limit/status/'+encodeURIComponent(id))]);
+  state.data._fp=fp.ok?fp.data:null;state.data._rl=rl.ok?rl.data:null;renderAgentDetail();}
+function renderAgentDetail(){
+  const box=$('agent-detail'),id=state.selectedAgentId;if(!id){box.innerHTML=`<div class="empty">Select an agent to inspect it.</div>`;return;}
+  const a=(state.data.agents||[]).find(x=>x.agentId===id)||{},fp=state.data._fp||{},rl=state.data._rl||{},dec=a.decisions||{};
+  let html=`<h3>${esc(id)}</h3><div class="kv">`
+    +`<div class="row"><span class="k">Requests</span><span class="v">${num(a.totalRequests||fp.totalRequests)}</span></div>`
+    +`<div class="row"><span class="k">Avg / peak risk</span><span class="v">${num(a.avgRiskScore,1)} / ${num(fp.peakRiskScore,1)}</span></div>`
+    +`<div class="row"><span class="k">Trust</span><span class="v">${num(a.trustScore,2)}</span></div>`
+    +`<div class="row"><span class="k">Anomaly</span><span class="v">${num(fp.anomalyScore,2)}</span></div>`
+    +`<div class="row"><span class="k">Decisions</span><span class="v">${num(dec.allow)} / ${num(dec.review)} / ${num(dec.block)}</span></div>`
+    +`<div class="row"><span class="k">Rate (min / hr)</span><span class="v">${num(pick(rl,'requests_this_minute','requestsThisMinute'))} / ${num(pick(rl,'requests_this_hour','requestsThisHour'))}</span></div></div>`;
+  if(fp.hourlyPattern&&fp.hourlyPattern.length)html+=`<h3 class="section-gap">Hourly pattern (UTC)</h3>${spark(fp.hourlyPattern)}`;
+  if(fp.flags&&fp.flags.length)html+=`<div class="section-gap">${fp.flags.map(f=>`<span class="chip">${esc(f)}</span>`).join('')}</div>`;
+  box.innerHTML=html;
+}
 
-  const meter = $('decision-meter');
-  const legend = $('decision-meter-legend');
-  const sum = allow + review + block;
-  if (sum === 0) {
-    meter.innerHTML = '';
-    legend.innerHTML = '<span>No decisions recorded yet · POST an action to <b>/v1/inspect</b> to see the mix here</span>';
-    return;
-  }
-  const pct = (n) => ((n / sum) * 100).toFixed(2);
-  meter.innerHTML = `
-    <span class="seg-allow" style="width:${pct(allow)}%"></span>
-    <span class="seg-review" style="width:${pct(review)}%"></span>
-    <span class="seg-block" style="width:${pct(block)}%"></span>
-  `;
-  legend.innerHTML = `
-    <span>allow <b>${formatNumber(allow)}</b> (${pct(allow)}%)</span>
-    <span>review <b>${formatNumber(review)}</b> (${pct(review)}%)</span>
-    <span>block <b>${formatNumber(block)}</b> (${pct(block)}%)</span>
-  `;
+/* ── Reports ── */
+function renderReportScope(){const sel=$('report-scope'),cur=sel.value,ids=new Set();
+  (state.data.agents||[]).forEach(a=>ids.add(a.agentId));(state.data.audit||[]).forEach(e=>ids.add(e.agentId));
+  sel.innerHTML=['<option value="__all__">All agents (fleet)</option>'].concat([...ids].filter(Boolean).sort().map(id=>`<option value="${esc(id)}">${esc(id)}</option>`)).join('');
+  if([...sel.options].some(o=>o.value===cur))sel.value=cur;}
+function setRange(days){const from=$('report-from'),to=$('report-to'),note=$('report-range-note');
+  if(days==='all'){from.value='';to.value='';note.textContent='all time';}
+  else{const d=Number(days),start=new Date(Date.now()-d*86400000);from.value=start.toISOString().slice(0,10);to.value='';note.textContent=`since ${from.value} (${d} days)`;}
+  buildReport();}
+async function buildReport(){
+  const scope=$('report-scope').value,qs=new URLSearchParams({format:'json'});
+  if(scope!=='__all__')qs.set('agent_id',scope);
+  const d=$('report-decision').value;if(d)qs.set('decision',d);
+  const f=$('report-from').value;if(f)qs.set('from_date',f);
+  const t=$('report-to').value;if(t)qs.set('to_date',t.length<=10?t+'T23:59:59Z':t);
+  const lim=$('report-limit').value;if(lim)qs.set('limit',lim);
+  $('report-preview').innerHTML=`<div class="empty">Building…</div>`;
+  const r=await fetchJson('/v1/audit/export?'+qs.toString());
+  if(!r.ok){$('report-preview').innerHTML=`<div class="empty">Export failed (status ${r.status}). Check your token in Settings.</div>`;return;}
+  const events=Array.isArray(r.data)?r.data:[];state.report={events,scope};
+  $('report-json').disabled=!events.length;$('report-csv').disabled=!events.length;$('report-pdf').disabled=!events.length;renderReportPreview();
+}
+function summarize(events){const models=new Set(),providers=new Set(),frameworks=new Set(),agents=new Set(),byType={},byTool={},dec={allow:0,review:0,block:0};
+  let cost=0,tokens=0,cache=0,riskSum=0,peak=0,first=null,last=null;
+  for(const e of events){if(e.framework)frameworks.add(e.framework);if(e.agentId)agents.add(e.agentId);
+    const at=e.actionType||'custom';byType[at]=(byType[at]||0)+1;const tn=e.toolName||'(none)';byTool[tn]=(byTool[tn]||0)+1;
+    const dd=String(e.decision||'').toLowerCase();if(dec[dd]!=null)dec[dd]++;const rk=Number(e.riskScore||0);riskSum+=rk;if(rk>peak)peak=rk;
+    if(e.usage){if(e.usage.model)models.add(e.usage.model);if(e.usage.provider)providers.add(e.usage.provider);cost+=usageCostUsd(e.usage);tokens+=Number(e.usage.totalTokens||0);if(e.usage.cacheHit)cache++;}
+    if(e.timestamp){if(!first||e.timestamp<first)first=e.timestamp;if(!last||e.timestamp>last)last=e.timestamp;}}
+  return {count:events.length,agents:[...agents],frameworks:[...frameworks],models:[...models],providers:[...providers],byType,byTool,decisions:dec,cost,tokens,cacheHits:cache,avgRisk:events.length?riskSum/events.length:0,peakRisk:peak,first,last};}
+function kvTable(obj){const ent=Object.entries(obj).sort((a,b)=>b[1]-a[1]);if(!ent.length)return '<span class="note">none</span>';
+  const max=Math.max(...ent.map(e=>e[1]),1);
+  return `<table><tbody>${ent.map(([k,v])=>`<tr><td>${esc(k)}</td><td class="num">${num(v)}</td><td style="width:110px"><div class="hbar"><i style="width:${(v/max*100).toFixed(1)}%"></i></div></td></tr>`).join('')}</tbody></table>`;}
+function renderReportPreview(){
+  const {events,scope}=state.report;if(!events)return;
+  if(!events.length){$('report-preview').innerHTML=`<div class="empty">No actions for this scope and filter.</div>`;return;}
+  const s=summarize(events),scopeLabel=scope==='__all__'?`Fleet · ${s.agents.length} agents`:scope;
+  const tl=timeline(events);
+  const strip=[['Actions',num(s.count)],['Net cost',usd(s.cost,4)],['Tokens',num(s.tokens)],['Cache hits',num(s.cacheHits)],['Avg / peak risk',`${num(s.avgRisk,1)} / ${num(s.peakRisk,0)}`],['Models',num(s.models.length)],['Frameworks',num(s.frameworks.length)]];
+  const a=s.decisions.allow,r=s.decisions.review,b=s.decisions.block,sum=a+r+b||1;
+  const timeline=events.slice().sort((x,y)=>String(y.timestamp).localeCompare(String(x.timestamp))).slice(0,60);
+  $('report-preview').innerHTML=`
+    <div class="spread" style="margin-bottom:12px"><div><strong>${esc(scopeLabel)}</strong> <span class="note">· ${esc(ts(s.first))} → ${esc(ts(s.last))}</span></div></div>
+    <div class="stats">${strip.map(([l,v])=>`<div class="stat"><div class="lbl">${l}</div><div class="val${String(v).length>7?' sm':''}">${v}</div></div>`).join('')}</div>
+    <div class="grid cols-2 section-gap">
+      <div class="panel"><div class="spread"><h3 style="margin:0">Governance activity</h3><span class="note">${tl.buckets.length} ${tl.unit} buckets</span></div>${stackedBars(tl.buckets,{aria:'activity over time'})}<div class="legend"><span class="it"><span class="sw allow"></span>Allow</span><span class="it"><span class="sw review"></span>Review</span><span class="it"><span class="sw block"></span>Block</span></div></div>
+      <div class="panel"><h3>Risk distribution</h3>${vBars(riskHist(events),{aria:'risk distribution',fmt:v=>v+' actions'})}<div class="chart-cap">Risk score 0–100, bins of 10</div></div>
+    </div>
+    <div class="grid cols-3 section-gap">
+      <div class="panel"><h3>Models used</h3>${s.models.length?s.models.map(m=>`<span class="chip">${esc(m)}</span>`).join(''):'<span class="note">no usage captured (enable cost-control)</span>'}
+        <div class="section-gap"><span class="note">Providers:</span> ${s.providers.length?s.providers.map(p=>esc(p)).join(', '):'—'}</div>
+        <div style="margin-top:6px"><span class="note">Frameworks:</span> ${s.frameworks.length?s.frameworks.map(f=>esc(f)).join(', '):'—'}</div></div>
+      <div class="panel"><h3>Actions by type</h3>${kvTable(s.byType)}</div>
+      <div class="panel"><h3>Actions by tool</h3>${kvTable(s.byTool)}</div>
+    </div>
+    <div class="panel section-gap"><h3>Decision mix</h3>
+      <div class="segbar"><i class="s-allow" style="width:${a/sum*100}%"></i><i class="s-review" style="width:${r/sum*100}%"></i><i class="s-block" style="width:${b/sum*100}%"></i></div>
+      <div class="legend"><span class="it"><span class="sw allow"></span>Allow ${num(a)}</span><span class="it"><span class="sw review"></span>Review ${num(r)}</span><span class="it"><span class="sw block"></span>Block ${num(b)}</span></div></div>
+    <h3 style="font-family:var(--mono);text-transform:uppercase;font-size:12px;margin:18px 0 8px">Action timeline ${timeline.length<events.length?`(latest ${timeline.length} of ${events.length}; download for all)`:''}</h3>
+    <div class="table-wrap" style="max-height:420px"><table style="min-width:780px">
+      <thead><tr><th>Time</th><th>Agent</th><th>Action</th><th>Tool</th><th>Decision</th><th class="num">Risk</th><th>Model</th><th class="num">Cost</th></tr></thead>
+      <tbody>${timeline.map(e=>`<tr><td class="id">${esc(ts(e.timestamp))}</td><td class="id">${esc(e.agentId)}</td><td>${esc(e.actionType)}</td><td>${esc(e.toolName)}</td><td>${badge(e.decision)}</td><td class="num">${num(e.riskScore)}</td><td class="id">${esc(e.usage?e.usage.model:'')||'—'}</td><td class="num">${e.usage?usd(usageCostUsd(e.usage),4):'—'}</td></tr>`).join('')}</tbody>
+    </table></div>`;
+}
+function downloadReportJson(){const {events,scope}=state.report;if(!events)return;
+  const report={tool:'iaga-sentinel',generatedAt:new Date().toISOString(),scope:scope==='__all__'?'all-agents':scope,summary:summarize(events),
+    note:'Action payloads are committed as inputSha256 (hash), not stored in cleartext.',
+    timeline:events.map(e=>({timestamp:e.timestamp,agentId:e.agentId,framework:e.framework,actionType:e.actionType,toolName:e.toolName,decision:e.decision,riskScore:e.riskScore,reviewStatus:e.reviewStatus,reasons:e.reasons||[],sessionId:e.sessionId||null,inputSha256:e.inputSha256||null,provider:e.usage?e.usage.provider:null,model:e.usage?e.usage.model:null,totalTokens:e.usage?e.usage.totalTokens:null,costUsd:e.usage?usageCostUsd(e.usage):null,cacheHit:e.usage?e.usage.cacheHit:null}))};
+  downloadBlob(`iaga-report-${scope==='__all__'?'fleet':scope.replace(/[^a-z0-9_-]/gi,'_')}.json`,'application/json',JSON.stringify(report,null,2));}
+function downloadReportCsv(){const {events,scope}=state.report;if(!events)return;
+  const cols=['timestamp','agentId','framework','actionType','toolName','decision','riskScore','reviewStatus','provider','model','totalTokens','costUsd','cacheHit','sessionId','inputSha256','reasons'];
+  const cell=v=>{v=v==null?'':String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+  const lines=[cols.join(',')];
+  for(const e of events){const u=e.usage||{};lines.push([e.timestamp,e.agentId,e.framework,e.actionType,e.toolName,e.decision,e.riskScore,e.reviewStatus,u.provider||'',u.model||'',u.totalTokens||'',e.usage?usageCostUsd(u):'',e.usage?u.cacheHit:'',e.sessionId||'',e.inputSha256||'',(e.reasons||[]).join('; ')].map(cell).join(','));}
+  downloadBlob(`iaga-report-${scope==='__all__'?'fleet':scope.replace(/[^a-z0-9_-]/gi,'_')}.csv`,'text/csv',lines.join('\n'));}
+function downloadBlob(filename,type,content){const blob=new Blob([content],{type}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+// Formatted PDF via the browser print pipeline (no library, stays air-gapped).
+function downloadReportPdf(){
+  const {events,scope}=state.report; if(!events||!events.length)return;
+  const s=summarize(events),tl=timeline(events),rh=riskHist(events);
+  const a=s.decisions.allow,r=s.decisions.review,b=s.decisions.block,sum=a+r+b||1;
+  const scopeLabel=scope==='__all__'?('Fleet — '+s.agents.length+' agents'):scope;
+  const rows=events.slice().sort((x,y)=>String(y.timestamp).localeCompare(String(x.timestamp)));
+  const kpi=[['Actions',num(s.count)],['Net cost',usd(s.cost,4)],['Tokens',num(s.tokens)],['Blocked',num(b)],['Avg / peak risk',num(s.avgRisk,1)+' / '+num(s.peakRisk,0)],['Models',num(s.models.length)]];
+  const css=`:root{--ink:#0b0f0e;--muted:#566661;--hair:#cfd6d3;--p2:#f1f4f3;--g1:#0b0f0e;--g2:#3f4a46;--g3:#6d7872;--g4:#a3aca8;--g5:#cdd4d0}
+*{box-sizing:border-box}body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);margin:0;font-variant-numeric:tabular-nums}
+.page{padding:30px 34px;max-width:920px;margin:0 auto}
+.eyebrow{font-family:ui-monospace,Consolas,monospace;font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:var(--muted)}
+h1{font-size:24px;margin:2px 0 0}.meta{color:var(--muted);font-size:12px;margin-top:5px}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;font-family:ui-monospace,Consolas,monospace;border-bottom:1px solid var(--ink);padding-bottom:4px;margin:24px 0 10px}
+.kpis{display:flex;flex-wrap:wrap;border:1px solid var(--ink);margin-top:16px}
+.kpi{flex:1 1 120px;padding:11px 14px;border-right:1px solid var(--hair)}.kpi:last-child{border-right:0}
+.kpi .v{font-size:21px;font-weight:700}.kpi .l{font-family:ui-monospace,Consolas,monospace;font-size:10px;text-transform:uppercase;color:var(--muted);margin-top:2px}
+.two{display:flex;gap:20px}.two>div{flex:1;min-width:0}
+.chart{width:100%;height:auto;display:block}.cap{color:var(--muted);font-size:11px;margin-top:4px}
+.seg{height:16px;border:1px solid var(--ink);display:flex;overflow:hidden}.seg i{display:block}.sa{background:var(--g4)}.sr{background:var(--g2)}.sb{background:var(--g1)}
+table{border-collapse:collapse;width:100%;font-size:11px;margin-top:6px}
+th{text-align:left;background:var(--p2);border-bottom:1px solid var(--ink);padding:5px 7px;font-family:ui-monospace,Consolas,monospace;font-size:10px;text-transform:uppercase;color:var(--muted)}
+td{padding:4px 7px;border-bottom:1px solid var(--hair)}td.num{text-align:right}
+.foot{margin-top:26px;border-top:1px solid var(--hair);padding-top:8px;color:var(--muted);font-size:11px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+@media print{@page{size:A4;margin:13mm}thead{display:table-header-group}tr{break-inside:avoid}}`;
+  const body=`<div class="page">
+    <div class="eyebrow">IAGA Sentinel · audit report · evidence, not testimony</div>
+    <h1>${esc(scopeLabel)}</h1>
+    <div class="meta">${esc(ts(s.first))} → ${esc(ts(s.last))} · generated ${esc(new Date().toLocaleString())} · ${num(s.count)} governed actions</div>
+    <div class="kpis">${kpi.map(x=>`<div class="kpi"><div class="v">${x[1]}</div><div class="l">${x[0]}</div></div>`).join('')}</div>
+    <h2>Governance activity &amp; risk</h2>
+    <div class="two"><div>${stackedBars(tl.buckets,{height:150})}<div class="cap">Allow / review / block · ${tl.buckets.length} ${tl.unit} buckets</div></div><div>${vBars(rh,{height:150})}<div class="cap">Risk distribution 0–100</div></div></div>
+    <h2>Decision mix</h2>
+    <div class="seg"><i class="sa" style="width:${a/sum*100}%"></i><i class="sr" style="width:${r/sum*100}%"></i><i class="sb" style="width:${b/sum*100}%"></i></div>
+    <div class="cap">Allow ${num(a)} · Review ${num(r)} · Block ${num(b)}</div>
+    <h2>Models, providers &amp; frameworks</h2>
+    <div class="cap">Models: ${s.models.length?s.models.map(esc).join(', '):'no usage captured (build with --features cost-control)'}<br>Providers: ${s.providers.map(esc).join(', ')||'—'}<br>Frameworks: ${s.frameworks.map(esc).join(', ')||'—'}</div>
+    <div class="two" style="margin-top:14px"><div><h2 style="margin-top:0">Actions by type</h2>${pdfTable(s.byType)}</div><div><h2 style="margin-top:0">Actions by tool</h2>${pdfTable(s.byTool)}</div></div>
+    <h2>Action timeline (${num(rows.length)})</h2>
+    <table><thead><tr><th>Time</th><th>Agent</th><th>Action</th><th>Tool</th><th>Decision</th><th class="num">Risk</th><th>Model</th><th class="num">Cost</th></tr></thead><tbody>${rows.map(e=>`<tr><td>${esc(ts(e.timestamp))}</td><td>${esc(e.agentId)}</td><td>${esc(e.actionType)}</td><td>${esc(e.toolName)}</td><td>${esc(e.decision)}</td><td class="num">${num(e.riskScore)}</td><td>${esc(e.usage?e.usage.model:'')||'—'}</td><td class="num">${e.usage?usd(usageCostUsd(e.usage),4):'—'}</td></tr>`).join('')}</tbody></table>
+    <div class="foot"><span>Action payloads are committed as inputSha256 (hash), not stored in cleartext.</span><span>${esc(scope==='__all__'?'all-agents':scope)}</span></div>
+  </div>`;
+  const win=window.open('','_blank'); if(!win){alert('Allow pop-ups to export the PDF.');return;}
+  win.document.write('<!doctype html><html><head><meta charset="utf-8"><title>IAGA Sentinel — Audit Report — '+esc(scopeLabel)+'</title><style>'+css+'</style></head><body>'+body+'<scr'+'ipt>window.onload=function(){setTimeout(function(){window.focus();window.print();},350);};</scr'+'ipt></body></html>');
+  win.document.close();
 }
 
 /* ── Cost ── */
-
-function costRowsFor(tab) {
-  const source = tab === 'agent' ? state.data.costByAgent
-    : tab === 'tool' ? state.data.costByTool
-    : state.data.costByModel;
-  return source && Array.isArray(source.rows) ? source.rows : [];
+function renderCost(){
+  const c=state.data.costSummary,box=$('cost-body');
+  if(!c||c.enabled===false){box.innerHTML=`<div class="empty">Cost control is not compiled in this build. Rebuild with <code>--features cost-control</code> to meter token spend.</div>`;return;}
+  const s=c.summary||{},budget=state.data.costBudget||{},lim=budget.sessionLimitUsd,burn=(lim&&lim>0)?Math.min(100,(Number(s.netCostUsd||0)/lim)*100):null;
+  const strip=[['Net',usd(s.netCostUsd,2)],['Gross',usd(s.grossCostUsd,2)],['Saved',usd(s.savingsUsd,2)],['Tokens',num(s.totalTokens)],['Cache hits',num(s.cacheHits)],['Actions',num(s.totalActions)],['Budget',lim!=null?usd(lim,2):'—']];
+  const tab=state.costTab,tabData=tab==='model'?state.data.costByModel:tab==='agent'?state.data.costByAgent:state.data.costByTool,rows=(tabData&&tabData.rows)||[],maxNet=Math.max(...rows.map(r=>Number(r.netCostUsd)||0),0.000001);
+  const ot=state.data.costOverTime||{},otRows=(ot.rows||[]).slice(-36).map(r=>({label:r.bucket,value:Number(r.netCostUsd)||0}));
+  const pr=state.data.costPricing||{};let provCount=0,modelCount=0;if(pr.pricing&&pr.pricing.providers){const ps=pr.pricing.providers;provCount=Object.keys(ps).length;modelCount=Object.values(ps).reduce((n,m)=>n+Object.keys(m||{}).length,0);}
+  box.innerHTML=`<div class="stats">${strip.map(([l,v])=>`<div class="stat"><div class="lbl">${l}</div><div class="val sm">${v}</div></div>`).join('')}</div>
+    ${burn!=null?`<div class="panel section-gap"><div class="spread"><h3 style="margin:0">Session budget burn</h3><span class="note">${usd(s.netCostUsd,2)} of ${usd(lim,2)} · ${burn.toFixed(0)}%</span></div><div class="meter" style="margin-top:8px"><i style="width:${burn}%"></i></div></div>`:''}
+    <div class="grid cols-2 section-gap">
+      <div class="panel"><div class="spread"><h3 style="margin:0">Spend breakdown</h3><div style="display:flex;gap:4px">${['model','agent','tool'].map(t=>`<button class="btn sm ${t===tab?'primary':''}" data-cost-tab="${t}">${t}</button>`).join('')}</div></div>
+        <div class="table-wrap" style="border:0;margin-top:10px"><table><thead><tr><th>${tab[0].toUpperCase()+tab.slice(1)}</th><th class="num">Net</th><th class="num">Saved</th><th class="num">Tokens</th><th class="num">Actions</th><th style="width:90px">Share</th></tr></thead>
+        <tbody>${rows.length?rows.map(r=>`<tr><td class="id">${esc(r.key)}</td><td class="num">${usd(r.netCostUsd,4)}</td><td class="num">${usd(r.savingsUsd,4)}</td><td class="num">${num(r.totalTokens)}</td><td class="num">${num(r.actions)}</td><td><div class="hbar"><i style="width:${(Number(r.netCostUsd)/maxNet*100).toFixed(1)}%"></i></div></td></tr>`).join(''):`<tr><td colspan="6"><div class="empty">No spend recorded.</div></td></tr>`}</tbody></table></div></div>
+      <div class="panel"><h3>Net cost over time</h3>${vBars(otRows,{aria:'net cost per bucket',fmt:v=>usd(v,4)})}<div class="note" style="margin-top:6px">${otRows.length} ${esc(ot.bucket||'hour')} buckets. Local pricing: ${provCount} providers · ${modelCount} model rates${pr.builtinEffectiveDate?` (effective ${esc(pr.builtinEffectiveDate)})`:''}.</div></div>
+    </div>`;
 }
 
-function renderCost() {
-  const summary = state.data.cost;
-  const disabled = $('cost-disabled');
-  const enabled = $('cost-enabled');
-
-  if (!summary || summary.enabled === false) {
-    disabled.className = 'empty';
-    disabled.innerHTML = 'Cost control is not compiled into this build. Rebuild with <code>cargo install --path crates/iaga-sentinel-core --features cost-control</code> to meter LLM spend, enforce session budgets, and cache safe repeated calls.';
-    enabled.classList.add('hidden');
-    return;
-  }
-
-  disabled.className = 'hidden';
-  disabled.innerHTML = '';
-  enabled.classList.remove('hidden');
-
-  const s = summary.summary || {};
-  $('cost-net').textContent = formatUsd(s.netCostUsd);
-  $('cost-gross').textContent = formatUsd(s.grossCostUsd);
-  $('cost-saved').textContent = formatUsd(s.savingsUsd);
-  $('cost-tokens').textContent = formatNumber(s.totalTokens);
-  $('cost-cache-sub').textContent = `${formatNumber(s.cacheHits)} cache hits`;
-  $('cost-actions-sub').textContent = `${formatNumber(s.totalActions)} priced actions`;
-
-  const budget = state.data.costBudget;
-  const limit = budget && budget.enabled !== false ? budget.sessionLimitUsd : null;
-  if (limit != null) {
-    $('cost-budget').textContent = formatUsd(limit, 2);
-    $('cost-budget-sub').textContent = 'Per-session cap, stricter-wins';
-  } else {
-    $('cost-budget').textContent = '—';
-    $('cost-budget-sub').textContent = 'Set IAGA_SENTINEL_SESSION_BUDGET_USD';
-  }
-
-  // Breakdown table
-  const headLabel = state.costTab === 'agent' ? 'Agent' : state.costTab === 'tool' ? 'Tool' : 'Model';
-  $('cost-breakdown-key-head').textContent = headLabel;
-  const rows = costRowsFor(state.costTab);
-  const body = $('cost-breakdown-body');
-  if (rows.length === 0) {
-    body.innerHTML = `<tr><td colspan="6"><div class="empty">No priced actions yet. Include a <code>usage</code> object on a <code>/v1/inspect</code> call to see spend attributed by ${esc(headLabel.toLowerCase())}.</div></td></tr>`;
-  } else {
-    const maxNet = Math.max(...rows.map((r) => Number(r.netCostUsd) || 0), 0.000001);
-    body.innerHTML = rows.map((r) => {
-      const share = Math.max(2, Math.round(((Number(r.netCostUsd) || 0) / maxNet) * 100));
-      return `<tr>
-        <td class="mono">${esc(r.key || '(none)')}</td>
-        <td class="num">${formatUsd(r.netCostUsd)}</td>
-        <td class="num">${formatUsd(r.savingsUsd)}</td>
-        <td class="num">${formatNumber(r.totalTokens)}</td>
-        <td class="num">${formatNumber(r.actions)}</td>
-        <td style="min-width:90px;"><div class="meter" style="height:8px;"><span class="seg-allow" style="width:${share}%"></span></div></td>
-      </tr>`;
-    }).join('');
-  }
-
-  // Over time
-  const trend = $('cost-trend');
-  const note = $('cost-trend-note');
-  const meta = $('cost-trend-meta');
-  const overTime = state.data.costOverTime;
-  const buckets = overTime && Array.isArray(overTime.rows) ? overTime.rows.slice(-36) : [];
-  if (buckets.length === 0) {
-    trend.innerHTML = '';
-    trend.style.borderBottom = 'none';
-    note.innerHTML = '<span>No spend buckets yet</span>';
-    meta.textContent = '';
-  } else {
-    trend.style.borderBottom = '';
-    const maxNet = Math.max(...buckets.map((b) => Number(b.netCostUsd) || 0), 0.000001);
-    trend.innerHTML = buckets.map((b) => {
-      const h = Math.max(3, Math.round(((Number(b.netCostUsd) || 0) / maxNet) * 100));
-      return `<div class="bar" style="height:${h}%" title="${esc(b.bucket)} · ${formatUsd(b.netCostUsd)} · ${formatNumber(b.totalTokens)} tok"></div>`;
-    }).join('');
-    note.innerHTML = `<span>${esc(buckets[0].bucket)}</span><span>${esc(buckets[buckets.length - 1].bucket)}</span>`;
-    meta.textContent = `${buckets.length} ${esc((overTime && overTime.bucket) || 'hour')} buckets`;
-  }
-
-  // Pricing
-  const pricing = state.data.costPricing;
-  const hint = $('cost-pricing-hint');
-  if (pricing && pricing.enabled !== false && pricing.pricing && pricing.pricing.providers) {
-    const providers = pricing.pricing.providers;
-    let models = 0;
-    Object.keys(providers).forEach((p) => { models += Object.keys(providers[p] || {}).length; });
-    hint.innerHTML = `Local pricing table: <b>${Object.keys(providers).length}</b> providers · <b>${models}</b> model rates. Override with <code>IAGA_SENTINEL_PRICING_FILE</code>; a caller-supplied cost always wins.`;
-  } else {
-    hint.innerHTML = 'Pricing table unavailable.';
-  }
+/* ── Receipts / telemetry ── */
+function renderReceipts(){
+  const rc=state.data.receipts||{},rbox=$('receipts-panel');
+  if(rc.enabled===false){rbox.innerHTML=`<h3>Signed receipts</h3><div class="empty">Signed receipts are disabled in this build.</div>`;return;}
+  const runs=rc.runs||[];
+  rbox.innerHTML=`<h3>Signed receipts</h3><div class="kv"><div class="row"><span class="k">Signer key</span><span class="v mono">${esc(rc.signerKeyId||'—')}</span></div><div class="row"><span class="k">Policy hash</span><span class="v mono">${esc((rc.policyHash||'').slice(0,32))||'—'}</span></div></div>
+    <div class="table-wrap section-gap" style="border:0"><table><thead><tr><th>Run</th><th>Verdict</th><th class="num">Receipts</th><th>Last</th></tr></thead>
+    <tbody>${runs.length?runs.slice(0,40).map(r=>`<tr><td class="id">${esc(String(pick(r,'runId','run_id')||'').slice(0,16))}</td><td>${badge(pick(r,'terminalVerdict','verdict','terminal_verdict'))}</td><td class="num">${num(pick(r,'receiptCount','receipt_count','count'))}</td><td class="id">${esc(String(pick(r,'lastTimestamp','last_timestamp','timestamp')||'').slice(0,19))}</td></tr>`).join(''):`<tr><td colspan="4"><div class="empty">No signed runs yet.</div></td></tr>`}</tbody></table></div>`;
+}
+function renderTelemetry(){
+  const metrics=state.data.metrics||[],spans=state.data.spans||[];
+  const sumMetric=needle=>metrics.filter(m=>String(m.name||'').includes(needle)).reduce((n,m)=>n+Number(m.value||0),0);
+  const signed=sumMetric('receipts.signed'),dropped=sumMetric('receipts.dropped'),recent=spans.slice(-8).reverse();
+  $('telemetry-panel').innerHTML=`<h3>Telemetry</h3><div class="kv"><div class="row"><span class="k">Receipts signed</span><span class="v">${num(signed)}</span></div><div class="row"><span class="k">Receipts dropped</span><span class="v">${dropped>0?badge('chain diverged · '+num(dropped),'block'):num(0)}</span></div><div class="row"><span class="k">Spans buffered</span><span class="v">${num(spans.length)}</span></div></div>
+    ${recent.length?`<h3 class="section-gap">Recent spans</h3><div class="kv">${recent.map(s=>{const v=(s.attributes&&(s.attributes['iaga.policy.verdict']||s.attributes['receipt.verdict']))||'';return `<div class="row"><span class="k mono">${esc(s.name)}</span><span class="v">${v?badge(v):'—'}</span></div>`;}).join('')}</div>`:''}`;
 }
 
-function setCostTab(tab) {
-  state.costTab = tab;
-  document.querySelectorAll('[data-cost-tab]').forEach((b) => {
-    const active = b.getAttribute('data-cost-tab') === tab;
-    b.classList.toggle('active', active);
-    b.setAttribute('aria-pressed', String(active));
-  });
-  renderCost();
+/* ── Security ── */
+function renderSystems(){
+  const fw=state.data.firewall||{},th=state.data.threat||{},rw=state.data.riskWeights||{},k=state.data.kernel||{},rs=state.data.reasoning||{},rc2=state.data.rateConfig||{},tpl=state.data.templates||{};
+  const pt=th.perType||{},weights=[['stat',rw.stat],['context',rw.context],['behavioral',rw.behavioral],['temporal',rw.temporal],['reputation',rw.reputation]],wmax=Math.max(...weights.map(w=>Number(w[1])||0),0.0001);
+  $('systems-grid').innerHTML=[
+    `<div class="panel"><h3>Injection firewall</h3><div class="kv"><div class="row"><span class="k">Scanned</span><span class="v">${num(fw.totalScanned)}</span></div><div class="row"><span class="k">Blocked</span><span class="v">${num(fw.totalBlocked)}</span></div><div class="row"><span class="k">Stage 1 / 2 / 3</span><span class="v">${num(fw.stage1Catches)} / ${num(fw.stage2Catches)} / ${num(fw.stage3Catches)}</span></div><div class="row"><span class="k">False positives</span><span class="v">${num(fw.falsePositivesReported)}</span></div></div></div>`,
+    `<div class="panel"><h3>Threat intel</h3><div class="kv"><div class="row"><span class="k">Indicators</span><span class="v">${num(th.totalIndicators)}</span></div><div class="row"><span class="k">Active</span><span class="v">${num(th.activeIndicators)}</span></div>${Object.keys(pt).length?Object.entries(pt).map(([k,v])=>`<div class="row"><span class="k">${esc(k)}</span><span class="v">${num(v)}</span></div>`).join(''):'<div class="row"><span class="k">per type</span><span class="v">—</span></div>'}</div></div>`,
+    `<div class="panel"><h3>Risk weights</h3>${weights.map(([k,v])=>`<div class="weight-row"><div class="top"><span class="k">${k}</span><span>${((Number(v)||0)*100).toFixed(0)}%</span></div><div class="hbar"><i style="width:${((Number(v)||0)/wmax*100).toFixed(1)}%"></i></div></div>`).join('')}</div>`,
+    `<div class="panel"><h3>Enforcement kernel</h3><div class="kv"><div class="row"><span class="k">Backend</span><span class="v">${esc(k.backend||'—')}</span></div><div class="row"><span class="k">Authoritative</span><span class="v">${k.authoritative?badge('yes','block'):badge('soft','pending')}</span></div><div class="row"><span class="k">linux-bpf</span><span class="v">${k.linuxBpfScaffold?'compiled':'not active'}</span></div></div><p class="note" style="margin-top:8px">Soft enforcement records <span class="mono">is_authoritative:false</span> in receipts.</p></div>`,
+    `<div class="panel"><h3>Reasoning plane</h3><div class="kv"><div class="row"><span class="k">Engine</span><span class="v">${esc(rs.engine||'—')}</span></div><div class="row"><span class="k">ML compiled</span><span class="v">${rs.mlFeatureCompiled?badge('yes','review'):badge('no · noop','neutral')}</span></div><div class="row"><span class="k">Models</span><span class="v">${num((rs.models||[]).length)}</span></div></div>${(rs.models||[]).length?`<div style="margin-top:8px">${rs.models.map(m=>`<span class="chip">${esc(m.name)} · ${esc(String(m.sha256||'').slice(0,12))}</span>`).join('')}</div>`:''}</div>`,
+    `<div class="panel"><h3>Rate limits &amp; templates</h3><div class="kv"><div class="row"><span class="k">Burst limit</span><span class="v">${num(rc2.burstLimit)}</span></div><div class="row"><span class="k">Per minute</span><span class="v">${num(rc2.maxPerMinute)}</span></div><div class="row"><span class="k">Per hour</span><span class="v">${num(rc2.maxPerHour)}</span></div><div class="row"><span class="k">Policy templates</span><span class="v">${num(tpl.count)}</span></div></div></div>`
+  ].join('');
+  const ws=state.data.workspaces||[];if(!state.selectedWorkspace&&ws.length)state.selectedWorkspace=ws[0].workspaceId;
+  const pv=state.data._policyVerify;
+  let h=`<div class="spread"><h3 style="margin:0">Policy verification</h3><div style="display:flex;gap:8px"><select id="ws-select">${ws.map(w=>`<option value="${esc(w.workspaceId)}"${w.workspaceId===state.selectedWorkspace?' selected':''}>${esc(w.workspaceId)}</option>`).join('')||'<option>no workspaces</option>'}</select><button class="btn sm" id="ws-verify">Verify</button></div></div>`;
+  if(pv){const cov=pv.coverage||{};
+    h+=`<div class="kv section-gap"><div class="row"><span class="k">Workspace</span><span class="v mono">${esc(pv.workspaceId)}</span></div><div class="row"><span class="k">Consistent</span><span class="v">${pv.consistent?badge('yes','allow'):badge('no','block')}</span></div><div class="row"><span class="k">Satisfiable</span><span class="v">${pv.satisfiable?badge('yes','allow'):badge('no','block')}</span></div><div class="row"><span class="k">Coverage</span><span class="v">${num(cov.coveragePct,1)}%</span></div><div class="row"><span class="k">Verified</span><span class="v">${esc(epoch(pv.timestamp))}</span></div></div>`;
+    h+=(pv.issues&&pv.issues.length)?`<div class="items section-gap">${pv.issues.map(i=>`<div class="item"><div class="hd"><h4>${esc(i.category||'issue')}</h4>${badge(i.severity,'neutral')}</div><div class="reasons">${esc(i.description)}</div>${i.suggestion?`<div class="note" style="margin-top:4px">→ ${esc(i.suggestion)}</div>`:''}</div>`).join('')}</div>`:`<p class="note section-gap">No issues found.</p>`;
+  } else h+=`<div class="empty section-gap">Pick a workspace and press Verify.</div>`;
+  $('policy-verify').innerHTML=h;
 }
+async function verifyWorkspace(){const ws=state.selectedWorkspace;if(!ws)return;const r=await fetchJson('/v1/policy/verify/'+encodeURIComponent(ws));state.data._policyVerify=r.ok?r.data:null;renderSystems();}
 
-/* ── Audit ── */
-
-function renderAudit() {
-  const tbody = $('audit-body');
-  const rows = filteredAuditRows();
-
-  $('audit-count').textContent = `${rows.length} of ${state.data.audit.length} stored events match`;
-
-  if (!state.selectedAuditId && rows.length > 0) {
-    state.selectedAuditId = rows[0].eventId;
-  }
-
-  if (rows.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6"><div class="empty">No audit rows match the current filters.</div></td></tr>';
-    $('audit-detail-container').innerHTML = '<div class="empty">Select an audit row to inspect its stored record.</div>';
-    return;
-  }
-
-  tbody.innerHTML = rows.map((event) => {
-    const selected = event.eventId === state.selectedAuditId ? 'selected' : '';
-    return `
-      <tr class="row-click ${selected}" data-event-id="${esc(event.eventId)}">
-        <td>${esc(formatTimestamp(event.timestamp))}</td>
-        <td>${esc(event.agentId)}</td>
-        <td class="mono">${esc(event.toolName)}</td>
-        <td>${formatDecisionBadge(event.decision)}</td>
-        <td class="num">${esc(formatNumber(event.riskScore || 0))}</td>
-        <td>${formatDecisionBadge(event.reviewStatus || 'not_required')}</td>
-      </tr>
-    `;
-  }).join('');
-
-  tbody.querySelectorAll('tr[data-event-id]').forEach((row) => {
-    row.addEventListener('click', () => {
-      state.selectedAuditId = row.getAttribute('data-event-id');
-      renderAudit();
-    });
-  });
-
-  const selected = rows.find((event) => event.eventId === state.selectedAuditId) || rows[0];
-  if (selected) {
-    state.selectedAuditId = selected.eventId;
-    $('audit-detail-container').innerHTML = `
-      <div class="detail">
-        <h4>Selected audit record</h4>
-        <div class="kv"><div class="k">Event ID</div><div class="mono">${esc(selected.eventId)}</div></div>
-        <div class="kv"><div class="k">Framework</div><div>${esc(selected.framework)}</div></div>
-        <div class="kv"><div class="k">Action</div><div>${esc(selected.actionType)}</div></div>
-        <div class="kv"><div class="k">Decision</div><div>${formatDecisionBadge(selected.decision)}</div></div>
-        <div class="kv"><div class="k">Review status</div><div>${formatDecisionBadge(selected.reviewStatus || 'not_required')}</div></div>
-        <div class="kv"><div class="k">Reasons</div><div>${esc(listOrFallback(selected.reasons || [], 'No reasons recorded'))}</div></div>
-        <div class="kv"><div class="k">Timestamp</div><div>${esc(formatTimestamp(selected.timestamp))}</div></div>
-        <pre class="json">${esc(JSON.stringify(selected, null, 2))}</pre>
-      </div>
-    `;
-  }
-}
-
-function exportVisibleAudit() {
-  const rows = filteredAuditRows();
-  const header = ['eventId', 'timestamp', 'agentId', 'framework', 'toolName', 'actionType', 'decision', 'reviewStatus', 'riskScore', 'reasons'];
-  const csv = [header.join(',')]
-    .concat(rows.map((event) => [
-      event.eventId,
-      event.timestamp,
-      event.agentId,
-      event.framework,
-      event.toolName,
-      event.actionType,
-      event.decision,
-      event.reviewStatus,
-      event.riskScore,
-      (event.reasons || []).join(' | ')
-    ].map((value) => `"${String(value == null ? '' : value).replace(/"/g, '""')}"`).join(',')))
-    .join('\n');
-
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = 'iaga-sentinel-audit-visible.csv';
-  link.click();
-  URL.revokeObjectURL(url);
+/* ── Identity ── */
+function renderIdentity(){
+  const ids=state.data.identities||[];
+  $('identity-rows').innerHTML=ids.length?ids.slice(0,100).map(i=>`<tr><td class="id">${esc(i.agentId)}</td><td class="id">${esc(i.spiffeId)}</td><td>${badge(i.attestationStatus,'neutral')}</td><td class="num">${num(i.trustScore,2)}</td><td class="id">${esc(String(i.createdAt||'').slice(0,10))}</td></tr>`).join('')
+    :`<tr><td colspan="5"><div class="empty">No identities. <code>POST /v1/nhi/identities</code> to register one.</div></td></tr>`;
+  const sessions=(state.data.sessions||[]).slice().sort((a,b)=>Number(b.nodeCount||0)-Number(a.nodeCount||0));
+  $('session-list').innerHTML=sessions.length?sessions.map(s=>`<div class="item"><div class="hd"><h4 class="id">${esc(s.agentId)}</h4>${badge(s.state,'neutral')}</div><div class="meta"><span>${esc(s.sessionId)}</span><span>${num(s.nodeCount)} nodes</span></div></div>`).join('')
+    :`<div class="empty">No active sessions.</div>`;
 }
 
 /* ── Queues ── */
+function renderQueues(){
+  const reviews=(state.data.reviews||[]).filter(r=>String(r.status||'').toLowerCase()==='pending');
+  $('review-list').innerHTML=reviews.length?reviews.map(r=>`<div class="item"><div class="hd"><h4>${esc(r.agentId)} · ${esc(r.toolName)}</h4>${badge(r.decision)}</div><div class="reasons">${esc((r.reasons||[]).join('; ')||'—')}</div><div class="meta"><span>${esc(r.workspaceId||'')}</span><span>risk ${num(r.riskScore)}</span><span>${esc(ts(r.createdAt))}</span></div><div class="acts"><button class="btn sm primary" data-review-approve="${esc(r.id)}">Approve</button><button class="btn sm" data-review-reject="${esc(r.id)}">Reject</button></div></div>`).join(''):`<div class="empty">No pending reviews.</div>`;
+  const sb=state.data.sandbox||[];
+  $('sandbox-list').innerHTML=sb.length?sb.map(s=>{const im=s.impact||{};return `<div class="item"><div class="hd"><h4>${esc(s.toolName)}</h4>${badge(im.severity,'neutral')}</div><div class="reasons">${esc(im.summary||'')}</div><div class="meta"><span>${esc(epoch(s.timestamp))}</span><span>${num(s.durationMs)} ms</span><span>${im.reversible?'reversible':'irreversible'}</span>${im.estimatedRowsAffected!=null?`<span>${num(im.estimatedRowsAffected)} rows</span>`:''}</div>${(im.details||[]).length?`<div class="reasons">${im.details.map(d=>esc(d)).join(' · ')}</div>`:''}<div class="acts"><button class="btn sm primary" data-sandbox-approve="${esc(s.executionId)}">Approve</button><button class="btn sm" data-sandbox-reject="${esc(s.executionId)}">Reject</button></div></div>`;}).join(''):`<div class="empty">No sandbox executions awaiting approval.</div>`;
+}
 
-function renderReviews() {
-  const pending = state.data.reviews.filter((review) => review.status === 'pending');
-  const container = $('review-list');
+/* ── Plugins & webhooks ── */
+function renderOps(){
+  const p=state.data.plugins||{},plugins=p.plugins||[],errs=p.loadErrors||[];
+  $('plugins-panel').innerHTML=`<div class="spread"><h3 style="margin:0">WASM plugins</h3><button class="btn sm" id="plugins-reload">Reload</button></div><div class="kv" style="margin-top:8px"><div class="row"><span class="k">Directory</span><span class="v mono">${esc(p.pluginDir||'—')}</span></div><div class="row"><span class="k">Loaded</span><span class="v">${num(p.loadedCount)}</span></div></div>
+    <div class="table-wrap" style="border:0;margin-top:10px"><table><thead><tr><th>Name</th><th>Version</th><th>Status</th><th>Path</th></tr></thead><tbody>${plugins.length?plugins.map(pl=>`<tr><td>${esc(pl.name)}</td><td class="id">${esc(pl.version)}</td><td>${pl.loaded?badge('loaded','allow'):badge('error','block')}${pl.attestationOfflineVerified?' '+badge('attested','review'):''}</td><td class="id">${esc(pl.path)}</td></tr>`).join(''):`<tr><td colspan="4"><div class="empty">No plugins loaded.</div></td></tr>`}</tbody></table></div>${errs.length?`<div class="items section-gap">${errs.map(e=>`<div class="item"><div class="hd"><h4 class="id">${esc(e.path)}</h4>${badge('error','block')}</div><div class="reasons">${esc(e.error)}</div></div>`).join('')}</div>`:''}`;
+  const wh=state.data.webhooks||[];
+  $('webhooks-panel').innerHTML=`<h3>Webhooks</h3><div class="items">${wh.length?wh.map(w=>`<div class="item"><div class="hd"><h4 class="id">${esc(w.url)}</h4>${w.active?badge('active','allow'):badge('inactive','neutral')}</div><div class="meta"><span>${(w.eventFilter&&w.eventFilter.length)?esc(w.eventFilter.join(', ')):'all events'}</span><span>${esc(ts(w.createdAt))}</span></div><div class="acts"><button class="btn sm" data-webhook-delete="${esc(w.id)}">Delete</button></div></div>`).join(''):`<div class="empty">No webhooks registered.</div>`}</div>
+    <div class="controls" style="margin-top:12px;margin-bottom:0"><input type="url" id="wh-url" placeholder="https://example.com/hook"><input type="text" id="wh-secret" placeholder="signing secret"><button class="btn sm primary" id="wh-add">Register</button></div>`;
+  const dlq=state.data.dlq||[];
+  $('dlq-panel').innerHTML=`<h3>Dead-letter queue</h3><div class="items">${dlq.length?dlq.map(d=>`<div class="item"><div class="hd"><h4>${esc(d.eventType)}</h4>${badge(num(d.attempts)+' tries','neutral')}</div><div class="meta"><span class="id">${esc(d.webhookUrl)}</span><span>${esc(ts(d.failedAt))}</span></div><div class="reasons">${esc(d.error)}</div><div class="acts"><button class="btn sm" data-dlq-retry="${esc(d.id)}">Retry</button><button class="btn sm" data-dlq-drop="${esc(d.id)}">Drop</button></div></div>`).join(''):`<div class="empty">Queue is empty.</div>`}</div>`;
+}
 
-  if (pending.length === 0) {
-    container.innerHTML = '<div class="empty">No pending reviews. Actions whose verdict is <code>review</code> appear here for approval.</div>';
-    return;
-  }
+/* ── Settings ── */
+function renderSettings(){
+  const c=state.context||{};
+  $('auth-help').innerHTML = c.openMode?'Open mode is enabled: the console loads live data without a key.'
+    : c.apiKeysConfigured?'Protected runtime. Paste a valid API key and press <code>Connect</code>.'
+    : 'No key exists yet. Run <code>iaga gen-key</code> (or create one below), then paste it and press <code>Connect</code>.';
+  $('settings-runtime').innerHTML=[['Service',esc(c.service||'—')],['Version',esc(c.version||'—')],['Mode',esc(c.mode||'—')],['Open mode',c.openMode?'yes':'no'],['Auth required',c.authRequired?'yes':'no'],['API keys configured',c.apiKeysConfigured?'yes':'no']].map(([k,v])=>`<div class="row"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('');
+  const keys=state.data.apiKeys||[];
+  $('apikeys-panel').innerHTML=`<h3>API keys</h3>
+    ${state.createdKey?`<div class="banner" style="margin-bottom:10px">New key (shown once): <span class="mono">${esc(state.createdKey)}</span></div>`:''}
+    <div class="table-wrap" style="border:0"><table><thead><tr><th>Label</th><th>Scope</th><th>Created</th><th></th></tr></thead>
+    <tbody>${keys.length?keys.map(k=>`<tr><td>${esc(k.label)}</td><td>${badge(k.scope||'admin','neutral')}</td><td class="id">${esc(String(k.createdAt||k.created_at||'').slice(0,10))}</td><td class="num"><button class="btn sm" data-key-delete="${esc(k.id)}">Delete</button></td></tr>`).join(''):`<tr><td colspan="4"><div class="empty">No keys. Create one to protect the runtime.</div></td></tr>`}</tbody></table></div>
+    <div class="controls" style="margin-top:12px;margin-bottom:0"><input type="text" id="key-label" placeholder="key label"><select id="key-scope"><option value="admin">admin</option><option value="agent">agent</option></select><button class="btn sm primary" id="key-add">Create key</button></div>`;
+}
 
-  container.innerHTML = pending.map((review) => `
-    <div class="queue-item">
-      <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap;">
-        <div style="min-width:0;">
-          <h4>${esc(review.agentId)} · <span class="mono">${esc(review.toolName)}</span></h4>
-          <p>${esc(listOrFallback(review.reasons || [], 'No reasons recorded'))}</p>
-        </div>
-        ${formatDecisionBadge(review.decision)}
-      </div>
-      <div class="small" style="margin-top:10px;">Workspace ${esc(review.workspaceId)} · risk ${esc(review.riskScore)} · created ${esc(formatTimestamp(review.createdAt))}</div>
-      <div class="queue-actions">
-        <button type="button" class="btn primary small" data-review-id="${esc(review.id)}" data-review-action="approved">Approve</button>
-        <button type="button" class="btn danger small" data-review-id="${esc(review.id)}" data-review-action="rejected">Reject</button>
-      </div>
-    </div>
-  `).join('');
+/* ── Mutations ── */
+async function post(path,body){const r=await fetchJson(path,{method:'POST',body:body?JSON.stringify(body):undefined});await refreshData();return r;}
+async function del(path){const r=await fetchJson(path,{method:'DELETE'});await refreshData();return r;}
 
-  container.querySelectorAll('[data-review-action]').forEach((button) => {
-    button.addEventListener('click', async () => {
-      const reviewId = button.getAttribute('data-review-id');
-      const status = button.getAttribute('data-review-action');
-      button.disabled = true;
-      await fetchJson(`/v1/reviews/${encodeURIComponent(reviewId)}`, {
-        method: 'POST',
-        body: JSON.stringify({ status })
-      });
-      await refreshData();
-    });
+/* ── Connection ── */
+async function connect(){state.token=$('api-token').value.trim();if(state.token)localStorage.setItem('iaga-sentinel-api-key',state.token);else localStorage.removeItem('iaga-sentinel-api-key');await loadContext();await refreshData();restartLive();}
+
+/* ── Live feed ── */
+function liveLabel(ev){const type=ev.type||'event';
+  if(type==='action_governed'){const tool=pick(ev,'tool_name','toolName'),agent=pick(ev,'agent_id','agentId'),risk=pick(ev,'risk_score','riskScore'),reason=(ev.reasons&&ev.reasons[0])||'';return `${esc(agent)} · ${esc(tool)} · risk ${num(risk)}${reason?` · ${esc(reason)}`:''}`;}
+  if(type==='review_created')return `review opened · ${esc(pick(ev,'agent_id','agentId'))} · ${esc(pick(ev,'tool_name','toolName'))} · risk ${num(pick(ev,'risk_score','riskScore'))}`;
+  if(type==='review_resolved')return `review ${esc(ev.status)} · ${esc(pick(ev,'review_id','reviewId'))}`;
+  if(type==='lagged')return `${num(ev.missed)} events dropped (subscriber lag)`;
+  return esc(type);}
+function liveBadge(ev){const type=ev.type;if(type==='action_governed')return badge(ev.decision);if(type==='review_resolved')return badge(ev.status);if(type==='lagged')return badge('lagged','neutral');return badge(type==='review_created'?'review':'event','review');}
+function advisoryChips(adv){if(!adv)return '';let chips=[];
+  if(Array.isArray(adv))chips=adv.map(a=>`adv ${a.name||''} ${a.score!=null?a.score:''}`.trim());
+  else if(typeof adv==='object'){if(Array.isArray(adv.adaptive))adv.adaptive.forEach(a=>chips.push(`adv ${a.name||''} ${a.score!=null?a.score:''}`.trim()));if(adv.session&&adv.session.score!=null)chips.push(`adv session ${adv.session.score}`);if(Array.isArray(adv.behavioralFingerprint)&&adv.behavioralFingerprint.length)chips.push('adv fingerprint');}
+  return chips.map(c=>`<span class="chip">${esc(c)}</span>`).join('');}
+function pushLiveEvent(ev){ev.__t=new Date().toLocaleTimeString();state.live.events.unshift(ev);if(state.live.events.length>FEED_MAX)state.live.events.length=FEED_MAX;renderFeed();}
+function renderFeed(){const feed=$('feed');$('live-meta').textContent=`${state.live.events.length} events · ${state.live.enabled?'streaming':'paused'}`;
+  feed.innerHTML=state.live.events.length?state.live.events.map(ev=>`<div class="ev"><span class="t">${esc(ev.__t||'')}</span><span>${liveBadge(ev)}</span><span>${liveLabel(ev)} ${advisoryChips(ev.advisory)}</span></div>`).join(''):`<div class="empty" style="border:0">Waiting for events…</div>`;}
+function setLive(on){$('live-dot').className='live-dot'+(on?' on':'');$('live-label').textContent=on?'live':'offline';}
+async function startLive(){if(state.live.running||!state.live.enabled)return;state.live.running=true;const abort=new AbortController();state.live.abort=abort;
+  try{const headers=new Headers({Accept:'text/event-stream'});if(state.token)headers.set('Authorization',`Bearer ${state.token}`);
+    const res=await fetch('/v1/events/stream',{headers,signal:abort.signal});if(!res.ok||!res.body){state.live.running=false;setLive(false);return;}
+    setLive(true);const reader=res.body.getReader(),dec=new TextDecoder();let buf='';
+    while(true){const {done,value}=await reader.read();if(done)break;buf+=dec.decode(value,{stream:true});let sep;
+      while((sep=buf.indexOf('\n\n'))!==-1){const chunk=buf.slice(0,sep);buf=buf.slice(sep+2);const data=chunk.split('\n').filter(l=>l.startsWith('data:')).map(l=>l.slice(5).trim()).join('\n');if(!data)continue;try{pushLiveEvent(JSON.parse(data));}catch(_){}}}
+  }catch(_){}
+  state.live.running=false;setLive(false);if(state.live.enabled)setTimeout(startLive,4000);}
+function stopLive(){state.live.enabled=false;if(state.live.abort)state.live.abort.abort();setLive(false);renderFeed();}
+function restartLive(){if(state.live.abort)state.live.abort.abort();state.live.running=false;if(state.live.enabled)startLive();}
+
+/* ── Refresh interval ── */
+function applyRefreshInterval(){if(state.refreshTimer)clearInterval(state.refreshTimer);if(state.refreshMs>0)state.refreshTimer=setInterval(()=>{if(!document.hidden)refreshData();},state.refreshMs);}
+
+/* ── Events ── */
+function wireEvents(){
+  window.addEventListener('hashchange',route);
+  $('api-token').addEventListener('keydown',e=>{if(e.key==='Enter')connect();});
+  $('audit-search').addEventListener('input',renderAudit);
+  $('audit-decision').addEventListener('change',renderAudit);
+  $('audit-export').addEventListener('click',exportVisibleCsv);
+  $('report-build').addEventListener('click',buildReport);
+  $('report-json').addEventListener('click',downloadReportJson);
+  $('report-csv').addEventListener('click',downloadReportCsv);
+  $('report-pdf').addEventListener('click',downloadReportPdf);
+  $('live-toggle').addEventListener('click',()=>{if(state.live.enabled){stopLive();$('live-toggle').textContent='Resume';}else{state.live.enabled=true;$('live-toggle').textContent='Pause';startLive();}renderFeed();});
+  $('live-clear').addEventListener('click',()=>{state.live.events=[];renderFeed();});
+  $('refresh-interval').addEventListener('change',e=>{state.refreshMs=Number(e.target.value)||0;applyRefreshInterval();});
+  $('refresh-now').addEventListener('click',refreshData);
+
+  document.body.addEventListener('click',async(e)=>{
+    const t=e.target.closest('[data-audit],[data-agent],[data-cost-tab],[data-range],[data-review-approve],[data-review-reject],[data-sandbox-approve],[data-sandbox-reject],[data-webhook-delete],[data-dlq-retry],[data-dlq-drop],[data-key-delete],#btn-connect,#btn-clear,#plugins-reload,#ws-verify,#wh-add,#key-add');
+    if(!t)return;
+    if(t.hasAttribute('data-audit')){state.selectedAuditId=t.getAttribute('data-audit');renderAudit();return;}
+    if(t.hasAttribute('data-agent')){selectAgent(t.getAttribute('data-agent'));return;}
+    if(t.hasAttribute('data-cost-tab')){state.costTab=t.getAttribute('data-cost-tab');renderCost();return;}
+    if(t.hasAttribute('data-range')){setRange(t.getAttribute('data-range'));return;}
+    if(t.id==='btn-connect'){connect();return;}
+    if(t.id==='btn-clear'){state.token='';localStorage.removeItem('iaga-sentinel-api-key');$('api-token').value='';loadContext();return;}
+    t.disabled=true;
+    if(t.hasAttribute('data-review-approve'))await post('/v1/reviews/'+encodeURIComponent(t.getAttribute('data-review-approve')),{status:'approved'});
+    else if(t.hasAttribute('data-review-reject'))await post('/v1/reviews/'+encodeURIComponent(t.getAttribute('data-review-reject')),{status:'rejected'});
+    else if(t.hasAttribute('data-sandbox-approve'))await post('/v1/sandbox/'+encodeURIComponent(t.getAttribute('data-sandbox-approve'))+'/approve');
+    else if(t.hasAttribute('data-sandbox-reject'))await post('/v1/sandbox/'+encodeURIComponent(t.getAttribute('data-sandbox-reject'))+'/reject');
+    else if(t.hasAttribute('data-webhook-delete'))await del('/v1/webhooks/'+encodeURIComponent(t.getAttribute('data-webhook-delete')));
+    else if(t.hasAttribute('data-dlq-retry'))await post('/v1/webhooks/dlq/'+encodeURIComponent(t.getAttribute('data-dlq-retry'))+'/retry');
+    else if(t.hasAttribute('data-dlq-drop'))await del('/v1/webhooks/dlq/'+encodeURIComponent(t.getAttribute('data-dlq-drop')));
+    else if(t.hasAttribute('data-key-delete'))await del('/v1/auth/keys/'+encodeURIComponent(t.getAttribute('data-key-delete')));
+    else if(t.id==='plugins-reload')await post('/v1/plugins/reload');
+    else if(t.id==='ws-verify')await verifyWorkspace();
+    else if(t.id==='wh-add'){const url=$('wh-url').value.trim(),secret=$('wh-secret').value.trim();if(url)await post('/v1/webhooks',{url,secret,event_filter:[]});}
+    else if(t.id==='key-add'){const label=$('key-label').value.trim()||'console-key';const scope=$('key-scope').value;const r=await fetchJson('/v1/auth/keys',{method:'POST',body:JSON.stringify({label,scope})});if(r.ok&&r.data&&r.data.key){state.createdKey=r.data.key;}await refreshData();}
   });
+  document.body.addEventListener('change',e=>{if(e.target.id==='ws-select')state.selectedWorkspace=e.target.value;});
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshData();});
 }
 
-function renderSandbox() {
-  const container = $('sandbox-list');
-  const pending = state.data.sandbox || [];
-
-  if (pending.length === 0) {
-    container.innerHTML = '<div class="empty">No sandboxed executions awaiting approval. Side-effect actions are dry-run first; their impact report lands here.</div>';
-    return;
-  }
-
-  container.innerHTML = pending.map((item) => {
-    const impact = item.impact || {};
-    const severity = String(impact.severity || 'unknown').toLowerCase();
-    const tone = severity === 'high' || severity === 'critical' ? 'block' : severity === 'medium' ? 'review' : 'neutral';
-    return `
-      <div class="queue-item">
-        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap;">
-          <div style="min-width:0;">
-            <h4><span class="mono">${esc(item.toolName)}</span></h4>
-            <p>${esc(impact.summary || 'No impact summary')}</p>
-          </div>
-          <span class="badge ${tone}">${esc(impact.severity || 'unknown')}</span>
-        </div>
-        <div class="small" style="margin-top:10px;">
-          ${esc(formatEpoch(item.timestamp))} · ${esc(formatNumber(item.durationMs))} ms
-          · ${impact.reversible ? 'reversible' : 'NOT reversible'}
-          ${impact.estimatedRowsAffected != null ? ` · ~${esc(formatNumber(impact.estimatedRowsAffected))} rows` : ''}
-        </div>
-        ${Array.isArray(impact.details) && impact.details.length ? `<div class="small" style="margin-top:6px;">${esc(impact.details.join(' · '))}</div>` : ''}
-        <div class="queue-actions">
-          <button type="button" class="btn primary small" data-sandbox-id="${esc(item.executionId)}" data-sandbox-action="approve">Approve</button>
-          <button type="button" class="btn danger small" data-sandbox-id="${esc(item.executionId)}" data-sandbox-action="reject">Reject</button>
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  container.querySelectorAll('[data-sandbox-action]').forEach((button) => {
-    button.addEventListener('click', async () => {
-      const id = button.getAttribute('data-sandbox-id');
-      const action = button.getAttribute('data-sandbox-action');
-      button.disabled = true;
-      await fetchJson(`/v1/sandbox/${encodeURIComponent(id)}/${action}`, { method: 'POST' });
-      await refreshData();
-    });
-  });
-}
-
-/* ── Agents ── */
-
-function renderAgents() {
-  const tbody = $('agents-body');
-  const all = [...state.data.agents].sort((left, right) => (right.avgRiskScore || 0) - (left.avgRiskScore || 0));
-  const agents = all.slice(0, 100);
-
-  if (!state.selectedAgentId && agents.length > 0) {
-    state.selectedAgentId = agents[0].agentId;
-  }
-
-  $('agents-count').textContent = all.length > agents.length
-    ? `Showing the ${agents.length} riskiest of ${all.length} agents`
-    : `${all.length} agents`;
-
-  if (agents.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5"><div class="empty">No agent analytics yet. Each governed action attributes activity to its agent.</div></td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = agents.map((agent) => `
-    <tr class="row-click ${agent.agentId === state.selectedAgentId ? 'selected' : ''}" data-agent-id="${esc(agent.agentId)}">
-      <td>${esc(agent.agentId)}</td>
-      <td class="num">${esc(formatNumber(agent.totalRequests || 0))}</td>
-      <td class="num">${esc(formatNumber(agent.avgRiskScore || 0, 1))}</td>
-      <td class="num">${esc(formatNumber(agent.trustScore || 0, 2))}</td>
-      <td class="mono">${esc(topToolName(agent.topTools || []))}</td>
-    </tr>
-  `).join('');
-
-  tbody.querySelectorAll('tr[data-agent-id]').forEach((row) => {
-    row.addEventListener('click', async () => {
-      state.selectedAgentId = row.getAttribute('data-agent-id');
-      renderAgents();
-      $('agent-detail').innerHTML = '<div class="empty">Loading selected agent detail.</div>';
-      await loadSelectedAgentDetail();
-      renderAgentDetail();
-    });
-  });
-}
-
-function renderAgentDetail() {
-  const container = $('agent-detail');
-  if (!state.selectedAgentId) {
-    container.innerHTML = '<div class="empty">Select an agent from the table to load joined analytics, fingerprint, and rate-limit state.</div>';
-    return;
-  }
-
-  const analytics = state.data.selectedAgent.analytics;
-  const fingerprint = state.data.selectedAgent.fingerprint;
-  const rate = state.data.selectedAgent.rate;
-
-  if (!analytics && !fingerprint && !rate) {
-    container.innerHTML = '<div class="empty">No detail is available yet for the selected agent.</div>';
-    return;
-  }
-
-  const decisionMap = analytics && analytics.decisions ? Object.entries(analytics.decisions) : [];
-  const toolList = analytics && analytics.topTools ? analytics.topTools : [];
-  const flags = fingerprint && Array.isArray(fingerprint.flags) ? fingerprint.flags : [];
-  const hourlyPattern = fingerprint && Array.isArray(fingerprint.hourlyPattern) ? fingerprint.hourlyPattern : [];
-  const maxHourly = hourlyPattern.length ? Math.max(...hourlyPattern, 1) : 1;
-
-  container.innerHTML = `
-    <div class="detail">
-      <h4>${esc(state.selectedAgentId)}</h4>
-      <div class="kv"><div class="k">Total requests</div><div>${esc(formatNumber(analytics?.totalRequests || fingerprint?.totalRequests || 0))}</div></div>
-      <div class="kv"><div class="k">Average risk</div><div>${esc(formatNumber(analytics?.avgRiskScore || fingerprint?.avgRiskScore || 0, 1))}</div></div>
-      <div class="kv"><div class="k">Trust score</div><div>${esc(formatNumber(analytics?.trustScore || 0, 2))}</div></div>
-      <div class="kv"><div class="k">Last activity</div><div>${esc(formatTimestamp(analytics?.lastActivity || fingerprint?.lastSeen))}</div></div>
-      <div class="kv"><div class="k">Rate last minute</div><div>${esc(formatNumber(rate?.requestsLastMinute || 0))}</div></div>
-      <div class="kv"><div class="k">Rate last hour</div><div>${esc(formatNumber(rate?.requestsLastHour || 0))}</div></div>
-      <div class="kv"><div class="k">Top tools</div><div>${esc(toolList.length ? toolList.map((entry) => `${tupleName(entry)} (${tupleCount(entry)})`).join(', ') : 'No top tools recorded')}</div></div>
-      <div class="kv"><div class="k">Decision mix</div><div>${esc(decisionMap.length ? decisionMap.map(([key, value]) => `${key}:${value}`).join(', ') : 'No decisions recorded')}</div></div>
-      <div class="kv"><div class="k">Flags</div><div>${esc(flags.length ? flags.join(', ') : 'No anomaly flags')}</div></div>
-      ${hourlyPattern.length ? `<div style="margin-top:14px;"><div class="small">Hourly fingerprint activity</div><div class="spark">${hourlyPattern.map((value) => `<div class="spark-bar" style="height:${Math.max(6, (value / maxHourly) * 100)}%" title="${esc(String(value))}"></div>`).join('')}</div></div>` : ''}
-    </div>
-  `;
-}
-
-/* ── Evidence ── */
-
-function renderReceipts() {
-  const meta = $('receipts-meta');
-  const body = $('receipts-body');
-  const r = state.data.receipts;
-  if (!r || !r.enabled) {
-    meta.innerHTML = '<div class="empty">Signed receipts are disabled on this build.</div>';
-    body.innerHTML = '';
-    return;
-  }
-  const signer = esc(r.signerKeyId || '(unknown)');
-  const policyHash = esc((r.policyHash || '').slice(0, 32) + '…');
-  meta.innerHTML = `
-    <div class="kv-row"><span class="kv-key">Signer</span><span class="kv-val mono">${signer}</span></div>
-    <div class="kv-row"><span class="kv-key">Policy hash</span><span class="kv-val mono">${policyHash}</span></div>
-    <div class="kv-row"><span class="kv-key">Authoritative</span><span class="kv-val"><span class="badge review">no · soft enforcement</span></span></div>
-  `;
-  const runs = Array.isArray(r.runs) ? r.runs : [];
-  if (runs.length === 0) {
-    body.innerHTML = '<tr><td colspan="4"><div class="empty">No signed runs yet. Trigger an inspection to mint the first receipt.</div></td></tr>';
-    return;
-  }
-  body.innerHTML = runs.slice(0, 12).map((run) => {
-    const verdict = (run.terminalVerdict || run.terminal_verdict || 'unknown').toString().toLowerCase();
-    const verdictClass = verdict === 'block' ? 'block' : verdict === 'review' ? 'review' : 'allow';
-    const last = run.lastTimestamp || run.last_timestamp || '';
-    const count = run.receiptCount || run.receipt_count || 0;
-    const runId = run.runId || run.run_id || '';
-    return `<tr>
-      <td class="mono">${esc(runId.slice(0, 12))}…</td>
-      <td><span class="badge ${verdictClass}">${esc(verdict)}</span></td>
-      <td class="num">${count}</td>
-      <td class="muted small">${esc(last.slice(0, 19))}</td>
-    </tr>`;
-  }).join('');
-}
-
-function renderTelemetry() {
-  const panel = $('telemetry-panel');
-  const spans = state.data.telemetrySpans || [];
-  const metrics = state.data.telemetryMetrics || [];
-  const recent = spans.slice(-6).reverse();
-  // Receipt-append outcome: signed = a receipt was appended to the chain;
-  // dropped = a governed action produced NO receipt. dropped > 0 means the
-  // audit trail and the signed chain have diverged — surface it loudly.
-  const sumMetric = (needle) =>
-    metrics.filter((m) => m.name && m.name.includes(needle))
-      .reduce((acc, m) => acc + (Number(m.value) || 0), 0);
-  const signed = sumMetric('receipts.signed');
-  const dropped = sumMetric('receipts.dropped');
-  const droppedCell = dropped > 0
-    ? `<span class="badge block">${formatNumber(dropped)} · chain diverged</span>`
-    : formatNumber(dropped);
-  panel.innerHTML = `
-    <div class="kv-row"><span class="kv-key">Receipts signed (recent)</span><span class="kv-val">${formatNumber(signed)}</span></div>
-    <div class="kv-row"><span class="kv-key">Receipts dropped (recent)</span><span class="kv-val">${droppedCell}</span></div>
-    <div class="small muted" style="margin:2px 0 6px;">signed = appended to the signed chain · dropped = governed action with no receipt (audit trail and signed chain diverge). From the in-process telemetry buffer.</div>
-    <div class="kv-row"><span class="kv-key">Spans buffered</span><span class="kv-val">${formatNumber(spans.length)}</span></div>
-    <div class="kv-row"><span class="kv-key">Metrics</span><span class="kv-val">${formatNumber(metrics.length)}</span></div>
-    ${recent.length
-      ? `<div class="list" style="margin-top:8px;">${recent.map((s) => `
-          <div class="list-item">
-            <div class="mono small">${esc(s.name || s.spanName || 'span')}</div>
-            <div class="right small">${esc(((s.attributes && (s.attributes['iaga.policy.verdict'] || s.attributes['receipt.verdict'])) || ''))}</div>
-          </div>`).join('')}</div>`
-      : '<div class="empty">No spans buffered yet.</div>'}
-  `;
-}
-
-/* ── Policy ── */
-
-function renderDictumOverlay() {
-  const panel = $('dictum-overlay-panel');
-  const o = state.data.policyOverlay;
-  if (!o) {
-    panel.innerHTML = '<div class="empty">No data.</div>';
-    return;
-  }
-  if (!o.enabled) {
-    panel.innerHTML = '<div class="empty">Dictum feature not compiled in this build.</div>';
-    return;
-  }
-  if (!o.loaded) {
-    panel.innerHTML = '<div class="empty">No Dictum overlay loaded. Start with <code>iaga serve --policy &lt;file.dictum&gt;</code> to enable.</div>';
-    return;
-  }
-  const hash = esc((o.policyHash || '').slice(0, 32) + '…');
-  panel.innerHTML = `
-    <div class="kv-row"><span class="kv-key">Status</span><span class="kv-val"><span class="badge allow">loaded</span></span></div>
-    <div class="kv-row"><span class="kv-key">Policies</span><span class="kv-val">${o.policyCount}</span></div>
-    <div class="kv-row"><span class="kv-key">Bundle hash</span><span class="kv-val mono">${hash}</span></div>
-    <div class="kv-row"><span class="kv-key">Source</span><span class="kv-val mono small">${esc(o.source || '')}</span></div>
-  `;
-}
-
-function renderWorkspaceOptions() {
-  const select = $('workspace-select');
-  const workspaces = state.data.workspaces || [];
-  if (workspaces.length === 0) {
-    select.innerHTML = '<option value="">No workspaces available</option>';
-    return;
-  }
-
-  select.innerHTML = workspaces
-    .map((workspace) => `<option value="${esc(workspace.workspaceId)}">${esc(workspace.workspaceId)}</option>`)
-    .join('');
-  select.value = state.selectedWorkspaceId;
-}
-
-function renderPolicyPanel() {
-  renderWorkspaceOptions();
-  const container = $('policy-panel');
-  const policy = state.data.policyVerify;
-  if (!state.selectedWorkspaceId) {
-    container.innerHTML = '<div class="empty">No workspace is available for policy verification.</div>';
-    return;
-  }
-
-  if (!policy) {
-    container.innerHTML = '<div class="empty">Policy verification is unavailable for the selected workspace.</div>';
-    return;
-  }
-
-  const issues = Array.isArray(policy.issues) ? policy.issues : [];
-  container.innerHTML = `
-    <div class="detail">
-      <h4>${esc(state.selectedWorkspaceId)}</h4>
-      <div class="kv"><div class="k">Consistent</div><div>${formatDecisionBadge(policy.consistent ? 'allow' : 'block')}</div></div>
-      <div class="kv"><div class="k">Satisfiable</div><div>${formatDecisionBadge(policy.satisfiable ? 'allow' : 'block')}</div></div>
-      <div class="kv"><div class="k">Coverage</div><div>${esc(formatNumber(policy.coverage?.coveragePct || 0, 1))}%</div></div>
-      <div class="kv"><div class="k">Timestamp</div><div>${esc(formatTimestamp(policy.timestamp))}</div></div>
-      ${issues.length ? `<div style="margin-top:14px;"><div class="small" style="margin-bottom:8px;">Policy issues</div><div class="list">${issues.map((issue) => `<div class="list-item"><div>${esc(issue.description || 'Issue')}</div><div class="right">${esc(issue.severity || 'unknown')}</div></div>`).join('')}</div></div>` : '<div class="small" style="margin-top:14px;">No policy issues reported for this workspace.</div>'}
-    </div>
-  `;
-}
-
-async function refreshPolicyFromSelection() {
-  state.selectedWorkspaceId = $('workspace-select').value;
-  await loadPolicyVerification();
-  renderPolicyPanel();
-}
-
-/* ── Runtime ── */
-
-function renderKernel() {
-  const panel = $('kernel-panel');
-  const k = state.data.kernelStatus;
-  if (!k) {
-    panel.innerHTML = '<div class="empty">No data.</div>';
-    return;
-  }
-  if (!k.enabled) {
-    panel.innerHTML = '<div class="empty">Kernel feature not compiled.</div>';
-    return;
-  }
-  const authBadge = k.authoritative ? 'allow' : 'review';
-  const bpfBadge = k.linuxBpfScaffold ? 'allow' : 'neutral';
-  panel.innerHTML = `
-    <div class="kv-row"><span class="kv-key">Backend</span><span class="kv-val"><span class="badge allow">${esc(k.backend)}</span></span></div>
-    <div class="kv-row"><span class="kv-key">Authoritative</span><span class="kv-val"><span class="badge ${authBadge}">${k.authoritative ? 'yes' : 'soft enforcement'}</span></span></div>
-    <div class="kv-row"><span class="kv-key">linux-bpf scaffold</span><span class="kv-val"><span class="badge ${bpfBadge}">${k.linuxBpfScaffold ? 'compiled' : 'not active'}</span></span></div>
-    <div class="hint">Authoritative kernel enforcement (eBPF/LSM) is Enterprise roadmap; receipts record <code>is_authoritative: false</code>.</div>
-  `;
-}
-
-function renderReasoning() {
-  const panel = $('reasoning-panel');
-  const r = state.data.reasoningStatus;
-  if (!r) {
-    panel.innerHTML = '<div class="empty">No data.</div>';
-    return;
-  }
-  if (!r.enabled) {
-    panel.innerHTML = '<div class="empty">Reasoning plane disabled.</div>';
-    return;
-  }
-  const engineBadge = r.engine === 'noop' ? 'neutral' : 'allow';
-  const mlBadge = r.mlFeatureCompiled ? 'allow' : 'neutral';
-  let modelsHtml = '';
-  if (Array.isArray(r.models) && r.models.length > 0) {
-    modelsHtml = r.models.map((m) =>
-      `<div class="kv-row"><span class="kv-key">${esc(m.name)}</span><span class="kv-val mono small">${esc((m.sha256 || '').slice(0, 16))}…</span></div>`
-    ).join('');
-  }
-  panel.innerHTML = `
-    <div class="kv-row"><span class="kv-key">Engine</span><span class="kv-val"><span class="badge ${engineBadge}">${esc(r.engine)}</span></span></div>
-    <div class="kv-row"><span class="kv-key">ML feature compiled</span><span class="kv-val"><span class="badge ${mlBadge}">${r.mlFeatureCompiled ? 'yes' : 'no'}</span></span></div>
-    <div class="kv-row"><span class="kv-key">Models</span><span class="kv-val">${Array.isArray(r.models) ? r.models.length : 0}</span></div>
-    ${modelsHtml || '<div class="small">ML emits evidence, never verdicts; the deterministic policy decides.</div>'}
-  `;
-}
-
-function renderRiskWeights() {
-  const panel = $('risk-weights-panel');
-  const w = state.data.riskWeights;
-  if (!w) {
-    panel.innerHTML = '<div class="empty">Risk weights unavailable.</div>';
-    return;
-  }
-  const entries = ['stat', 'context', 'behavioral', 'temporal', 'reputation']
-    .filter((k) => typeof w[k] === 'number');
-  if (entries.length === 0) {
-    panel.innerHTML = '<div class="empty">Risk weights unavailable.</div>';
-    return;
-  }
-  const max = Math.max(...entries.map((k) => w[k]), 0.0001);
-  panel.innerHTML = entries.map((k) => `
-    <div class="weight-row">
-      <div class="weight-head"><span>${esc(k)}</span><b>${(w[k] * 100).toFixed(1)}%</b></div>
-      <div class="track"><div class="fill" style="width:${Math.max(2, (w[k] / max) * 100)}%"></div></div>
-    </div>
-  `).join('') + '<div class="small" style="margin-top:10px;">Adaptive blend across the five scorers; tune with <span class="mono">POST /v1/risk/feedback</span>.</div>';
-}
-
-function renderFirewall() {
-  const panel = $('firewall-panel');
-  const firewall = state.data.firewall;
-  if (!firewall) {
-    panel.innerHTML = '<div class="empty">Firewall stats unavailable.</div>';
-    return;
-  }
-  panel.innerHTML = `
-    <div class="kv-row"><span class="kv-key">Scanned</span><span class="kv-val">${formatNumber(firewall.totalScanned || 0)}</span></div>
-    <div class="kv-row"><span class="kv-key">Blocked</span><span class="kv-val">${formatNumber(firewall.totalBlocked || 0)}</span></div>
-    <div class="kv-row"><span class="kv-key">Stage catches</span><span class="kv-val mono">${esc([firewall.stage1Catches || 0, firewall.stage2Catches || 0, firewall.stage3Catches || 0].join(' / '))}</span></div>
-    <div class="kv-row"><span class="kv-key">False positives reported</span><span class="kv-val">${formatNumber(firewall.falsePositivesReported || 0)}</span></div>
-  `;
-}
-
-function renderThreat() {
-  const panel = $('threat-panel');
-  const threat = state.data.threat;
-  if (!threat) {
-    panel.innerHTML = '<div class="empty">Threat intel stats unavailable.</div>';
-    return;
-  }
-  const perType = threat.perType ? Object.entries(threat.perType) : [];
-  panel.innerHTML = `
-    <div class="kv-row"><span class="kv-key">Total indicators</span><span class="kv-val">${formatNumber(threat.totalIndicators || 0)}</span></div>
-    <div class="kv-row"><span class="kv-key">Active</span><span class="kv-val">${formatNumber(threat.activeIndicators || 0)}</span></div>
-    ${perType.length
-      ? perType.map(([key, value]) => `<div class="kv-row"><span class="kv-key">${esc(key)}</span><span class="kv-val">${formatNumber(value)}</span></div>`).join('')
-      : '<div class="small">No per-type stats available.</div>'}
-  `;
-}
-
-function renderRateAndTemplates() {
-  const panel = $('rate-panel');
-  const rateConfig = state.data.rateConfig;
-  const templates = state.data.templates;
-  const dlqCount = state.data.dlq.length;
-  const parts = [];
-  if (rateConfig) {
-    parts.push(`<div class="kv-row"><span class="kv-key">Burst limit</span><span class="kv-val">${formatNumber(rateConfig.burstLimit || 0)}</span></div>`);
-    parts.push(`<div class="kv-row"><span class="kv-key">Per minute</span><span class="kv-val">${formatNumber(rateConfig.maxPerMinute || 0)}</span></div>`);
-    parts.push(`<div class="kv-row"><span class="kv-key">Per hour</span><span class="kv-val">${formatNumber(rateConfig.maxPerHour || 0)}</span></div>`);
-  } else {
-    parts.push('<div class="small">Rate-limit config unavailable.</div>');
-  }
-  parts.push(`<div class="kv-row"><span class="kv-key">Policy templates</span><span class="kv-val">${formatNumber((templates && templates.count) || 0)}</span></div>`);
-  parts.push(`<div class="kv-row"><span class="kv-key">Webhook DLQ entries</span><span class="kv-val">${formatNumber(dlqCount)}</span></div>`);
-  panel.innerHTML = parts.join('');
-}
-
-function renderSessions() {
-  const container = $('session-list');
-  const sessions = state.data.sessions || [];
-
-  if (sessions.length === 0) {
-    container.innerHTML = '<div class="empty">No active sessions are currently tracked.</div>';
-    return;
-  }
-
-  container.innerHTML = sessions
-    .slice()
-    .sort((left, right) => (right.nodeCount || 0) - (left.nodeCount || 0))
-    .map((session) => `
-      <div class="list-item">
-        <div>
-          <div style="font-weight:600;">${esc(session.agentId || 'unknown agent')}</div>
-          <div class="small mono">${esc(session.sessionId || '')}</div>
-        </div>
-        <div class="right">
-          <div>${esc(session.state || 'unknown')}</div>
-          <div class="small">nodes ${esc(formatNumber(session.nodeCount || 0))}</div>
-        </div>
-      </div>
-    `)
-    .join('');
-}
-
-function renderHealth() {
-  const panel = $('health-panel');
-  const c = state.context || {};
-  panel.innerHTML = `
-    <div class="kv-row"><span class="kv-key">Service</span><span class="kv-val mono">${esc(c.service || '--')} ${esc(c.version || '')}</span></div>
-    <div class="kv-row"><span class="kv-key">Mode</span><span class="kv-val">${esc(c.mode || '--')}</span></div>
-    <div class="kv-row"><span class="kv-key">Open mode</span><span class="kv-val">${esc(String(c.openMode || false))}</span></div>
-    <div class="kv-row"><span class="kv-key">API keys configured</span><span class="kv-val">${esc(String(c.apiKeysConfigured || false))}</span></div>
-  `;
-}
-
-/* ── Plugins ── */
-
-function renderPlugins() {
-  const meta = $('plugins-meta');
-  const body = $('plugins-body');
-  const errors = $('plugin-errors');
-  const snapshot = state.data.plugins;
-
-  if (!snapshot) {
-    meta.innerHTML = '<div class="empty">Plugin registry unavailable.</div>';
-    body.innerHTML = '';
-    errors.innerHTML = '';
-    return;
-  }
-
-  meta.innerHTML = `
-    <div class="kv-row"><span class="kv-key">Plugin directory</span><span class="kv-val mono">${esc(snapshot.pluginDir || '')}</span></div>
-    <div class="kv-row"><span class="kv-key">Loaded</span><span class="kv-val">${formatNumber(snapshot.loadedCount || 0)}</span></div>
-  `;
-
-  const plugins = Array.isArray(snapshot.plugins) ? snapshot.plugins : [];
-  if (plugins.length === 0) {
-    body.innerHTML = '<tr><td colspan="4"><div class="empty">No WASM plugins discovered. Drop a <code>.wasm</code> file in the plugin directory and reload.</div></td></tr>';
-  } else {
-    body.innerHTML = plugins.map((p) => `
-      <tr>
-        <td>${esc(p.name)}</td>
-        <td class="mono">${esc(p.version)}</td>
-        <td>${p.loaded ? '<span class="badge allow">loaded</span>' : '<span class="badge block">failed</span>'}${p.attestationOfflineVerified ? ' <span class="badge allow">attested</span>' : ''}</td>
-        <td class="mono small">${esc(p.path)}</td>
-      </tr>
-    `).join('');
-  }
-
-  const loadErrors = Array.isArray(snapshot.loadErrors) ? snapshot.loadErrors : [];
-  errors.innerHTML = loadErrors.length
-    ? `<div class="small" style="margin-bottom:8px;">Load errors</div><div class="list">${loadErrors.map((e) => `<div class="list-item"><div class="mono small">${esc(e.path)}</div><div class="right small">${esc(e.error)}</div></div>`).join('')}</div>`
-    : '';
-}
-
-async function reloadPlugins() {
-  $('plugins-reload-button').disabled = true;
-  await fetchJson('/v1/plugins/reload', { method: 'POST' });
+/* ── Init ── */
+async function init(){
+  buildSidebar();wireEvents();renderFeed();route();
+  if(state.token)$('api-token').value=state.token;
+  await loadContext();
   await refreshData();
-  $('plugins-reload-button').disabled = false;
+  startLive();
+  applyRefreshInterval();
 }
-
-/* ── Webhooks ── */
-
-function renderWebhooks() {
-  const container = $('webhook-list');
-  const hooks = state.data.webhooks || [];
-
-  if (hooks.length === 0) {
-    container.innerHTML = '<div class="empty">No webhooks registered. Add an endpoint URL above to receive governance events.</div>';
-    return;
-  }
-
-  container.innerHTML = hooks.map((hook) => `
-    <div class="list-item">
-      <div>
-        <div class="mono" style="font-weight:600;">${esc(hook.url)}</div>
-        <div class="small">${esc(hook.eventFilter && hook.eventFilter.length ? hook.eventFilter.join(', ') : 'all events')} · created ${esc(formatTimestamp(hook.createdAt))}</div>
-      </div>
-      <div class="right">
-        <div>${hook.active ? '<span class="badge allow">active</span>' : '<span class="badge neutral">inactive</span>'}</div>
-        <button type="button" class="btn danger small" style="margin-top:8px;" data-webhook-delete="${esc(hook.id)}">Remove</button>
-      </div>
-    </div>
-  `).join('');
-
-  container.querySelectorAll('[data-webhook-delete]').forEach((button) => {
-    button.addEventListener('click', async () => {
-      button.disabled = true;
-      await fetchJson(`/v1/webhooks/${encodeURIComponent(button.getAttribute('data-webhook-delete'))}`, { method: 'DELETE' });
-      await refreshData();
-    });
-  });
-}
-
-async function createWebhook() {
-  const input = $('webhook-url-input');
-  const url = input.value.trim();
-  if (!url) return;
-  $('webhook-create-button').disabled = true;
-  await fetchJson('/v1/webhooks', { method: 'POST', body: JSON.stringify({ url }) });
-  input.value = '';
-  await refreshData();
-  $('webhook-create-button').disabled = false;
-}
-
-function renderDlq() {
-  const container = $('dlq-list');
-  const entries = state.data.dlq || [];
-
-  if (entries.length === 0) {
-    container.innerHTML = '<div class="empty">Dead letter queue is empty. Failed webhook deliveries land here after retries are exhausted.</div>';
-    return;
-  }
-
-  container.innerHTML = entries.map((entry) => `
-    <div class="queue-item">
-      <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap;">
-        <div style="min-width:0;">
-          <h4 class="mono">${esc(entry.eventType)}</h4>
-          <p class="mono small">${esc(entry.webhookUrl)}</p>
-        </div>
-        <span class="badge block">${esc(formatNumber(entry.attempts))} attempts</span>
-      </div>
-      <div class="small" style="margin-top:8px;">${esc(entry.error)} · failed ${esc(formatTimestamp(entry.failedAt))}</div>
-      <div class="queue-actions">
-        <button type="button" class="btn primary small" data-dlq-retry="${esc(entry.id)}">Retry</button>
-        <button type="button" class="btn danger small" data-dlq-delete="${esc(entry.id)}">Drop</button>
-      </div>
-    </div>
-  `).join('');
-
-  container.querySelectorAll('[data-dlq-retry]').forEach((button) => {
-    button.addEventListener('click', async () => {
-      button.disabled = true;
-      await fetchJson(`/v1/webhooks/dlq/${encodeURIComponent(button.getAttribute('data-dlq-retry'))}/retry`, { method: 'POST' });
-      await refreshData();
-    });
-  });
-  container.querySelectorAll('[data-dlq-delete]').forEach((button) => {
-    button.addEventListener('click', async () => {
-      button.disabled = true;
-      await fetchJson(`/v1/webhooks/dlq/${encodeURIComponent(button.getAttribute('data-dlq-delete'))}`, { method: 'DELETE' });
-      await refreshData();
-    });
-  });
-}
-
-/* ── Identities ── */
-
-function renderIdentities() {
-  const body = $('identities-body');
-  const all = state.data.identities || [];
-  const identities = all.slice(0, 100);
-
-  $('identities-count').textContent = all.length > identities.length
-    ? `Showing 100 of ${all.length} identities`
-    : `${all.length} identities`;
-
-  if (identities.length === 0) {
-    body.innerHTML = '<tr><td colspan="6"><div class="empty">No NHI identities registered. POST to <code>/v1/nhi/identities</code> to register an agent identity.</div></td></tr>';
-    return;
-  }
-
-  body.innerHTML = identities.map((id) => {
-    const status = String(id.attestationStatus || 'unknown').toLowerCase();
-    const tone = status === 'attested' || status === 'verified' ? 'allow' : status === 'pending' ? 'pending' : 'neutral';
-    return `
-      <tr>
-        <td>${esc(id.agentId)}</td>
-        <td class="mono small">${esc(id.spiffeId)}</td>
-        <td><span class="badge ${tone}">${esc(id.attestationStatus || 'unknown')}</span></td>
-        <td class="num">${esc(formatNumber(id.trustScore || 0, 2))}</td>
-        <td class="small">${esc(listOrFallback(id.capabilities || [], 'none'))}</td>
-        <td class="small muted">${esc(formatTimestamp(id.createdAt))}</td>
-      </tr>
-    `;
-  }).join('');
-}
-
-/* ── Live feed (SSE over fetch, so the Bearer header works) ── */
-
-function liveEventLabel(event) {
-  if (!event || !event.type) return { tone: 'neutral', text: 'event' };
-  if (event.type === 'action_governed') {
-    // Surface the *why* of a non-allow verdict: the top signed reason that drove
-    // the decision (the same reason recorded in the receipt).
-    const decision = String(event.decision || '').toLowerCase();
-    const why = decision !== 'allow' && Array.isArray(event.reasons) && event.reasons.length
-      ? ` — ${event.reasons[0]}`
-      : '';
-    return {
-      tone: decision,
-      text: `${event.agent_id} · ${event.tool_name} · risk ${event.risk_score}${why}`
-    };
-  }
-  if (event.type === 'review_created') {
-    return { tone: 'review', text: `review opened · ${event.agent_id} · ${event.tool_name} · risk ${event.risk_score}` };
-  }
-  if (event.type === 'review_resolved') {
-    return { tone: String(event.status) === 'approved' ? 'allow' : 'block', text: `review ${event.status} · ${event.review_id}` };
-  }
-  return { tone: 'neutral', text: event.type };
-}
-
-/* Flatten the advisory object { adaptive:[{name,score}], session:{score},
-   behavioralFingerprint:[] } into dashed "adv …" chips. These are UNSIGNED
-   signals and are never part of the signed verdict. Returns '' when nothing
-   fired, or a leading-space HTML string of chips otherwise. */
-function advisoryChips(advisory) {
-  if (!advisory || typeof advisory !== 'object') return '';
-  const labels = [];
-  if (Array.isArray(advisory.adaptive)) {
-    advisory.adaptive
-      .filter((s) => s && Number(s.score) > 0)
-      .forEach((s) => labels.push(`adv ${s.name} ${s.score}`));
-  }
-  if (advisory.session && Number(advisory.session.score) > 0) {
-    labels.push(`adv session ${advisory.session.score}`);
-  }
-  if (Array.isArray(advisory.behavioralFingerprint) && advisory.behavioralFingerprint.length) {
-    labels.push('adv fingerprint');
-  }
-  if (labels.length === 0) return '';
-  return ' ' + labels
-    .map((c) => `<span class="badge advisory" title="advisory only — NOT in the signed verdict">${esc(c)}</span>`)
-    .join(' ');
-}
-
-function renderLiveFeed() {
-  const feed = $('live-feed');
-  const events = state.live.events;
-  if (events.length === 0) {
-    feed.innerHTML = '<div class="feed-row"><span class="t">--:--:--</span><span class="body muted">Waiting for events. Each governed action will appear here as it happens.</span></div>';
-    return;
-  }
-  feed.innerHTML = events.map((entry) => {
-    const label = liveEventLabel(entry.event);
-    const decision = entry.event && entry.event.decision ? String(entry.event.decision).toLowerCase() : '';
-    const badge = entry.event.type === 'action_governed'
-      ? `<span class="badge ${label.tone || 'neutral'}">${esc(decision || entry.event.type)}</span> `
-      : `<span class="badge ${label.tone}">${esc(entry.event.type.replace('review_', 'review '))}</span> `;
-    // Advisory signals are UNSIGNED (burst/velocity/fingerprint novelty) and are
-    // NOT part of the signed verdict — render them visually distinct ("adv …")
-    // so an operator never mistakes them for the signed decision. The advisory
-    // is an object: { adaptive: [{name,score}], session: {score}, behavioralFingerprint: [] }.
-    const advisoryHtml = advisoryChips(entry.event.advisory);
-    return `<div class="feed-row"><span class="t">${esc(entry.at)}</span><span class="body">${badge}${esc(label.text)}${advisoryHtml}</span></div>`;
-  }).join('');
-}
-
-function setLiveStatus(text, on) {
-  $('live-status').textContent = text;
-  $('live-dot').classList.toggle('on', !!on);
-}
-
-function pushLiveEvent(event) {
-  state.live.events.unshift({ at: new Date().toLocaleTimeString(), event });
-  if (state.live.events.length > FEED_MAX) {
-    state.live.events.length = FEED_MAX;
-  }
-  renderLiveFeed();
-}
-
-async function startLiveFeed() {
-  if (state.live.running || !state.live.enabled) return;
-  state.live.running = true;
-  const abort = new AbortController();
-  state.live.abort = abort;
-
-  while (state.live.enabled && state.connected && !abort.signal.aborted) {
-    try {
-      const headers = new Headers({ Accept: 'text/event-stream' });
-      if (state.token) headers.set('Authorization', `Bearer ${state.token}`);
-      const response = await fetch('/v1/events/stream', { headers, signal: abort.signal });
-      if (!response.ok || !response.body) {
-        setLiveStatus(`Stream unavailable (${response.status}). Retrying…`, false);
-        await new Promise((r) => setTimeout(r, 4000));
-        continue;
-      }
-      setLiveStatus('Streaming live governance events.', true);
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-
-        let sep;
-        while ((sep = buffer.indexOf('\n\n')) !== -1) {
-          const chunk = buffer.slice(0, sep);
-          buffer = buffer.slice(sep + 2);
-          const dataLines = chunk.split('\n')
-            .filter((line) => line.startsWith('data:'))
-            .map((line) => line.slice(5).trim());
-          if (!dataLines.length) continue;
-          try {
-            const event = JSON.parse(dataLines.join('\n'));
-            pushLiveEvent(event);
-          } catch (_) {}
-        }
-      }
-      setLiveStatus('Stream closed. Reconnecting…', false);
-    } catch (error) {
-      if (abort.signal.aborted) break;
-      setLiveStatus('Stream error. Reconnecting…', false);
-      await new Promise((r) => setTimeout(r, 4000));
-    }
-  }
-
-  state.live.running = false;
-  if (!state.live.enabled) setLiveStatus('Stream paused.', false);
-}
-
-function stopLiveFeed() {
-  if (state.live.abort) {
-    state.live.abort.abort();
-    state.live.abort = null;
-  }
-  state.live.running = false;
-}
-
-function toggleLiveFeed() {
-  state.live.enabled = !state.live.enabled;
-  $('live-toggle-button').textContent = state.live.enabled ? 'Pause' : 'Resume';
-  if (state.live.enabled) {
-    if (state.connected) startLiveFeed();
-  } else {
-    stopLiveFeed();
-    setLiveStatus('Stream paused.', false);
-  }
-}
-
-/* ── Section nav highlighting ── */
-
-function wireSectionNav() {
-  const links = Array.from(document.querySelectorAll('#section-nav a'));
-  const byHash = new Map(links.map((a) => [a.getAttribute('href').slice(1), a]));
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach((entry) => {
-      if (!entry.isIntersecting) return;
-      links.forEach((a) => a.classList.remove('active'));
-      const link = byHash.get(entry.target.id);
-      if (link) link.classList.add('active');
-    });
-  }, { rootMargin: '-20% 0px -70% 0px' });
-
-  byHash.forEach((_, id) => {
-    const el = document.getElementById(id);
-    if (el) observer.observe(el);
-  });
-}
-
-/* ── Wiring ── */
-
-function wireEvents() {
-  $('api-token').value = state.token;
-  $('connect-button').addEventListener('click', connectAndRefresh);
-  $('refresh-button').addEventListener('click', refreshData);
-  $('clear-button').addEventListener('click', async () => {
-    state.token = '';
-    $('api-token').value = '';
-    localStorage.removeItem('iaga-sentinel-api-key');
-    stopLiveFeed();
-    await refreshData();
-  });
-  $('api-token').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') connectAndRefresh();
-  });
-
-  $('audit-search').addEventListener('input', renderAudit);
-  $('audit-decision').addEventListener('change', renderAudit);
-  $('export-audit-button').addEventListener('click', exportVisibleAudit);
-  $('workspace-select').addEventListener('change', refreshPolicyFromSelection);
-  $('policy-refresh-button').addEventListener('click', refreshPolicyFromSelection);
-  $('plugins-reload-button').addEventListener('click', reloadPlugins);
-  $('webhook-create-button').addEventListener('click', createWebhook);
-  $('live-toggle-button').addEventListener('click', toggleLiveFeed);
-  $('live-clear-button').addEventListener('click', () => {
-    state.live.events = [];
-    renderLiveFeed();
-  });
-
-  document.querySelectorAll('[data-cost-tab]').forEach((button) => {
-    button.addEventListener('click', () => setCostTab(button.getAttribute('data-cost-tab')));
-  });
-
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && state.connected) refreshData();
-  });
-
-  wireSectionNav();
-  renderLiveFeed();
-}
-
-async function init() {
-  wireEvents();
-  await refreshData();
-  state.refreshTimer = setInterval(() => {
-    if (!document.hidden) refreshData();
-  }, REFRESH_MS);
-}
-
 init();
 </script>
 </body>
