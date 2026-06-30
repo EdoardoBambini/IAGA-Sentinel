@@ -509,11 +509,7 @@ pub async fn execute_pipeline_at(
                     minimum_decision = GovernanceDecision::Review;
                 }
             }
-            GovernanceDecision::Allow => {
-                if minimum_decision == GovernanceDecision::Review {
-                    minimum_decision = GovernanceDecision::Allow;
-                }
-            }
+            GovernanceDecision::Allow => {}
         }
     }
 
