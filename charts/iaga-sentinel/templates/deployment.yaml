@@ -63,8 +63,10 @@ spec:
           env:
             - name: PORT
               value: {{ .Values.service.port | quote }}
+            {{- if not (and .Values.postgres.enabled .Values.postgres.existingSecret) }}
             - name: DATABASE_URL
               value: {{ include "iaga-sentinel.databaseUrl" . | quote }}
+            {{- end }}
             - name: IAGA_SENTINEL_OPEN_MODE
               value: {{ .Values.config.openMode | quote }}
             - name: IAGA_SENTINEL_RECEIPT_CAPTURE
@@ -176,6 +178,12 @@ spec:
             {{- end }}
             - name: keys
               mountPath: /home/iaga/.iaga-sentinel/keys
+            {{- if or .Values.secrets.receiptSignerKey .Values.secrets.existingSecret }}
+            - name: signer-key
+              mountPath: {{ .Values.config.signerKeyPath }}
+              subPath: receipt-signer-key
+              readOnly: true
+            {{- end }}
             {{- if .Values.dictum.enabled }}
             - name: dictum
               mountPath: /app/examples/dictum
@@ -204,7 +212,21 @@ spec:
           configMap:
             name: {{ .Values.policy.existingConfigMap | default (include "iaga-sentinel.fullname" . | printf "%s-config") }}
         - name: keys
+          {{- if .Values.persistence.keys.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.keys.existingClaim | default (printf "%s-keys" (include "iaga-sentinel.fullname" .)) }}
+          {{- else }}
           emptyDir: {}
+          {{- end }}
+        {{- if or .Values.secrets.receiptSignerKey .Values.secrets.existingSecret }}
+        - name: signer-key
+          secret:
+            secretName: {{ .Values.secrets.existingSecret | default (include "iaga-sentinel.fullname" .) }}
+            optional: true
+            items:
+              - key: receipt-signer-key
+                path: receipt-signer-key
+        {{- end }}
         {{- if not .Values.postgres.enabled }}
         {{- if .Values.persistence.enabled }}
         - name: data

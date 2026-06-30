@@ -159,6 +159,17 @@ persistence:
     - ReadWriteOnce
   annotations: {}
   existingClaim: ""
+  # Keys persistence (receipt verification keys).
+  # Ed25519 receipt keys must survive pod restarts to keep previously issued
+  # receipts verifiable.  Change to emptyDir only if you understand the risk.
+  keys:
+    enabled: true
+    size: 100Mi
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    annotations: {}
+    existingClaim: ""
 
 # Postgres configuration (alternative to SQLite)
 postgres:
@@ -172,6 +183,19 @@ networkPolicy:
   enabled: false
   ingressRules: []
   egressRules:
+    # DNS resolution must be allowed for any outbound connectivity
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0

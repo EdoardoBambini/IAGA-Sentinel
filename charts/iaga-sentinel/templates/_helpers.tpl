@@ -42,7 +42,7 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- if .Values.postgres.url }}
 {{- .Values.postgres.url }}
 {{- else }}
-{{- printf "postgres://placeholder" }}
+{{- required "postgres.url or postgres.existingSecret must be set when postgres.enabled is true" nil }}
 {{- end }}
 {{- else }}
 {{- if .Values.config.databaseUrl }}
