@@ -9,8 +9,6 @@
 //! digest of the compiled Dictum bundle in the `policy_hash` field, so
 //! replay distinguishes between Dictum-active and YAML-only runs.
 
-#![cfg(feature = "dictum")]
-
 use std::path::{Path, PathBuf};
 
 use iaga_sentinel_dictum::{
