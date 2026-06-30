@@ -784,16 +784,23 @@ pub async fn execute_pipeline_at(
     }
 
     // 1.5 cost-control: enforce the session budget even without a Dictum policy.
-    // Tightens to Block once the session's prior cumulative spend exceeds the
-    // configured limit (block-next semantics; this action's cost is added after
-    // recording). Stricter-wins: this can only tighten the verdict.
+    // check_and_add does the limit check and the cost increment atomically under
+    // a single write lock, eliminating the TOCTOU between a separate read and a
+    // later add. Stricter-wins: this can only tighten the verdict.
     #[cfg(feature = "cost-control")]
-    if let (Some(spent), Some(limit)) = (cost_session_usd, cost_budget_usd) {
-        if spent > limit {
+    {
+        let spend_key = crate::modules::cost::spend_store::SpendKey::from_request(input);
+        let micros = crate::pipeline::cost::resolve_for_request(input)
+            .as_ref()
+            .map_or(0, |u| u.cost_micros);
+        if !crate::modules::cost::spend_store::check_and_add(&spend_key, cost_budget_usd, micros) {
             decision = GovernanceDecision::Block;
-            reasons.push(format!(
-                "cost: session spend ${spent:.4} exceeds budget ${limit:.4}"
-            ));
+            if let Some(limit) = cost_budget_usd {
+                reasons.push(format!(
+                    "cost: session spend ${:.4} exceeds budget ${limit:.4}",
+                    cost_session_usd.unwrap_or(0.0)
+                ));
+            }
         }
     }
 
@@ -991,14 +998,6 @@ pub async fn execute_pipeline_at(
             },
         )
         .await;
-    }
-
-    // 1.5 cost-control: add this action's cost to the session's cumulative
-    // spend so the next action in the session sees it for budget enforcement.
-    #[cfg(feature = "cost-control")]
-    if let Some(u) = stored.usage.as_ref() {
-        let key = crate::modules::cost::spend_store::SpendKey::from_request(input);
-        crate::modules::cost::spend_store::add(&key, u.cost_micros);
     }
 
     // Create review request if needed
