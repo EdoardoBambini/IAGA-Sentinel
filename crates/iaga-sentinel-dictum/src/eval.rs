@@ -96,11 +96,11 @@ impl EvalBudget {
     }
 
     fn tick(&mut self) -> Result<()> {
-        self.total += 1;
         if self.remaining == 0 {
             return Err(DictumError::BudgetExhausted { steps: self.total });
         }
         self.remaining -= 1;
+        self.total += 1;
         Ok(())
     }
 }
@@ -818,5 +818,19 @@ mod tests {
         assert_eq!(t.policies_evaluated, 2);
         assert!(t.policies_fired.is_empty());
         assert!(!t.eval_errored);
+    }
+
+    #[test]
+    fn budget_exhausted_reports_correct_step_count() {
+        let max = 3u64;
+        let mut budget = EvalBudget::new(max);
+        for _ in 0..max {
+            budget.tick().expect("should not exhaust yet");
+        }
+        let err = budget.tick().expect_err("must exhaust on step max+1");
+        match err {
+            DictumError::BudgetExhausted { steps } => assert_eq!(steps, max),
+            other => panic!("expected BudgetExhausted, got {:?}", other),
+        }
     }
 }
