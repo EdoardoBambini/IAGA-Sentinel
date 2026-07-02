@@ -1003,7 +1003,7 @@ pub async fn execute_pipeline_at(
 
     // Create review request if needed
     if result.decision == GovernanceDecision::Review {
-        let now = Utc::now().to_rfc3339();
+        let now = decision_ts.clone();
         let mut review_reasons = result.policy_findings.clone();
         review_reasons.extend(result.risk.reasons.clone());
 
