@@ -167,7 +167,7 @@ Today, IAGA Sentinel is a source-available project (BUSL-1.1) and research effor
 
 EU-sovereign infrastructure for an EU regulation is a question of who builds it. IAGA Sentinel is built in the EU by a founding team that is European, multilingual, and native to the regulated sectors the AI Act governs. The same "sovereign by construction" thread that runs through the evidence also runs through the team. The claims below are stated as facts, with links to check them: the same posture every receipt carries.
 
-- **William Petteni** (CEO, 20, French). Commercial and strategy. Dual degree in mechanical engineering and computer science, with deep networks across EU regulated sectors.
+- **William Petteni** (CEO, 20, French). Commercial and strategy. Pursuing a dual degree in mechanical engineering and computer science, with deep networks across EU regulated sectors.
 - **Justus Moritz Bohr** (CPO, 19, German). Product and business. Third-time founder, 4+ years in business development; leads product for Annex IV and the regulatory UX.
 - **Edoardo Bambini** (CTO, 21, Italian). Software engineer and independent researcher; author of the AISec 2026 paper; architect of the Rust deterministic governance kernel and the cryptographic proof layer.
 
@@ -238,6 +238,6 @@ bundle or redistribute them — you install each framework's own package separat
 
 ## License
 
-Source available under [**Business Source License 1.1**](LICENSE) with **Change License Apache-2.0**: run, modify, and redistribute freely for internal, research, and production use. The only restriction is reselling IAGA Sentinel itself as a hosted service. Four years after each release is published, that release converts automatically and irrevocably to Apache-2.0; the conversion is written into the license itself.
+Source available under [**Business Source License 1.1**](LICENSE) with **Change License Apache-2.0**: copy, modify, and redistribute freely, and use in production — the one exception is offering IAGA Sentinel, or a substantially similar AI agent governance service derived from it, to third parties as a hosted or managed service (see the Additional Use Grant in the [LICENSE](LICENSE)). Four years after each release is published, that release converts automatically and irrevocably to Apache-2.0; the conversion is written into the license itself.
 
 Repository: <https://github.com/EdoardoBambini/IAGA-Sentinel> · Documentation: <https://www.iaga.tech/docs> · Contact: `info@iaga.tech`
