@@ -386,19 +386,21 @@ pub fn add_tool_call_to_session(
         store.retain(|_, s| now - s.last_activity < *SESSION_TTL_MS);
     }
 
-    let session = store.entry(session_id.to_string()).or_insert_with(|| SessionDAG {
-        session_id: session_id.to_string(),
-        agent_id: agent_id.to_string(),
-        nodes: Vec::new(),
-        edges: Vec::new(),
-        created_at: now_ms(),
-        last_activity: now_ms(),
-        state: FSAState::Idle,
-        blocked: false,
-        block_reason: None,
-        blocked_at: 0,
-        block_count: 0,
-    });
+    let session = store
+        .entry(session_id.to_string())
+        .or_insert_with(|| SessionDAG {
+            session_id: session_id.to_string(),
+            agent_id: agent_id.to_string(),
+            nodes: Vec::new(),
+            edges: Vec::new(),
+            created_at: now_ms(),
+            last_activity: now_ms(),
+            state: FSAState::Idle,
+            blocked: false,
+            block_reason: None,
+            blocked_at: 0,
+            block_count: 0,
+        });
     session.last_activity = now_ms();
 
     // ── Cooldown/decay: blocked sessions can recover after BLOCK_COOLDOWN_MS ──

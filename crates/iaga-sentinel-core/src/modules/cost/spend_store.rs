@@ -73,8 +73,7 @@ pub fn add(key: &SpendKey, micros: u64) {
 /// window between a separate `session_spend_usd` read and a later `add`.
 pub fn check_and_add(key: &SpendKey, limit_usd: Option<f64>, micros: u64) -> bool {
     if let Ok(mut map) = SPEND.write() {
-        let current_usd =
-            iaga_sentinel_cost::micros_to_usd(map.get(key).copied().unwrap_or(0));
+        let current_usd = iaga_sentinel_cost::micros_to_usd(map.get(key).copied().unwrap_or(0));
         if let Some(limit) = limit_usd {
             if current_usd > limit {
                 return false;
