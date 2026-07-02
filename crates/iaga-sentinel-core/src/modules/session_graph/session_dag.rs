@@ -306,42 +306,6 @@ fn now_ms() -> u64 {
         .as_millis() as u64
 }
 
-fn get_or_create_session(session_id: &str, agent_id: &str) -> SessionDAG {
-    let mut store = SESSIONS.lock().unwrap_or_else(|e| e.into_inner());
-
-    if let Some(session) = store.get_mut(session_id) {
-        session.last_activity = now_ms();
-        return session.clone();
-    }
-
-    // Evict stale sessions
-    if store.len() >= *MAX_SESSIONS {
-        let now = now_ms();
-        store.retain(|_, s| now - s.last_activity < *SESSION_TTL_MS);
-    }
-
-    let session = SessionDAG {
-        session_id: session_id.to_string(),
-        agent_id: agent_id.to_string(),
-        nodes: Vec::new(),
-        edges: Vec::new(),
-        created_at: now_ms(),
-        last_activity: now_ms(),
-        state: FSAState::Idle,
-        blocked: false,
-        block_reason: None,
-        blocked_at: 0,
-        block_count: 0,
-    };
-    store.insert(session_id.to_string(), session.clone());
-    session
-}
-
-fn save_session(session: &SessionDAG) {
-    let mut store = SESSIONS.lock().unwrap_or_else(|e| e.into_inner());
-    store.insert(session.session_id.clone(), session.clone());
-}
-
 /// Retrieve a session DAG by ID from the in-memory store.
 pub fn get_session(session_id: &str) -> Option<SessionDAG> {
     let store = SESSIONS.lock().unwrap_or_else(|e| e.into_inner());
@@ -414,7 +378,28 @@ pub fn add_tool_call_to_session(
     action_type: &str,
     taint_labels: HashSet<String>,
 ) -> SessionAnalysisResult {
-    let mut session = get_or_create_session(session_id, agent_id);
+    let mut store = SESSIONS.lock().unwrap_or_else(|e| e.into_inner());
+
+    // Evict stale sessions when at capacity before inserting a new entry.
+    if !store.contains_key(session_id) && store.len() >= *MAX_SESSIONS {
+        let now = now_ms();
+        store.retain(|_, s| now - s.last_activity < *SESSION_TTL_MS);
+    }
+
+    let session = store.entry(session_id.to_string()).or_insert_with(|| SessionDAG {
+        session_id: session_id.to_string(),
+        agent_id: agent_id.to_string(),
+        nodes: Vec::new(),
+        edges: Vec::new(),
+        created_at: now_ms(),
+        last_activity: now_ms(),
+        state: FSAState::Idle,
+        blocked: false,
+        block_reason: None,
+        blocked_at: 0,
+        block_count: 0,
+    });
+    session.last_activity = now_ms();
 
     // ── Cooldown/decay: blocked sessions can recover after BLOCK_COOLDOWN_MS ──
     if session.blocked {
@@ -439,7 +424,7 @@ pub fn add_tool_call_to_session(
                 advisory_score: 0,
                 advisory_reasons: Vec::new(),
                 session_call_count: session.nodes.len() as u32,
-                recent_call_timestamps: collect_recent_timestamps(&session, 16),
+                recent_call_timestamps: collect_recent_timestamps(session, 16),
             };
         }
 
@@ -461,7 +446,7 @@ pub fn add_tool_call_to_session(
                 advisory_score: 0,
                 advisory_reasons: Vec::new(),
                 session_call_count: session.nodes.len() as u32,
-                recent_call_timestamps: collect_recent_timestamps(&session, 16),
+                recent_call_timestamps: collect_recent_timestamps(session, 16),
             };
         }
 
@@ -470,7 +455,6 @@ pub fn add_tool_call_to_session(
         session.blocked = false;
         session.block_reason = None;
         session.state = FSAState::Processing; // restart from Processing, not Idle
-        save_session(&session);
     }
 
     // Create node. DET-SESSION-UUID-1: derive a stable, content-addressed id
@@ -531,7 +515,7 @@ pub fn add_tool_call_to_session(
     session.state = new_state;
 
     // Attack signature matching
-    let attacks = match_attack_signatures(&session);
+    let attacks = match_attack_signatures(session);
 
     if attacks.iter().any(|a| a.severity == "critical") {
         session.blocked = true;
@@ -552,9 +536,7 @@ pub fn add_tool_call_to_session(
     // Anomaly detection: structural signals are signed; block-history + burst
     // are advisory (DET-SESSION-2).
     let (anomaly_score, anomaly_reasons, advisory_score, advisory_reasons) =
-        detect_anomalies(&session);
-
-    save_session(&session);
+        detect_anomalies(session);
 
     SessionAnalysisResult {
         node_id: node.id,
@@ -568,7 +550,7 @@ pub fn add_tool_call_to_session(
         advisory_score,
         advisory_reasons,
         session_call_count: session.nodes.len() as u32,
-        recent_call_timestamps: collect_recent_timestamps(&session, 16),
+        recent_call_timestamps: collect_recent_timestamps(session, 16),
     }
 }
 
