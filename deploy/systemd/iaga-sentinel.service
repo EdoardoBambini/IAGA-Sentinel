@@ -1,0 +1,31 @@
+[Unit]
+Description=IAGA Sentinel governance sidecar
+Documentation=https://github.com/EdoardoBambini/IAGA-Sentinel
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=iaga
+Group=iaga
+# Optional overrides (PORT, IAGA_SENTINEL_SIGNER_KEY_PATH, API keys, ...).
+# See deploy/README.md. The leading "-" makes the file optional.
+EnvironmentFile=-/etc/iaga-sentinel/iaga.env
+Environment=IAGA_SENTINEL_DEFAULT_MODE=sidecar
+Environment=DATABASE_URL=sqlite:///var/lib/iaga-sentinel/iaga_sentinel.db?mode=rwc
+ExecStart=/usr/local/bin/iaga serve
+Restart=on-failure
+RestartSec=5
+
+# systemd creates and owns /var/lib/iaga-sentinel for the service user.
+StateDirectory=iaga-sentinel
+
+# Least-privilege hardening, matching the kernel's honest cooperative posture.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/iaga-sentinel
+
+[Install]
+WantedBy=multi-user.target

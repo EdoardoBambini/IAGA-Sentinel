@@ -374,6 +374,18 @@ enum PolicyCommands {
         #[arg(long)]
         output: Option<String>,
     },
+    /// 1.9 OSS, migrate a legacy YAML/JSON policy config (SentinelConfig) into a
+    /// best-effort Dictum overlay. Only Review/Block tool caps map cleanly;
+    /// agent profiles, roles and allowlists become `// TODO` markers. Review
+    /// the output before loading it with `iaga serve --policy`.
+    Migrate {
+        /// Path to the legacy .yaml/.yml/.json policy config
+        input: String,
+
+        /// Path to write the .dictum overlay. Defaults to `<input>.dictum`.
+        #[arg(long)]
+        output: Option<String>,
+    },
 }
 
 #[cfg(feature = "reasoning")]
@@ -659,6 +671,10 @@ async fn main() {
             }
             PolicyCommands::Check { path } => {
                 let code = cmd_policy_check(&path);
+                process::exit(code);
+            }
+            PolicyCommands::Migrate { input, output } => {
+                let code = cmd_policy_migrate(&input, output.as_deref());
                 process::exit(code);
             }
             PolicyCommands::Compile { path, output } => {
@@ -1359,6 +1375,46 @@ fn cmd_plugins_validate(path: &str, format: &str) {
             process::exit(1);
         }
     }
+}
+
+// ── dictum policy migrate (1.9) ──
+
+#[cfg(feature = "dictum")]
+fn cmd_policy_migrate(input: &str, output: Option<&str>) -> i32 {
+    use iaga_sentinel::core::types::SentinelConfig;
+    use iaga_sentinel::modules::policy::migrate::to_dictum;
+
+    let raw = match std::fs::read_to_string(input) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("policy migrate: cannot read {input}: {e}");
+            return 2;
+        }
+    };
+    let parsed: Result<SentinelConfig, String> =
+        if input.ends_with(".yaml") || input.ends_with(".yml") {
+            serde_yaml::from_str(&raw).map_err(|e| e.to_string())
+        } else {
+            serde_json::from_str(&raw).map_err(|e| e.to_string())
+        };
+    let config = match parsed {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("policy migrate: invalid config: {e}");
+            return 1;
+        }
+    };
+
+    let dictum = to_dictum(&config);
+    let out_path = output
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| format!("{input}.dictum"));
+    if let Err(e) = std::fs::write(&out_path, &dictum) {
+        eprintln!("policy migrate: cannot write {out_path}: {e}");
+        return 3;
+    }
+    println!("MIGRATED  out={out_path}  bytes={}", dictum.len());
+    0
 }
 
 // ── dictum type check + wasm compile (1.2) ──

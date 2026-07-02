@@ -1,0 +1,37 @@
+# IAGA Sentinel reference deployment (docker compose).
+#
+#   docker compose -f deploy/docker-compose.yml up -d
+#   dashboard: http://localhost:4010/
+#
+# The receipt signer is a raw 32-byte Ed25519 seed; without a persisted key the
+# container generates a fresh one each start (chains verify under a new key each
+# run). To pin a stable key (BYOK) uncomment the IAGA_SENTINEL_SIGNER_KEY_PATH
+# env and the ./keys mount, and put a 32-byte seed at deploy/keys/signing.key
+# (`openssl rand 32 > deploy/keys/signing.key`). See deploy/README.md.
+services:
+  iaga-sentinel:
+    image: ghcr.io/edoardobambini/iaga-sentinel:latest
+    command: ["serve"]
+    ports:
+      - "4010:4010"
+    environment:
+      PORT: "4010"
+      # IAGA Sentinel is an advisory sidecar, not a gateway.
+      IAGA_SENTINEL_DEFAULT_MODE: sidecar
+      DATABASE_URL: "sqlite:///app/data/iaga_sentinel.db?mode=rwc"
+      # BYOK: mint receipts under your own Ed25519 key (see note above).
+      # IAGA_SENTINEL_SIGNER_KEY_PATH: /keys/signing.key
+      # Keyless local demo only — provision API keys with `iaga gen-key` in prod.
+      # IAGA_SENTINEL_OPEN_MODE: "true"
+    volumes:
+      - iaga-data:/app/data
+      # - ./keys:/keys:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4010/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  iaga-data:

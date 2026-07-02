@@ -21,3 +21,29 @@ All produce the same `CHAIN OK … seq=0..N …` line and the same exit codes
 floating-point values (e.g. `ml_scores`) is the one shape the dependency-free
 re-serializers refuse rather than risk a divergent verdict; use the Rust
 verifier for those.
+
+## Conformance suite (1.9)
+
+`manifest.json` turns this directory into a runnable badge: a verifier "passes
+the IAGA receipt suite" when it agrees with every vector's expected outcome.
+
+| vector | expect | what it proves |
+| --- | --- | --- |
+| `golden_chain.json` | `ok` | a genuine 4-receipt chain verifies against the pinned key |
+| `tampered_chain.json` | `broken` | flipping a single signature byte is caught (negative test) |
+| `empty_chain.json` | `empty` | an empty export is reported as empty, not silently "valid" |
+
+`expect` is `ok` (valid), `broken` (a signature or Merkle link fails), or
+`empty` (no receipts); `key` is the hex Ed25519 public key each vector is pinned
+to. Run the whole corpus with the canonical verifier:
+
+```sh
+cargo run -p iaga-sentinel-verify --bin iaga-verify -- --conformance sdks/conformance/
+# -> PASS golden_chain.json ok / PASS tampered_chain.json broken / ...
+#    CONFORMANCE OK  3/3 vectors passed   (exit 0)
+```
+
+It prints `PASS`/`FAIL` per vector and exits non-zero if any vector disagrees,
+so it drops straight into CI. To add a vector, drop a new `<name>.json` export
+here and add a line to `manifest.json`; negative (`broken`) vectors are as
+valuable as positive ones.

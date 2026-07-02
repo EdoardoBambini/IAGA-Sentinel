@@ -79,7 +79,7 @@ curl -s -X POST http://localhost:4010/v1/inspect -H 'Content-Type: application/j
 The receipt chain verifies with no server, no database and no network, using the standalone `iaga-verify` binary. That binary isn't in the Docker image, so install the CLI (still no clone) and run the same flow locally:
 
 ```bash
-cargo install --git https://github.com/EdoardoBambini/IAGA-Sentinel --tag v1.8.1 --locked \
+cargo install --git https://github.com/EdoardoBambini/IAGA-Sentinel --tag v1.9.0 --locked \
   iaga-sentinel-core iaga-sentinel-verify
 IAGA_SENTINEL_OPEN_MODE=true iaga serve --seed-demo     # then POST /v1/inspect as above
 ```
@@ -90,11 +90,13 @@ iaga replay <run_id> --export chain.json
 iaga-verify chain.json                      # -> CHAIN OK
 ```
 
-Postgres (`--features postgres` + `DATABASE_URL`) and `docker compose up -d` are covered in the docs.
+From a checkout, `iaga-verify --conformance sdks/conformance/` runs the receipt conformance suite (a genuine chain, a tampered one that must fail, and an empty one) and prints `CONFORMANCE OK  3/3 vectors passed` — the badge any independent verifier can reproduce.
+
+Postgres (`--features postgres` + `DATABASE_URL`) and copy-paste production wiring (docker compose, systemd, Helm) are in [`deploy/`](deploy/).
 
 ---
 
-## Test me now (1.8.1)
+## Test me now (1.9.0)
 
 Do not take our word for it. The repository ships a self-contained demo kit that drives three real verdicts through the live pipeline and proves the receipt offline, on your own machine. Nothing is faked, and you get the same verdicts every run. Two scripts under [`scripts/`](scripts/) and a runbook in [`docs/demo/README.md`](docs/demo/README.md). The primary path is Windows PowerShell; Linux and macOS use the `.sh` twins.
 
@@ -167,7 +169,7 @@ Today, IAGA Sentinel is a source-available project (BUSL-1.1) and research effor
 
 EU-sovereign infrastructure for an EU regulation is a question of who builds it. IAGA Sentinel is built in the EU by a founding team that is European, multilingual, and native to the regulated sectors the AI Act governs. The same "sovereign by construction" thread that runs through the evidence also runs through the team. The claims below are stated as facts, with links to check them: the same posture every receipt carries.
 
-- **William Petteni** (CEO, 20, French). Commercial and strategy. Dual degree in mechanical engineering and computer science, with deep networks across EU regulated sectors.
+- **William Petteni** (CEO, 20, French). Commercial and strategy. Pursuing a dual degree in mechanical engineering and computer science, with deep networks across EU regulated sectors.
 - **Justus Moritz Bohr** (CPO, 19, German). Product and business. Third-time founder, 4+ years in business development; leads product for Annex IV and the regulatory UX.
 - **Edoardo Bambini** (CTO, 21, Italian). Software engineer and independent researcher; author of the AISec 2026 paper; architect of the Rust deterministic governance kernel and the cryptographic proof layer.
 
@@ -191,6 +193,9 @@ Research-validated, not marketing-validated.
 ## Status
 
 > [!NOTE]
+> **New in 1.9.0: trust the binary, verify anywhere, extend safely.** Five OSS additions, all boundary-safe (nothing crosses into Enterprise) and receipt-byte-identical. **WASM plugins are now resource-bounded** — wasmtime fuel metering plus a linear-memory cap, so a runaway or greedy plugin traps and is dropped as an advisory failure instead of hanging or OOM-ing the host ([ADR 0024](docs/adr/0024-plugin-sandbox-limits.md)). **`iaga policy migrate`** turns a legacy YAML policy config into a Dictum overlay (best-effort, with `// TODO` markers for what needs manual review). **`iaga-verify --conformance`** runs a documented vector corpus ([`sdks/conformance/`](sdks/conformance/), including tampered and empty negatives) so "passes the IAGA receipt suite" is a badge. Release binaries are now **built for Linux/macOS/Windows and signed** (cosign + SLSA build provenance + SHA256 checksums; verify-time Rekor stays Enterprise). And [`deploy/`](deploy/) ships copy-paste **docker compose, systemd, and Helm** reference deployments. See the [CHANGELOG](CHANGELOG.md).
+
+> [!NOTE]
 > **New in 1.8.0: stronger userspace confinement + reverse-shell detection.** `iaga run` now confines an allowed child directly — `setsid`, no core dumps (`RLIMIT_CORE=0`), no privilege escalation (`PR_SET_NO_NEW_PRIVS` on Linux), reaped with its parent — and the threat-intel layer flags reverse shells (netcat `-e`/`-c`, `bash`/`/dev/tcp`, `socat EXEC`) and recursive `chmod 777` as critical. Enforcement stays **cooperative / userspace**: kernel eBPF/LSM confinement remains Enterprise, `iaga kernel status` reports the posture honestly, and every receipt still carries `is_authoritative: false`. The default build and receipt bytes are unchanged from 1.7.2. See the [CHANGELOG](CHANGELOG.md).
 
 > [!NOTE]
@@ -208,7 +213,7 @@ Research-validated, not marketing-validated.
 > [!NOTE]
 > **New in 1.5.4: the policy language now enforces what it promised.** The Dictum `secret_ref()` builtin actually detects credentials and PII inside a tool payload (it was a placeholder that always returned false), and a new `url_host()` builtin gives a policy a real per-host egress allowlist that also defeats look-alike-domain bypasses. Three core fixes ship alongside: the workspace egress allowlist is URL-aware, so a full URL to an allowed host is no longer over-blocked; every `block` or `review` now carries its cause in the audit event and the signed receipt, with no silent escalation; and signed receipts hash-chain across a session, so a multi-step run forms one tamper-evident Merkle chain. See [ADR 0023](docs/adr/0023-dictum-secret-detection-host-egress.md) and the [CHANGELOG](CHANGELOG.md).
 
-Current release: **1.8.0** ([release notes](CHANGELOG.md)). CI runs the full workspace test suite (default and `--all-features`), live-Postgres receipt tests, SDK end-to-end smokes against a real sidecar, and clippy with `-D warnings`. All green from a clean checkout.
+Current release: **1.9.0** ([release notes](CHANGELOG.md)). CI runs the full workspace test suite (default and `--all-features`), the receipt conformance suite, live-Postgres receipt tests, SDK end-to-end smokes against a real sidecar, and clippy with `-D warnings`. All green from a clean checkout.
 
 ---
 
@@ -238,6 +243,6 @@ bundle or redistribute them — you install each framework's own package separat
 
 ## License
 
-Source available under [**Business Source License 1.1**](LICENSE) with **Change License Apache-2.0**: run, modify, and redistribute freely for internal, research, and production use. The only restriction is reselling IAGA Sentinel itself as a hosted service. Four years after each release is published, that release converts automatically and irrevocably to Apache-2.0; the conversion is written into the license itself.
+Source available under [**Business Source License 1.1**](LICENSE) with **Change License Apache-2.0**: copy, modify, and redistribute freely, and use in production — the one exception is offering IAGA Sentinel, or a substantially similar AI agent governance service derived from it, to third parties as a hosted or managed service (see the Additional Use Grant in the [LICENSE](LICENSE)). Four years after each release is published, that release converts automatically and irrevocably to Apache-2.0; the conversion is written into the license itself.
 
 Repository: <https://github.com/EdoardoBambini/IAGA-Sentinel> · Documentation: <https://www.iaga.tech/docs> · Contact: `info@iaga.tech`

@@ -280,6 +280,9 @@ jobs:
           ./target/release/iaga policy lint crates/iaga-sentinel-dictum/examples/no_pii_egress.dictum
           ./target/release/iaga policy test crates/iaga-sentinel-dictum/examples/no_pii_egress.dictum --context crates/iaga-sentinel-dictum/examples/sample_context.json
 
+      - name: Receipt conformance suite (1.9 badge)
+        run: ./target/release/iaga-verify --conformance sdks/conformance/
+
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
@@ -331,3 +334,75 @@ jobs:
         with:
           files: iaga-sentinel
           generate_release_notes: true
+
+  # 1.9: signed, cross-platform release artifacts. Build-time cosign signing +
+  # SLSA build provenance make the binary that mints receipts itself verifiable.
+  # Note: this only *produces* provenance/signatures for the release archives.
+  # Verify-time Rekor inclusion-proof verification and qualified/eIDAS signing
+  # remain Enterprise (ADR 0010 / ADR 0013); the OSS boundary is unchanged.
+  release-artifacts:
+    name: Release artifacts (${{ matrix.target.os }})
+    needs: release
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write      # upload release assets
+      id-token: write      # cosign keyless + provenance OIDC
+      attestations: write  # attest-build-provenance
+    runs-on: ${{ matrix.target.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - { os: linux,   runner: ubuntu-latest,  ext: "",     archive: tar.gz }
+          - { os: macos,   runner: macos-latest,   ext: "",     archive: tar.gz }
+          - { os: windows, runner: windows-latest, ext: ".exe", archive: zip }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build release binaries
+        run: cargo build --release --workspace --bins
+
+      - name: Stage + archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          ext="${{ matrix.target.ext }}"
+          cp "target/release/iaga${ext}" "dist/iaga${ext}"
+          cp "target/release/iaga-verify${ext}" "dist/iaga-verify${ext}"
+          cd dist
+          pkg="iaga-sentinel-${GITHUB_REF_NAME}-${{ matrix.target.os }}"
+          if [ "${{ matrix.target.archive }}" = "zip" ]; then
+            7z a "${pkg}.zip" "iaga${ext}" "iaga-verify${ext}"
+            asset="${pkg}.zip"
+          else
+            tar czf "${pkg}.tar.gz" "iaga${ext}" "iaga-verify${ext}"
+            asset="${pkg}.tar.gz"
+          fi
+          # Portable checksum: sha256sum on Linux, shasum on macOS.
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "$asset" > "${asset}.sha256"
+          else
+            shasum -a 256 "$asset" > "${asset}.sha256"
+          fi
+          echo "ASSET=dist/${asset}" >> "$GITHUB_ENV"
+
+      - uses: sigstore/cosign-installer@v3
+
+      - name: Sign archive (cosign keyless)
+        shell: bash
+        run: cosign sign-blob --yes --bundle "${ASSET}.cosign.bundle" "${ASSET}"
+
+      - name: Attest SLSA build provenance
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: ${{ env.ASSET }}
+
+      - name: Upload signed artifacts to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ env.ASSET }}
+            ${{ env.ASSET }}.sha256
+            ${{ env.ASSET }}.cosign.bundle

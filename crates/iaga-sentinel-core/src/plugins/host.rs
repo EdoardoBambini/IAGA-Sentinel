@@ -44,7 +44,7 @@ impl LoadedPlugin {
 
         #[cfg(feature = "plugins")]
         {
-            let engine = wasmtime::Engine::default();
+            let engine = sandbox_engine()?;
             let module = wasmtime::Module::from_file(&engine, path)
                 .map_err(|e| format!("failed to load WASM module '{}': {}", path_str, e))?;
 
@@ -134,6 +134,67 @@ impl LoadedPlugin {
 
 // ── Wasmtime internals (only compiled with plugins feature) ──
 
+// ── Sandbox resource limits ──
+//
+// ponytail: bound guest execution with fuel metering (deterministic,
+// single-threaded, no timer/epoch thread) plus a linear-memory cap. A runaway
+// plugin (infinite loop → fuel exhausted, or over-allocation → memory cap)
+// simply traps; the trap surfaces as `Err` from the call and is dropped as an
+// ordinary plugin failure (see `registry::evaluate`), so the host survives and
+// the verdict is computed from the plugins that succeeded. Fuel is consumed
+// deterministically per input, so a plugin either always completes or always
+// traps for a given request — verdicts stay replay-reproducible and the
+// receipt's `plugin_digests` (module load hash) are untouched.
+
+#[cfg(feature = "plugins")]
+fn env_usize(key: &str, default: usize) -> usize {
+    std::env::var(key)
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(default)
+}
+
+#[cfg(feature = "plugins")]
+fn env_u64(key: &str, default: u64) -> u64 {
+    std::env::var(key)
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(default)
+}
+
+/// A wasmtime engine with fuel metering enabled so guest execution is bounded.
+#[cfg(feature = "plugins")]
+fn sandbox_engine() -> Result<wasmtime::Engine, String> {
+    let mut config = wasmtime::Config::new();
+    config.consume_fuel(true);
+    wasmtime::Engine::new(&config).map_err(|e| format!("plugin engine config failed: {e}"))
+}
+
+/// Per-store resource caps. `memory_size` is the cap that matters for host
+/// safety; ponytail: leave the instance/table budgets at wasmtime defaults
+/// rather than risk rejecting a legitimate plugin that uses an indirect-call
+/// table. Tunable via `IAGA_SENTINEL_PLUGIN_MEMORY_MB` (default 64).
+#[cfg(feature = "plugins")]
+fn plugin_limits() -> wasmtime::StoreLimits {
+    let mem_mb = env_usize("IAGA_SENTINEL_PLUGIN_MEMORY_MB", 64);
+    wasmtime::StoreLimitsBuilder::new()
+        .memory_size(mem_mb * 1024 * 1024)
+        .build()
+}
+
+/// A fuel-metered store with resource limits applied. `set_fuel` bounds total
+/// guest instructions per call; exhaustion traps, surfacing as a plugin error.
+/// Tunable via `IAGA_SENTINEL_PLUGIN_FUEL` (default 100M).
+#[cfg(feature = "plugins")]
+fn new_store(engine: &wasmtime::Engine) -> Result<wasmtime::Store<wasmtime::StoreLimits>, String> {
+    let mut store = wasmtime::Store::new(engine, plugin_limits());
+    store.limiter(|limits| limits);
+    store
+        .set_fuel(env_u64("IAGA_SENTINEL_PLUGIN_FUEL", 100_000_000))
+        .map_err(|e| format!("plugin fuel init failed: {e}"))?;
+    Ok(store)
+}
+
 #[cfg(feature = "plugins")]
 fn extract_metadata(
     engine: &wasmtime::Engine,
@@ -141,7 +202,7 @@ fn extract_metadata(
 ) -> Result<(String, String), String> {
     use wasmtime::*;
 
-    let mut store = Store::new(engine, ());
+    let mut store = new_store(engine)?;
     let linker = Linker::new(engine);
     let instance = linker
         .instantiate(&mut store, module)
@@ -155,7 +216,7 @@ fn extract_metadata(
 
 #[cfg(feature = "plugins")]
 fn call_string_export(
-    store: &mut wasmtime::Store<()>,
+    store: &mut wasmtime::Store<wasmtime::StoreLimits>,
     instance: &wasmtime::Instance,
     export_name: &str,
 ) -> Result<String, String> {
@@ -192,7 +253,7 @@ fn call_on_inspect(
 ) -> Result<String, String> {
     use wasmtime::*;
 
-    let mut store = Store::new(engine, ());
+    let mut store = new_store(engine)?;
     let linker = Linker::new(engine);
     let instance = linker
         .instantiate(&mut store, module)

@@ -15,6 +15,55 @@ early-access list.
 
 ---
 
+## [1.9.0], 2026-07-01
+
+**Trust the binary, verify anywhere, extend safely.** Five OSS pillars that
+close honesty gaps the project's own docs already flagged, without crossing the
+OSS↔Enterprise boundary (ADR 0010). The governance kernel is unchanged and
+signed-receipt bytes stay byte-identical — replay and the golden vectors are
+untouched.
+
+### Added
+
+- **WASM plugin sandbox hardening** (ADR 0024): the plugin host now runs each
+  guest with wasmtime **fuel metering** and a **linear-memory cap**, so an
+  untrusted plugin that infinite-loops or over-allocates traps instead of
+  hanging or OOM-ing the host. The trap surfaces as an ordinary plugin failure
+  (dropped from the evidence set, recorded in errors), so the verdict is still
+  computed from the plugins that succeeded. Fuel is consumed deterministically,
+  so verdicts stay replay-reproducible and `plugin_digests` are unchanged.
+  Tunable via `IAGA_SENTINEL_PLUGIN_FUEL` (default 100M) and
+  `IAGA_SENTINEL_PLUGIN_MEMORY_MB` (default 64).
+- **`iaga policy migrate`**: best-effort migration of a legacy YAML/JSON policy
+  config (`SentinelConfig`) into a Dictum overlay. Review/Block tool caps map to
+  stricter-wins Dictum policies; agent profiles, roles and allowlists (not
+  expressible in the overlay context) are surfaced as `// TODO: manual review`
+  markers. Closes long-open ADR 0008 debt. The output parses and type-checks
+  with `iaga policy check`.
+- **Receipt conformance suite** (`iaga-verify --conformance <dir>`): runs every
+  vector in `sdks/conformance/manifest.json` through the same `verify_export`
+  the runtime uses and prints PASS/FAIL per vector, so "passes the IAGA receipt
+  suite" is a badge. Ships positive (`ok`), negative (`broken`, a flipped
+  signature byte) and `empty` vectors; wired into CI. No wire change.
+- **Signed, cross-platform release artifacts** (CI): release binaries for
+  Linux, macOS and Windows, each packaged with SHA256 checksums, a **cosign**
+  keyless signature bundle, and **SLSA build provenance**
+  (`actions/attest-build-provenance`). This makes the binary that mints receipts
+  itself verifiable. Note: this only *produces* provenance/signatures; verify-time
+  Rekor inclusion-proof verification and qualified/eIDAS signing remain
+  Enterprise (ADR 0010 / ADR 0013).
+- **Reference deployments** under `deploy/`: a `docker-compose.yml`, a hardened
+  `systemd` unit, and a minimal Helm chart — copy-paste production wiring. All
+  default to **sidecar** mode (IAGA Sentinel is an advisory layer, not a
+  gateway) and document BYOK signing and persistence.
+
+### Changed
+
+- Plugin execution is now resource-bounded by default under the `plugins`
+  feature. Legitimate plugins are unaffected; the caps only bite runaway guests.
+
+---
+
 ## [1.8.1], 2026-06-28
 
 A **rebuilt Operator Console** and **cost visibility on by default**. The

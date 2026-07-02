@@ -93,7 +93,11 @@ as `pluginResults`.
 ### Plugin Evaluation
 
 - feature-gated behind `--features plugins`
-- loads `.wasm` plugins through `wasmtime`
+- loads `.wasm` plugins through `wasmtime` (memory-isolated: no host functions, no WASI)
+- resource-bounded per guest call: wasmtime fuel metering + a linear-memory cap
+  (`IAGA_SENTINEL_PLUGIN_FUEL` / `IAGA_SENTINEL_PLUGIN_MEMORY_MB`), so a runaway
+  plugin traps and is dropped as an advisory failure instead of hanging the host
+  (ADR 0024)
 - evaluates plugins through `PluginRegistry` and `PluginHost`
 - surfaces registry state via `/v1/plugins` and `/v1/plugins/reload`
 

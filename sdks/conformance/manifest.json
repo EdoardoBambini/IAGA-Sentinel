@@ -1,0 +1,19 @@
+{
+  "vectors": [
+    {
+      "file": "golden_chain.json",
+      "expect": "ok",
+      "key": "ea4a6c63e29c520abef5507b132ec5f9954776aebebe7b92421eea691446d22c"
+    },
+    {
+      "file": "tampered_chain.json",
+      "expect": "broken",
+      "key": "ea4a6c63e29c520abef5507b132ec5f9954776aebebe7b92421eea691446d22c"
+    },
+    {
+      "file": "empty_chain.json",
+      "expect": "empty",
+      "key": "ea4a6c63e29c520abef5507b132ec5f9954776aebebe7b92421eea691446d22c"
+    }
+  ]
+}

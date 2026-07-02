@@ -170,9 +170,11 @@ fn permissive_dev() -> PolicyTemplate {
 fn compliance_hipaa() -> PolicyTemplate {
     PolicyTemplate {
         template_id: "compliance-hipaa".into(),
-        name: "HIPAA Compliance".into(),
+        name: "HIPAA-aligned starting policy".into(),
         description:
-            "Healthcare compliance: block PII egress, audit everything, restrict data access."
+            "Starting policy for healthcare workflows: blocks email egress, reviews network \
+             and database access, blocks shell execution. A starting point only; does not \
+             by itself satisfy HIPAA obligations."
                 .into(),
         category: "compliance".into(),
         builtin: true,
@@ -245,8 +247,11 @@ fn compliance_hipaa() -> PolicyTemplate {
 fn compliance_soc2() -> PolicyTemplate {
     PolicyTemplate {
         template_id: "compliance-soc2".into(),
-        name: "SOC 2 Compliance".into(),
-        description: "Enterprise: review all writes, enforce encryption checks, restrict shell to business hours.".into(),
+        name: "SOC 2-aligned starting policy".into(),
+        description: "Starting policy aligned with common SOC 2 change-management controls: \
+            reviews all writes, restricts shell execution to business hours. A starting point \
+            only; not a SOC 2 attestation."
+            .into(),
         category: "compliance".into(),
         builtin: true,
         workspace: WorkspacePolicy {
